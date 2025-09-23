@@ -126,7 +126,7 @@ func registerCollectorFlags() []cli.Flag {
 		&cli.DurationFlag{
 			Name:     "collector.cache-ttl",
 			Usage:    "Cache TTL for collector metrics",
-			Value:    config.DefaultCacheTTL,
+			Value:    config.DefaultCollectorCacheTTL,
 			Category: "* Collector Wide Options",
 		},
 	}

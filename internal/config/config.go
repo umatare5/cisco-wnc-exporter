@@ -14,14 +14,14 @@ import (
 
 // Default configuration constants.
 const (
-	DefaultListenAddress = "0.0.0.0"
-	DefaultListenPort    = 10040
-	DefaultTelemetryPath = "/metrics"
-	DefaultWNCTimeout    = 55 * time.Second
-	DefaultWNCCacheTTL   = 55 * time.Second
-	DefaultCacheTTL      = 30 * time.Minute
-	DefaultLogLevel      = "info"
-	DefaultLogFormat     = "json"
+	DefaultListenAddress     = "0.0.0.0"
+	DefaultListenPort        = 10040
+	DefaultTelemetryPath     = "/metrics"
+	DefaultWNCTimeout        = 55 * time.Second
+	DefaultWNCCacheTTL       = 55 * time.Second
+	DefaultCollectorCacheTTL = 30 * time.Minute
+	DefaultLogLevel          = "info"
+	DefaultLogFormat         = "json"
 
 	// Info-labels default values.
 	DefaultAPInfoLabels     = "name,ip"
@@ -44,7 +44,6 @@ type Config struct {
 	Web               Web               `json:"web"`
 	WNC               WNC               `json:"wnc"`
 	Collectors        Collectors        `json:"collectors"`
-	CacheTTL          time.Duration     `json:"cache_ttl"`
 	Log               Log               `json:"log"`
 	InternalCollector InternalCollector `json:"internal_collector"`
 	DryRun            bool              `json:"dry_run"`
@@ -68,9 +67,10 @@ type WNC struct {
 
 // Collectors holds collector module configuration.
 type Collectors struct {
-	AP     CollectorModules `json:"ap"`
-	Client CollectorModules `json:"client"`
-	WLAN   CollectorModules `json:"wlan"`
+	AP       CollectorModules `json:"ap"`
+	Client   CollectorModules `json:"client"`
+	WLAN     CollectorModules `json:"wlan"`
+	CacheTTL time.Duration    `json:"cache_ttl"`
 }
 
 // CollectorModules represents a set of collector modules.
@@ -151,8 +151,8 @@ func Parse(cmd *cli.Command) (*Config, error) {
 				Security:   cmd.Bool("collector.wlan.security"),
 				Networking: cmd.Bool("collector.wlan.networking"),
 			},
+			CacheTTL: cmd.Duration("collector.cache-ttl"),
 		},
-		CacheTTL: cmd.Duration("collector.cache-ttl"),
 		Log: Log{
 			Level:  cmd.String("log.level"),
 			Format: cmd.String("log.format"),
@@ -194,7 +194,7 @@ func (c *Config) Validate() error {
 			c.WNC.CacheTTL <= 0, fmt.Sprintf("WNC cache TTL must be positive, got: %v", c.WNC.CacheTTL),
 		},
 		{
-			c.CacheTTL <= 0, fmt.Sprintf("cache TTL must be positive, got: %v", c.CacheTTL),
+			c.Collectors.CacheTTL <= 0, fmt.Sprintf("collector cache TTL must be positive, got: %v", c.Collectors.CacheTTL),
 		},
 		{
 			c.Web.TelemetryPath == "", "telemetry path cannot be empty",
