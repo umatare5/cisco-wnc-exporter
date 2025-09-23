@@ -49,7 +49,7 @@ docker run -p 10040:10040 -e WNC_HOST -e WNC_TOKEN ghcr.io/umatare5/cisco-wnc-ex
 
 ```bash
 NAME:
-   cisco-wnc-exporter - cisco-wnc-exporter - Prometheus exporter for Cisco WNC
+   cisco-wnc-exporter - Prometheus exporter for Cisco WNC
 
 USAGE:
    cisco-wnc-exporter [global options]
