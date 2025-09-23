@@ -62,7 +62,7 @@ type dataFetcher struct {
 func NewDataSource(cfg config.WNC) DataSource {
 	return &dataSource{
 		client: createWNCClient(cfg),
-		cache:  cache.New[*WNCDataCache](cfg.CacheTTL, "WNC data cache"),
+		cache:  cache.New[*WNCDataCache](cfg.CacheTTL, "WNC API data cache"),
 	}
 }
 
