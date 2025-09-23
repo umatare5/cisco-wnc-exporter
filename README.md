@@ -21,7 +21,7 @@
 
 ## Overview
 
-This exporter allows a Prometheus to scrape metrics from [Cisco Catalyst 9800 Wireless Network Controller](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
+This exporter allows a prometheus instance to scrape metrics from [Cisco C9800 Wireless Network Controller](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
 - 🔧 **Leverages RESTCONF** for more flexibility than traditional SNMP monitoring
 - 🛡️ **Monitors config drift** to detect parameter changes and prevent modifications
