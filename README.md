@@ -138,15 +138,21 @@ All collectors have multiple modules to allow fine-grained control over which me
 
 > [!Important]
 >
-> All collectors are **disabled by default** to minimize load on both Prometheus and Cisco C9800 WNC. Cisco C9800 WNC typically manage hundreds or thousands of APs and clients, making selective monitoring essential for both Prometheus and Cisco C9800 WNC performance and stability. Addition to that:
+> All collectors are **disabled by default** to minimize load on both Prometheus and Cisco C9800 WNC. Cisco C9800 WNC typically manage hundreds or thousands of APs and clients, making selective monitoring essential for both Prometheus and Cisco C9800 WNC performance and stability.
 >
-> - All WNC API calls execute **sequentially** to minimize concurrent load on the controller
-> - API responses cache for **55 seconds** to reduce repeated requests from multiple Prometheus
->   - Cache TTL optimizes for standard Prometheus scrape and AP metrics reporting intervals (60s)
->   - Use `--wnc.cache-ttl` flag to adjust cache TTL (default: 55s)
-> - **Info metrics cache for 1800 seconds** to mitigate cardinality explosion from client roaming
->   - Wireless clients frequently roam between access points, causing `ap` label values to change
->   - Use `--collector.cache-ttl` flag to adjust info cache TTL (default: 1800s)
+> **For the Cisco C9800 WNC:**
+>
+> - **WNC API responses cache for 55 seconds**
+>   - Cache TTL optimizes for both Prometheus scrape interval and AP metrics reporting interval
+>   - Use `--wnc.cache-ttl` flag to adjust this cache TTL
+>
+> **For the Prometheus:**
+>
+> - **Info metrics cache for 1800 seconds**
+>   - Wireless clients frequently roam between access points, causing `ap` label values to change rapidly
+>   - Extended cache prevents excessive label churn that could overwhelm both Prometheus and WNC
+>   - Use `--collector.cache-ttl` flag to adjust this cache TTL
+> - All API calls execute **sequentially** to minimize concurrent load on the controller
 
 ### AP Collector
 
