@@ -12,25 +12,25 @@
   - For endpoints under `/restconf/data/` (GET):
 
     ```
-    curl -k -H "Authorization: Basic $WNC_TOKEN" \
+    curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
              -H "Accept: application/yang-data+json" \
-             "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data"
+             "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data"
     ```
 
   - For endpoints under `/restconf/data/` with a specific parameter (GET, list key = MAC):
 
     ```
-    curl -k -H "Authorization: Basic $WNC_TOKEN" \
+    curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
              -H "Accept: application/yang-data+json" \
-             "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data=00:11:22:33:44:55"
+             "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data=00:11:22:33:44:55"
     ```
 
   - For endpoints under `/restconf/operations/` (POST/PATCH/PUT/DELETE):
 
     ```
     curl -k -X POST \
-            -H "Authorization: Basic $WNC_TOKEN" \
+            -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
             -H "Content-Type: application/yang-data+json" \
             -d '{"input": {"ap-name": "TEST-AP01"}}' \
-            "https://$WNC_HOST/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
+            "https://$WNC_CONTROLLER/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
     ```

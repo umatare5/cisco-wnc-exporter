@@ -176,7 +176,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ### 8.B Integration Tests
 
-- **TI-001 (SHOULD)** Guard with env vars (e.g., `WNC_HOST`, `WNC_TOKEN`). Skip if missing.
+- **TI-001 (SHOULD)** Guard with env vars (e.g., `WNC_CONTROLLER`, `WNC_ACCESS_TOKEN`). Skip if missing.
 - **TI-002 (SHOULD)** Validate that `/metrics` exposes expected families and no unexpected label cardinality.
 
 ### 8.C Test Server Management

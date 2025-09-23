@@ -117,7 +117,7 @@ release:
     docker run --rm ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} --help
 
     # With environment variables
-    docker run --rm -e WNC_TOKEN ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} command
+    docker run --rm -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} command
     ```
 
     ### 📦 Binary Installation

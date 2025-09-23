@@ -45,7 +45,7 @@ Interpret **MUST / MUST NOT / SHOULD / SHOULD NOT / MAY** per **RFC 2119/8174**
 - **SEC-001 (MUST)** **Never log credentials/tokens.** Mask if unavoidable (e.g., `${TOKEN:0:6}…`).
 - **SEC-002 (MUST)** Keep authentication material **ephemeral in memory** and **scoped to requests**. **Never** write credentials to disk or VCS.
 - **SEC-003 (MUST)** Defaults favor safety (e.g., explicit log level, documented bind address/port). Any insecure toggles are **opt‑in** and clearly labeled for dev/testing only.
-- **SEC-004 (SHOULD)** Support env‑based configuration (e.g., `WNC_HOSTS`) with clear precedence rules over flags.
+- **SEC-004 (SHOULD)** Support env‑based configuration (e.g., `WNC_CONTROLLERS`) with clear precedence rules over flags.
 
 ## 6. Tooling & Execution Workflow
 
@@ -80,6 +80,6 @@ Interpret **MUST / MUST NOT / SHOULD / SHOULD NOT / MAY** per **RFC 2119/8174**
 ## 10. Tests / Quality Gate
 
 - **QG-001 (MUST)** Keep CI **green** (lint, build, unit/integration tests).
-- **QG-002 (SHOULD)** For collectors/mappers, add **unit tests** (parse/map correctness) and **integration tests** guarded by env vars (e.g., `WNC_BASE_URL`, `WNC_TOKEN`).
+- **QG-002 (SHOULD)** For collectors/mappers, add **unit tests** (parse/map correctness) and **integration tests** guarded by env vars (e.g., `WNC_BASE_URL`, `WNC_ACCESS_TOKEN`).
 - **QG-003 (SHOULD)** Use fixture‑based tests for metric exposure (`testutil.CollectAndCompare` or golden files).
 - **QG-004 (SHOULD)** Avoid flakiness: timeouts, deterministic ordering of metrics, seeded randomness = 0.

@@ -34,7 +34,7 @@ This exporter allows a prometheus instance to scrape metrics from [Cisco C9800 W
 ## Quick Start
 
 ```bash
-docker run -p 10040:10040 -e WNC_HOST -e WNC_TOKEN ghcr.io/umatare5/cisco-wnc-exporter
+docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter
 ```
 
 - `-p`: Maps container port `10040/tcp` to host port `10040/tcp`.
@@ -66,9 +66,9 @@ GLOBAL OPTIONS:
    --web.listen-address string  Address to bind the HTTP server to (default: "0.0.0.0")
    --web.listen-port int        Port number to bind the HTTP server to (default: 10040)
    --web.telemetry-path string  Path for the metrics endpoint (default: "/metrics")
-   --wnc.access-token string    WNC API access token [$WNC_TOKEN]
+   --wnc.access-token string    WNC API access token [$WNC_ACCESS_TOKEN]
    --wnc.cache-ttl duration     WNC API response cache TTL (in seconds) (default: 55s)
-   --wnc.controller string      WNC controller hostname or IP address [$WNC_HOST]
+   --wnc.controller string      WNC controller hostname or IP address [$WNC_CONTROLLER]
    --wnc.timeout duration       WNC API request timeout (default: 55s)
    --wnc.tls-skip-verify        Skip TLS certificate verification (default: false)
 
@@ -123,8 +123,8 @@ This exporter supports following environment variables:
 
 | Environment Variable | Description                                      |
 | :------------------- | :----------------------------------------------- |
-| `WNC_HOST`           | WNC controller hostname or IP address (required) |
-| `WNC_TOKEN`          | WNC API access token (required)                  |
+| `WNC_CONTROLLER`     | WNC controller hostname or IP address (required) |
+| `WNC_ACCESS_TOKEN`   | WNC API access token (required)                  |
 
 ## Metrics
 
@@ -226,9 +226,9 @@ The following metrics consistently return zero values due to implementation limi
 This was verified through direct RESTCONF API access to the live WNC environment:
 
 ```bash
-❯ curl -sS -k -H "Authorization: Basic $WNC_TOKEN" \
+❯ curl -sS -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
            -H "Accept: application/yang-data+json" \
-           "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/radio-oper-stats" \
+           "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/radio-oper-stats" \
            | jq '.["Cisco-IOS-XE-wireless-access-point-oper:radio-oper-stats"]'
 [
   {
@@ -394,9 +394,9 @@ The following client error metrics consistently return zero values due to implem
 This was verified through direct RESTCONF API access to the live WNC environment:
 
 ```bash
-❯ curl -sS -k -H "Authorization: Basic $WNC_TOKEN" \
+❯ curl -sS -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
            -H "Accept: application/yang-data+json" \
-           "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-client-oper:client-oper-data/traffic-stats" \
+           "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-client-oper:client-oper-data/traffic-stats" \
            | jq '.["Cisco-IOS-XE-wireless-client-oper:traffic-stats"][0]' | \
            jq '{duplicate_rcv, tx_excessive_retries, mic_mismatch, mic_missing, policy_errs, rts_retries, rx_group_counter, tx_retries}'
 {
@@ -487,8 +487,8 @@ Visit http://localhost:10040/ to verify the exporter is running.
 The exporter starts without any collectors enabled by default:
 
 ```bash
-$ WNC_HOST="wnc1.example.internal"
-$ WNC_TOKEN="foobarbaz"
+$ WNC_CONTROLLER="wnc1.example.internal"
+$ WNC_ACCESS_TOKEN="foobarbaz"
 $ ./cisco-wnc-exporter
 time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10040."
 ```
@@ -498,8 +498,8 @@ time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on p
 Enable essential collectors for basic monitoring:
 
 ```bash
-$ WNC_HOST="wnc1.example.internal"
-$ WNC_TOKEN="foobarbaz"
+$ WNC_CONTROLLER="wnc1.example.internal"
+$ WNC_ACCESS_TOKEN="foobarbaz"
 $ ./cisco-wnc-exporter \
     --collector.ap.inventory --collector.ap.info --collector.ap.state \
     --collector.client.inventory --collector.client.info --collector.client.session \
@@ -515,9 +515,9 @@ For complete monitoring, see [`.air.toml`](./.air.toml) which enables all collec
 All the above examples can be run with Docker by adding the appropriate flags:
 
 ```bash
-$ WNC_HOST="wnc1.example.internal"
-$ WNC_TOKEN="foobarbaz"
-$ docker run -p 10040:10040 -e WNC_HOST -e WNC_TOKEN ghcr.io/umatare5/cisco-wnc-exporter \
+$ WNC_CONTROLLER="wnc1.example.internal"
+$ WNC_ACCESS_TOKEN="foobarbaz"
+$ docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter \
     --collector.ap.inventory --collector.ap.info --collector.ap.state
 ```
 

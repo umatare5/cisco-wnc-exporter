@@ -93,14 +93,14 @@ func registerWNCFlags() []cli.Flag {
 			Name:        "wnc.controller",
 			Usage:       "WNC controller hostname or IP address",
 			Required:    true,
-			Sources:     cli.EnvVars("WNC_HOST"),
+			Sources:     cli.EnvVars("WNC_CONTROLLER"),
 			DefaultText: "<required>",
 		},
 		&cli.StringFlag{
 			Name:        "wnc.access-token",
 			Usage:       "WNC API access token",
 			Required:    true,
-			Sources:     cli.EnvVars("WNC_TOKEN"),
+			Sources:     cli.EnvVars("WNC_ACCESS_TOKEN"),
 			DefaultText: "<required>",
 		},
 		&cli.DurationFlag{

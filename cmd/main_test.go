@@ -12,21 +12,21 @@ func TestMain_CanCall(t *testing.T) {
 
 	// Save original args and environment
 	originalArgs := os.Args
-	originalController := os.Getenv("WNC_HOST")
-	originalToken := os.Getenv("WNC_TOKEN")
+	originalController := os.Getenv("WNC_CONTROLLER")
+	originalToken := os.Getenv("WNC_ACCESS_TOKEN")
 
 	defer func() {
 		// Restore original state
 		os.Args = originalArgs
 		if originalController == "" {
-			os.Unsetenv("WNC_HOST")
+			os.Unsetenv("WNC_CONTROLLER")
 		} else {
-			os.Setenv("WNC_HOST", originalController)
+			os.Setenv("WNC_CONTROLLER", originalController)
 		}
 		if originalToken == "" {
-			os.Unsetenv("WNC_TOKEN")
+			os.Unsetenv("WNC_ACCESS_TOKEN")
 		} else {
-			os.Setenv("WNC_TOKEN", originalToken)
+			os.Setenv("WNC_ACCESS_TOKEN", originalToken)
 		}
 
 		// Recover from potential panic or os.Exit
@@ -36,8 +36,8 @@ func TestMain_CanCall(t *testing.T) {
 	}()
 
 	// Set up minimal required environment for dry-run
-	os.Setenv("WNC_HOST", "test.example.com")
-	os.Setenv("WNC_TOKEN", "dGVzdDp0ZXN0") // base64 encoded "test:test"
+	os.Setenv("WNC_CONTROLLER", "test.example.com")
+	os.Setenv("WNC_ACCESS_TOKEN", "dGVzdDp0ZXN0") // base64 encoded "test:test"
 	os.Args = []string{"cisco-wnc-exporter", "--dry-run"}
 
 	// Call main function directly
