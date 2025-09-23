@@ -1,0 +1,257 @@
+version: "2"
+
+########################
+# 1. Execution settings
+########################
+run:
+  timeout: 5m                      # Keep the original timeout
+  tests: true                      # Analyze *_test.go files as well
+  issues-exit-code: 1              # Fail CI if any issue is found
+  go: "1.25"                       # Ensure 1.22+ analyses (intrange, copyloopvar) run with new semantics
+
+########################
+# 2. Issues quota
+########################
+issues:
+  max-issues-per-linter: 0         # Do not cap issues per linter
+  max-same-issues: 0               # Do not deduplicate identical issues
+
+########################
+# 3. Enabled linters
+########################
+linters:
+  default: none
+  enable:
+    # Core correctness & security
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - errchkjson
+    - errorlint
+    - gosec
+    - goconst
+    - gocritic
+    - mnd
+    - revive
+    - unparam
+    - unconvert
+    - bodyclose
+    - asasalint
+    - misspell
+    - usestdlibvars
+    - testifylint
+    - perfsprint
+    - paralleltest
+    - tagliatelle
+    - thelper
+    - testpackage
+
+    # Modernization related to Go 1.22–1.25
+    - intrange               # Prefer `for i := range n` where applicable (Go 1.22) [external linter]
+    - copyloopvar            # Detect legacy loop-var copies; has autofix
+    - exptostd               # Suggest std replacements for x/exp/*
+
+    # Logging hygiene (slog)
+    - sloglint               # Enforce consistent slog usage
+    - loggercheck            # Validate slog key/value shapes
+
+    # API/style consistency that reduces long-term churn
+    - nilnesserr             # Detect inconsistent nil/err returns
+    - predeclared            # Avoid shadowing predeclared identifiers
+    - godot                  # Enforce periods at the end of doc comments
+    - whitespace             # Normalize whitespace
+    - fatcontext             # Avoid capturing/propagating “fat” contexts
+    - nosprintfhostport      # Safer host:port formatting
+    - depguard               # Belt-and-suspenders dependency rules
+
+  ########################
+  # 4. Per-linter settings
+  # https://golangci-lint.run/docs/linters/configuration/
+  ########################
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    staticcheck:
+      checks:
+        - all
+        - "-SA1012"
+
+    errchkjson:
+      check-error-free-encoding: true
+
+    errorlint:
+      errorf: true
+      asserts: true
+
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - commentedOutCode
+        - whyNoLint
+
+    mnd:
+      checks: [argument,assign,case,return]
+      ignored-functions: ["time.Duration"]
+
+    revive:
+      confidence: 0.8
+      rules:
+        - name: indent-error-flow
+          arguments: [preserveScope]
+        - name: function-length
+          arguments: [80, 0]
+        - name: error-strings
+        - name: error-naming
+        - name: var-naming
+          arguments:
+          # White List to preserve readability. I maintain these words by hands.
+          - [
+              # Networking Protocols
+              "ARP", "CDP", "LLDP", "LACP", "VLAN", "EAP", "EAPOL", "PEAP", "EAPTLS", "TTLS",
+              # IEEE 802.11 Standards
+              "WTP", "STA", "CLIENT",
+              # Cisco WNC Feature Name
+              "AP", "WLAN", "WLC", "WNC", "SSID"
+            ]
+          # Black List to avoid confusion with common initialisms.
+          - [
+              # Cisco WNC Service Name
+              "AFC", "APF", "AWIPS", "BLE", "CTS", "LISP", "MDNS", "NMSP", "RF", "RFID", "RRM", "URWB", "WAT",
+              # Networking Protocols
+              "MAC", "IPv4", "IPv6", "DHCP", "RADIUS", "RADSEC",
+              # IEEE 802.11 Standards
+              "RSSI", "SNR",
+              # Cisco WNC Specific Protocols
+              "CAPWAP", "DTLS",
+              # Cisco WNC Specific Features
+              "RRM", "DCA", "TPC", "DFS"
+            ]
+          - - skip-initialism-name-checks: false
+
+    misspell:
+      locale: US
+
+    perfsprint:
+      int-conversion: true
+      err-error: true
+      errorf: true
+      sprintf1: true
+
+    paralleltest:
+      ignore-missing: false
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+    testifylint:
+      enable-all: true
+      disable:
+        - float-compare
+
+    govet:
+      enable-all: true
+      disable:
+        - shadow                 # Prevent noisy false positives
+        - fieldalignment         # Avoid churn with marginal benefits
+
+    sloglint:                    # See options: https://github.com/go-simpler/sloglint
+      no-mixed-args: true        # Do not mix key/value pairs and Attrs
+      no-global: ""              # Allow default global logger usage for simplicity
+
+    copyloopvar:
+      check-alias: true          # Also flag aliasing the loop variable
+
+    depguard:
+      rules:
+        main:
+          list-mode: lax
+          files: [ $all ]
+          allow:
+            - $gostd
+          deny:
+            - pkg: "log$"
+              desc: "Use slog (and sloglint) instead of log package"
+            - pkg: "golang.org/x/exp/maps$"
+              desc: "Use std `maps` and built-ins (e.g., clear) instead of x/exp/maps"
+            - pkg: "golang.org/x/exp/slices$"
+              desc: "Use std `slices` instead of x/exp/slices"
+            - pkg: "github.com/pkg/errors$"
+              desc: "Use std `errors`"
+            - pkg: "math/rand$"
+              desc: "Use `math/rand/v2` on Go 1.22+"
+
+  ########################
+  # 5. Exclusions
+  ########################
+  exclusions:
+    generated: lax
+    warn-unused: false
+    paths:
+      - vendor/
+      - build/
+      - tmp/
+      - example/
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck     # Allow ignoring errors in tests
+          - goconst      # Allow constant duplication in tests
+          - gosec        # Allow test helpers to use weak crypto, etc.
+          - govet        # Keep vetting in tests
+          - ineffassign  # Allow ineffectual assignments in tests
+          - mnd          # Allow magic numbers in tests
+          - perfsprint   # Allow fmt.Errorf in tests
+          - staticcheck  # Allow ignoring some staticcheck issues in tests
+          - unused       # Allow unused code in tests
+      - path: ^cmd/
+        linters:
+          - mnd          # Allow magic numbers for CLI configuration
+      - path: ^internal/server/
+        linters:
+          - errcheck     # Allow ignoring write errors in HTTP handlers
+          - mnd          # Allow magic numbers for HTTP server configuration
+      - path: ^internal/cli/
+        linters:
+          - mnd          # Allow magic numbers for CLI configuration
+          - revive       # Allow long main functions for CLI setup
+
+########################
+# 6. Code formatters
+########################
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/umatare5)  # Adjust to your module root
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/umatare5
+    golines:
+      max-len: 120
+
+########################
+# 7. Output settings
+########################
+output:
+  show-stats: false

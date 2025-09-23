@@ -1,0 +1,6 @@
+coverage:
+  paths:
+    - coverage/report.out
+  acceptable: 0% # Set minimum acceptable coverage percentage until the codebase matures
+  badge:
+    path: docs/assets/coverage.svg

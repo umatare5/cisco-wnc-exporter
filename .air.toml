@@ -1,0 +1,50 @@
+# Air configuration for cisco-wnc-exporter CLI development
+# Documentation: https://github.com/air-verse/air
+
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/cisco-wnc-exporter ./cmd/main.go"
+  full_bin = "tmp/cisco-wnc-exporter \
+                  --wnc.tls-skip-verify \
+                  --web.listen-port 3000 \
+                  --collector.internal.go-runtime \
+                  --collector.internal.process \
+                  --collector.ap.inventory \
+                  --collector.ap.state \
+                  --collector.ap.phy \
+                  --collector.ap.rf \
+                  --collector.ap.traffic \
+                  --collector.ap.errors \
+                  --collector.ap.cpu \
+                  --collector.ap.memory \
+                  --collector.ap.info \
+                  --collector.ap.info-labels=name,ip,band,model,serial,sw_version,eth_mac \
+                  --collector.wlan.inventory \
+                  --collector.wlan.info \
+                  --collector.wlan.info-labels=name \
+                  --collector.wlan.state \
+                  --collector.wlan.traffic \
+                  --collector.wlan.security \
+                  --collector.wlan.networking \
+                  --collector.client.inventory \
+                  --collector.client.info \
+                  --collector.client.info-labels=ap,band,wlan,name,username,ipv4,ipv6 \
+                  --collector.client.session \
+                  --collector.client.phy \
+                  --collector.client.rf \
+                  --collector.client.traffic \
+                  --collector.client.errors \
+                  --collector.client.power"
+
+  exclude_dir = ["assets", "tmp", "vendor", "test_data", ".git", ".github", ".vscode", "node_modules", "dist", "build"]
+  exclude_regex = ["_test\\.go"]
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[screen]
+  keep_scroll = true
