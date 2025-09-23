@@ -1,0 +1,7 @@
+.*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!pkg/
+cisco-wnc-exporter

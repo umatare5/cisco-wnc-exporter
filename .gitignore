@@ -1,0 +1,33 @@
+# Temporary files
+tmp/
+vendor/
+
+# Test data files
+testdata/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Coverage files
+*.out
+coverage/*
+!coverage/report.out
+!coverage/report.html
+
+# IDE files
+.idea/
+.copilot_reports/
+*.swp
+*.swo
+.env
+.envrc
+
+# OS files
+.DS_Store
+Thumbs.db
