@@ -235,13 +235,6 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 		slog.Warn("Failed to retrieve WLAN configuration entries", "error", err)
 		return
 	}
-
-	operationalInfo, err := c.src.ListOperationalInfo(ctx)
-	if err != nil {
-		slog.Warn("Failed to retrieve WLAN operational info", "error", err)
-		return
-	}
-
 	// Get WLAN policies for security and networking modules
 	var wlanPolicies *wlan.WlanCfgWlanPolicies
 	if c.metrics.Security || c.metrics.Networking {
@@ -278,9 +271,6 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if c.metrics.State {
 		c.collectStateMetrics(ch, profileConfigs)
-	}
-	if c.metrics.Traffic {
-		c.collectTrafficMetrics(ch, profileConfigs, operationalInfo)
 	}
 	if c.metrics.Security {
 		c.collectSecurityMetrics(ch, profileConfigs, wlanPolicies)
@@ -386,7 +376,6 @@ func (c *WLANCollector) collectStateMetrics(ch chan<- prometheus.Metric, profile
 func (c *WLANCollector) collectTrafficMetrics(
 	ch chan<- prometheus.Metric,
 	profileConfigs *wlan.WlanCfgEntries,
-	_ *wlan.WlanGlobalOperWlanInfo,
 ) {
 	if profileConfigs == nil {
 		return

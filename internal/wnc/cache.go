@@ -36,7 +36,6 @@ type WNCDataCache struct {
 
 	// WLAN data
 	WLANConfigEntries *wlan.WlanCfgWlanCfgEntries
-	WLANOperInfo      *wlan.WlanGlobalOperWlanInfo
 	WLANPolicies      *wlan.WlanCfgWlanPolicies
 }
 
@@ -140,19 +139,6 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				profileCount = len(data.WlanCfgEntries.WlanCfgEntry)
 			}
 			slog.Info("WLAN configuration entries retrieved from WNC successfully", "count", profileCount)
-			return nil
-		}},
-		{"WLAN operational info", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.WLAN().ListWlanInfo(ctx)
-			if err != nil {
-				return err
-			}
-			c.WLANOperInfo = data
-			var count int
-			if data != nil && data.CiscoIOSXEWirelessWlanGlobalOperData.WlanInfo != nil {
-				count = len(data.CiscoIOSXEWirelessWlanGlobalOperData.WlanInfo)
-			}
-			slog.Info("WLAN operational info retrieved from WNC successfully", "count", count)
 			return nil
 		}},
 		{"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error {

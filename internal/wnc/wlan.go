@@ -11,7 +11,6 @@ import (
 // WLANSource provides access to WLAN data from WNC via REST API.
 type WLANSource interface {
 	ListConfigEntries(ctx context.Context) (*wlan.WlanCfgWlanCfgEntries, error)
-	ListOperationalInfo(ctx context.Context) (*wlan.WlanGlobalOperWlanInfo, error)
 	ListPolicies(ctx context.Context) (*wlan.WlanCfgWlanPolicies, error)
 }
 
@@ -34,15 +33,6 @@ func (s *wlanSource) ListConfigEntries(ctx context.Context) (*wlan.WlanCfgWlanCf
 		return nil, err
 	}
 	return data.WLANConfigEntries, nil
-}
-
-// ListOperationalInfo retrieves WLAN operational info via SharedDataSource (cached).
-func (s *wlanSource) ListOperationalInfo(ctx context.Context) (*wlan.WlanGlobalOperWlanInfo, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return data.WLANOperInfo, nil
 }
 
 // ListPolicies retrieves WLAN policies via SharedDataSource (cached).
