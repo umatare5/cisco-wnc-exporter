@@ -1,0 +1,36 @@
+## About Labo Environment
+
+- **Live WNC Version**: IOS-XE 17.12.5
+
+- **Path to YANG Models**:
+
+  - IOS-XE 17.12.1: `~/LOCAL/yang/vendor/cisco/xe/17121/`
+  - IOS-XE 17.18.1: `~/LOCAL/yang/vendor/cisco/xe/17181/`
+
+- **Example to Access Cisco WNC using cURL**:
+
+  - For endpoints under `/restconf/data/` (GET):
+
+    ```
+    curl -k -H "Authorization: Basic $WNC_TOKEN" \
+             -H "Accept: application/yang-data+json" \
+             "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data"
+    ```
+
+  - For endpoints under `/restconf/data/` with a specific parameter (GET, list key = MAC):
+
+    ```
+    curl -k -H "Authorization: Basic $WNC_TOKEN" \
+             -H "Accept: application/yang-data+json" \
+             "https://$WNC_HOST/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data=00:11:22:33:44:55"
+    ```
+
+  - For endpoints under `/restconf/operations/` (POST/PATCH/PUT/DELETE):
+
+    ```
+    curl -k -X POST \
+            -H "Authorization: Basic $WNC_TOKEN" \
+            -H "Content-Type: application/yang-data+json" \
+            -d '{"input": {"ap-name": "TEST-AP01"}}' \
+            "https://$WNC_HOST/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
+    ```

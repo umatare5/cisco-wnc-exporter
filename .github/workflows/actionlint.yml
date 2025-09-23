@@ -1,0 +1,16 @@
+name: actionlint
+
+on:
+  push:
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    uses: umatare5/common/.github/workflows/actionlint.yml@27d895ee9f1410471625dd66c22c0d63bb84b3b7 # v0.13.0
