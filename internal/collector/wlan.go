@@ -272,6 +272,9 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 	if c.metrics.State {
 		c.collectStateMetrics(ch, profileConfigs)
 	}
+	if c.metrics.Traffic {
+		c.collectTrafficMetrics(ch, profileConfigs)
+	}
 	if c.metrics.Security {
 		c.collectSecurityMetrics(ch, profileConfigs, wlanPolicies)
 	}
