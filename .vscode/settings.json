@@ -1,0 +1,16 @@
+{
+  "gopls": {
+    "analyses": {
+      "unusedparams": true,
+      "unusedwrite": true
+    },
+    "staticcheck": true,
+    "gofumpt": true
+  },
+  "go.useLanguageServer": true,
+  "go.lintOnSave": "package",
+  "go.formatTool": "goimports",
+  "go.alternateTools": {
+    "go": "go"
+  }
+}
