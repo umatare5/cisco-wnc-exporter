@@ -138,21 +138,19 @@ All collectors have multiple modules to allow fine-grained control over which me
 
 > [!Important]
 >
-> All collectors are **disabled by default** to minimize load on both Prometheus and Cisco C9800 WNC. Cisco C9800 WNC typically manage hundreds or thousands of APs and clients, making selective monitoring essential for both Prometheus and Cisco C9800 WNC performance and stability.
+> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
 >
-> **For the Cisco C9800 WNC:**
+> **Cisco C9800 WNC caching (55 seconds)**
 >
-> - **WNC API responses cache for 55 seconds**
->   - Cache TTL optimizes for both Prometheus scrape interval and AP metrics reporting interval
->   - Use `--wnc.cache-ttl` flag to adjust this cache TTL
+> - API responses are cached for 55 seconds
+> - This TTL is tuned for both Prometheus scrape intervals and AP metric reporting intervals
+> - You can adjust it with the `--wnc.cache-ttl` flag
 >
-> **For the Prometheus:**
+> **Prometheus info metrics caching (1800 seconds)**
 >
-> - **Info metrics cache for 1800 seconds**
->   - Wireless clients frequently roam between access points, causing `ap` label values to change rapidly
->   - Extended cache prevents excessive label churn that could overwhelm both Prometheus and WNC
->   - Use `--collector.cache-ttl` flag to adjust this cache TTL
-> - All API calls execute **sequentially** to minimize concurrent load on the controller
+> - Info metrics are cached for 1800 seconds (30 minutes)
+> - Wireless clients often roam between APs, causing the `ap` label to change frequently
+> - You can adjust it with the `--collector.cache-ttl` flag
 
 ### AP Collector
 
