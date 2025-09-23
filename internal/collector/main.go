@@ -135,10 +135,10 @@ func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRM
 		Memory:     c.cfg.Collectors.AP.Memory,
 	})
 
-	// Apply caching when info metrics are enabled.
+	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.AP.Info {
-		collector = NewCacheCollector(baseCollector, "AP", c.cfg.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "AP", c.cfg.Collectors.CacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -157,10 +157,10 @@ func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSourc
 		Networking: c.cfg.Collectors.WLAN.Networking,
 	})
 
-	// Apply caching when info metrics are enabled.
+	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.WLAN.Info {
-		collector = NewCacheCollector(baseCollector, "WLAN", c.cfg.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "WLAN", c.cfg.Collectors.CacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -181,10 +181,10 @@ func (c *Collector) registerClientCollector(clientSource wnc.ClientSource) {
 		Power:      c.cfg.Collectors.Client.Power,
 	})
 
-	// Apply caching when info metrics are enabled.
+	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.Client.Info {
-		collector = NewCacheCollector(baseCollector, "Client", c.cfg.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "Client", c.cfg.Collectors.CacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
