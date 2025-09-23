@@ -110,7 +110,7 @@ func registerWNCFlags() []cli.Flag {
 		},
 		&cli.DurationFlag{
 			Name:  "wnc.cache-ttl",
-			Usage: "WNC API response cache TTL",
+			Usage: "WNC API response cache TTL in seconds",
 			Value: config.DefaultWNCCacheTTL,
 		},
 		&cli.BoolFlag{
@@ -125,7 +125,7 @@ func registerCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.DurationFlag{
 			Name:     "collector.cache-ttl",
-			Usage:    "Cache TTL for collector metrics",
+			Usage:    "Cache TTL for collector metrics in seconds",
 			Value:    config.DefaultCollectorCacheTTL,
 			Category: "* Collector Wide Options",
 		},

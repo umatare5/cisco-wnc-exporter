@@ -67,7 +67,7 @@ GLOBAL OPTIONS:
    --web.listen-port int        Port number to bind the HTTP server to (default: 10040)
    --web.telemetry-path string  Path for the metrics endpoint (default: "/metrics")
    --wnc.access-token string    WNC API access token [$WNC_TOKEN]
-   --wnc.cache-ttl duration     WNC API response cache TTL (default: 55s)
+   --wnc.cache-ttl duration     WNC API response cache TTL (in seconds) (default: 55s)
    --wnc.controller string      WNC controller hostname or IP address [$WNC_HOST]
    --wnc.timeout duration       WNC API request timeout (default: 55s)
    --wnc.tls-skip-verify        Skip TLS certificate verification (default: false)
@@ -109,7 +109,7 @@ GLOBAL OPTIONS:
 
    # Collector Wide Options
 
-   --collector.cache-ttl duration  Cache TTL for collector metrics (default: 30m0s)
+   --collector.cache-ttl duration  Cache TTL for collector metrics (in seconds) (default: 1800s)
 
    # Internal Collector Options
 
@@ -144,9 +144,9 @@ All collectors have multiple modules to allow fine-grained control over which me
 > - API responses cache for **55 seconds** to reduce repeated requests from multiple Prometheus
 >   - Cache TTL optimizes for standard Prometheus scrape and AP metrics reporting intervals (60s)
 >   - Use `--wnc.cache-ttl` flag to adjust cache TTL (default: 55s)
-> - **Info metrics cache for 30 minutes** to mitigate cardinality explosion from client roaming
+> - **Info metrics cache for 1800 seconds** to mitigate cardinality explosion from client roaming
 >   - Wireless clients frequently roam between access points, causing `ap` label values to change
->   - Use `--collector.cache-ttl` flag to adjust info cache TTL (default: 30m0s)
+>   - Use `--collector.cache-ttl` flag to adjust info cache TTL (default: 1800s)
 
 ### AP Collector
 

@@ -19,7 +19,7 @@ const (
 	DefaultTelemetryPath     = "/metrics"
 	DefaultWNCTimeout        = 55 * time.Second
 	DefaultWNCCacheTTL       = 55 * time.Second
-	DefaultCollectorCacheTTL = 30 * time.Minute
+	DefaultCollectorCacheTTL = 1800 * time.Second
 	DefaultLogLevel          = "info"
 	DefaultLogFormat         = "json"
 
