@@ -169,7 +169,10 @@ AP collector focus on RF foundation and radio performance.
 | phy       | `wnc_ap_tx_power_level`               | Gauge   | TX power level (0-8)                             |
 | phy       | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power (dBm)                           |
 | rf        | `wnc_ap_noise_floor_dbm`              | Gauge   | Channel noise floor (dBm)                        |
-| rf        | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage                   |
+| rf        | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage (CCA-based)       |
+| rf        | `wnc_ap_rx_utilization_percent`       | Gauge   | RX utilization percentage                        |
+| rf        | `wnc_ap_tx_utilization_percent`       | Gauge   | TX utilization percentage                        |
+| rf        | `wnc_ap_noise_utilization_percent`    | Gauge   | Noise channel utilization percentage             |
 | traffic   | `wnc_ap_clients_total`                | Gauge   | Associated clients count (calclulated)           |
 | traffic   | `wnc_ap_rx_bytes_total`               | Counter | Total received bytes (calculated)                |
 | traffic   | `wnc_ap_tx_bytes_total`               | Counter | Total transmitted bytes (calculated)             |
@@ -353,6 +356,7 @@ Client collector focus on user experience quality and connection performance.
 | inventory | `wnc_clients_total`                   | Gauge   | Total connected clients              |
 | session   | `wnc_client_state`                    | Gauge   | Client state (0-2)                   |
 | session   | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
+| session   | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
 | phy       | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (5=ac, 6=ax)         |
 | phy       | `wnc_client_mcs_index`                | Gauge   | MCS index (-1=legacy, 0-11)          |
 | phy       | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |

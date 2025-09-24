@@ -246,7 +246,7 @@ func (c *Config) LogLevel() slog.Level {
 // isValidLogLevel checks if the log level is valid.
 func isValidLogLevel(level string) bool {
 	validLevels := []string{"debug", "info", "warn", "error"}
-	return contains(validLevels, strings.ToLower(level))
+	return slices.Contains(validLevels, strings.ToLower(level))
 }
 
 // isValidLogFormat checks if the log format is valid.
