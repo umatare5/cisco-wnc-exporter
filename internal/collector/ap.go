@@ -4,6 +4,7 @@ package collector
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,6 +26,9 @@ type APCollector struct {
 
 	// Radio-level metrics
 	channelUtilizationDesc *prometheus.Desc
+	rxUtilizationDesc      *prometheus.Desc
+	txUtilizationDesc      *prometheus.Desc
+	noiseUtilizationDesc   *prometheus.Desc
 	noiseFloorDesc         *prometheus.Desc
 	txPowerDesc            *prometheus.Desc
 	channelDesc            *prometheus.Desc
@@ -204,7 +208,25 @@ func NewAPCollector(
 	if metrics.RF {
 		collector.channelUtilizationDesc = prometheus.NewDesc(
 			"wnc_ap_channel_utilization_percent",
-			"Channel utilization percentage",
+			"Channel utilization percentage (CCA-based)",
+			baseRadioLabels,
+			nil,
+		)
+		collector.rxUtilizationDesc = prometheus.NewDesc(
+			"wnc_ap_rx_utilization_percent",
+			"RX utilization percentage",
+			baseRadioLabels,
+			nil,
+		)
+		collector.txUtilizationDesc = prometheus.NewDesc(
+			"wnc_ap_tx_utilization_percent",
+			"TX utilization percentage",
+			baseRadioLabels,
+			nil,
+		)
+		collector.noiseUtilizationDesc = prometheus.NewDesc(
+			"wnc_ap_noise_utilization_percent",
+			"Noise channel utilization percentage",
 			baseRadioLabels,
 			nil,
 		)
@@ -454,6 +476,14 @@ func NewAPCollector(
 
 // Internal helper structures for AP data aggregation.
 
+// rfMetricContext contains the common data needed for RF metrics collection.
+type rfMetricContext struct {
+	rrmData      *rrm.RRMOperRRMMeasurement
+	clientCounts map[string]map[int]int
+	// Pre-calculated measurement data per radio for efficiency
+	measurements map[string]*rrm.RRMMeasurement
+}
+
 // buildAPInfoLabels constructs the AP info labels slice based on configuration.
 func buildAPInfoLabels(configuredLabels []string) []string {
 	// mac and radio are always required as first labels
@@ -462,22 +492,12 @@ func buildAPInfoLabels(configuredLabels []string) []string {
 	// Add other configured labels in consistent order
 	labelOrder := []string{"name", "ip", "band", "model", "serial", "sw_version", "eth_mac"}
 	for _, label := range labelOrder {
-		if contains(configuredLabels, label) && !contains(labels, label) {
+		if slices.Contains(configuredLabels, label) && !slices.Contains(labels, label) {
 			labels = append(labels, label)
 		}
 	}
 
 	return labels
-}
-
-// contains checks if a string slice contains a specific string.
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
 
 // Describe implements prometheus.Collector.
@@ -552,20 +572,15 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	if c.metrics.Info {
 		c.collectInfoMetrics(ch, capwapData, radioData)
 	}
-	if c.metrics.State {
-		c.collectStateMetrics(ch, radioData)
-	}
-	if c.metrics.RF {
-		c.collectRFMetrics(ch, radioData)
-	}
-	if c.metrics.Phy {
-		c.collectPhysicalLayerMetrics(ch, radioData)
-	}
-	if c.metrics.Traffic {
-		c.collectTrafficMetrics(ch, radioData, radioOperStats)
-	}
-	if c.metrics.Errors {
-		c.collectErrorMetrics(ch, radioData, radioOperStats)
+	// All radio-level metrics are handled by unified collection
+	if c.metrics.State || c.metrics.RF || c.metrics.Phy || c.metrics.Traffic || c.metrics.Errors {
+		// Get RF context if needed
+		var rfCtx *rfMetricContext
+		if c.metrics.RF {
+			rfCtx = c.buildRFMetricContext()
+		}
+
+		c.collectRadioMetrics(ch, radioData, rfCtx, radioOperStats)
 	}
 	if c.metrics.CPU {
 		c.collectCPUMetrics(ch, apOperData)
@@ -596,6 +611,9 @@ func (c *APCollector) describeStateMetrics(ch chan<- *prometheus.Desc) {
 // describeRFMetrics describes RF environment metric descriptors.
 func (c *APCollector) describeRFMetrics(ch chan<- *prometheus.Desc) {
 	ch <- c.channelUtilizationDesc
+	ch <- c.rxUtilizationDesc
+	ch <- c.txUtilizationDesc
+	ch <- c.noiseUtilizationDesc
 	ch <- c.noiseFloorDesc
 	ch <- c.associatedClientsDesc
 }
@@ -673,284 +691,13 @@ func (c *APCollector) collectInventoryMetrics(ch chan<- prometheus.Metric, capwa
 	}
 }
 
-// findRadioStats finds the corresponding radio statistics for a given radio.
-func (c *APCollector) findRadioStats(
-	radio *ap.RadioOperData,
-	radioOperStats *ap.ApOperRadioOperStats,
-) *ap.RadioOperStats {
-	if radioOperStats == nil {
-		return nil
-	}
-
-	for _, stats := range radioOperStats.RadioOperStats {
-		if stats.ApMAC == radio.WtpMAC && stats.SlotID == radio.RadioSlotID {
-			return &stats
-		}
-	}
-	return nil
-}
-
-// collectStateMetrics collects state-related metrics.
-func (c *APCollector) collectStateMetrics(ch chan<- prometheus.Metric, radioData *ap.ApOperRadioOperData) {
-	for _, radio := range radioData.RadioOperData {
-		radioSlot := strconv.Itoa(radio.RadioSlotID)
-		labels := []string{radio.WtpMAC, radioSlot}
-
-		if c.radioStateDesc != nil {
-			radioState := 0
-			if radio.OperState == "radio-up" {
-				radioState = 1
-			}
-			ch <- prometheus.MustNewConstMetric(c.radioStateDesc, prometheus.GaugeValue, float64(radioState), labels...)
-		}
-
-		if c.adminStateDesc != nil {
-			adminState := 0
-			if radio.AdminState == "enabled" {
-				adminState = 1
-			}
-			ch <- prometheus.MustNewConstMetric(c.adminStateDesc, prometheus.GaugeValue, float64(adminState), labels...)
-		}
-
-		if c.operStateDesc != nil {
-			operState := 0
-			if radio.OperState == "radio-up" {
-				operState = 1
-			}
-			ch <- prometheus.MustNewConstMetric(c.operStateDesc, prometheus.GaugeValue, float64(operState), labels...)
-		}
-	}
-}
-
-// collectRFMetrics collects RF environment metrics.
-func (c *APCollector) collectRFMetrics(
-	ch chan<- prometheus.Metric,
-	radioData *ap.ApOperRadioOperData,
-) {
-	// Get client data and AP name to MAC mapping for accurate client counts
-	clientData, nameMACMaps, err := c.getClientDataForAPMetrics()
-	if err != nil {
-		slog.Warn("Failed to get client data for AP metrics", "error", err)
-	}
-
-	// Get RRM measurement data for channel utilization
-	rrmData, err := c.getRRMDataForAPMetrics()
-	if err != nil {
-		slog.Warn("Failed to get RRM data for AP metrics", "error", err)
-	}
-
-	// Build client count by AP MAC and radio slot from client data and name mapping
-	clientCounts := c.buildAPClientCounts(clientData, nameMACMaps)
-	// Build channel utilization by AP MAC and radio slot from RRM data
-	channelUtilization := c.buildChannelUtilizationMap(rrmData)
-
-	for _, radio := range radioData.RadioOperData {
-		radioSlot := strconv.Itoa(radio.RadioSlotID)
-		labels := []string{radio.WtpMAC, radioSlot}
-
-		// Noise floor from RRM measurement data instead of radio stats (IOS-XE 17.12.5 issue)
-		if c.noiseFloorDesc != nil {
-			noiseFloor := 0.0
-			if rrmData != nil {
-				for _, measurement := range rrmData.RRMMeasurement {
-					if measurement.WtpMAC == radio.WtpMAC && measurement.RadioSlotID == radio.RadioSlotID {
-						if measurement.Noise != nil && len(measurement.Noise.Noise.NoiseData) > 0 {
-							// Use the first channel's noise value as representative
-							noiseFloor = float64(measurement.Noise.Noise.NoiseData[0].Noise)
-							break
-						}
-					}
-				}
-			}
-			ch <- prometheus.MustNewConstMetric(c.noiseFloorDesc, prometheus.GaugeValue, noiseFloor, labels...)
-		}
-
-		// Channel utilization from RRM measurement data
-		if c.channelUtilizationDesc != nil {
-			utilization := 0.0
-			if apUtil, ok := channelUtilization[radio.WtpMAC]; ok {
-				if util, ok := apUtil[radio.RadioSlotID]; ok {
-					utilization = util
-				}
-			}
-			ch <- prometheus.MustNewConstMetric(c.channelUtilizationDesc, prometheus.GaugeValue, utilization, labels...)
-		}
-
-		// Client count from aggregated client data using proper MAC-based mapping
-		if c.associatedClientsDesc != nil {
-			clientCount := 0
-			if apCounts, ok := clientCounts[radio.WtpMAC]; ok {
-				if count, ok := apCounts[radio.RadioSlotID]; ok {
-					clientCount = count
-				}
-			}
-			ch <- prometheus.MustNewConstMetric(c.associatedClientsDesc, prometheus.GaugeValue, float64(clientCount), labels...)
-		}
-	}
-}
-
-// collectPhysicalLayerMetrics collects physical layer metrics.
-func (c *APCollector) collectPhysicalLayerMetrics(ch chan<- prometheus.Metric, radioData *ap.ApOperRadioOperData) {
-	for _, radio := range radioData.RadioOperData {
-		radioSlot := strconv.Itoa(radio.RadioSlotID)
-		labels := []string{radio.WtpMAC, radioSlot}
-
-		// TX Power
-		if c.txPowerDesc != nil && len(radio.RadioBandInfo) > 0 {
-			txPower := int(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)
-			ch <- prometheus.MustNewConstMetric(c.txPowerDesc, prometheus.GaugeValue, float64(txPower), labels...)
-		}
-
-		// Channel and Channel Width
-		if c.channelDesc != nil && radio.PhyHtCfg != nil {
-			channel := radio.PhyHtCfg.CfgData.CurrFreq
-			ch <- prometheus.MustNewConstMetric(c.channelDesc, prometheus.GaugeValue, float64(channel), labels...)
-
-			if c.channelWidthDesc != nil {
-				channelWidth := radio.PhyHtCfg.CfgData.ChanWidth
-				ch <- prometheus.MustNewConstMetric(c.channelWidthDesc, prometheus.GaugeValue, float64(channelWidth), labels...)
-			}
-		}
-	}
-}
-
-// collectTrafficMetrics collects traffic-related metrics.
-func (c *APCollector) collectTrafficMetrics(
-	ch chan<- prometheus.Metric,
-	radioData *ap.ApOperRadioOperData,
-	radioOperStats *ap.ApOperRadioOperStats,
-) {
-	for _, radio := range radioData.RadioOperData {
-		radioSlot := strconv.Itoa(radio.RadioSlotID)
-		labels := []string{radio.WtpMAC, radioSlot}
-
-		// Find corresponding radio statistics
-		currentRadioStats := c.findRadioStats(&radio, radioOperStats)
-		if currentRadioStats == nil {
-			continue
-		}
-
-		// Basic traffic metrics - use frame counts as packet counts are not populated in IOS-XE 17.12.5
-		if c.rxPacketsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.rxPacketsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxDataFrameCount), labels...)
-		}
-		if c.txPacketsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.txPacketsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxDataFrameCount), labels...)
-		}
-
-		// Frame counter metrics
-		if c.dataRxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.dataRxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxDataFrameCount), labels...)
-		}
-		if c.dataTxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.dataTxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxDataFrameCount), labels...)
-		}
-		if c.managementRxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.managementRxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxMgmtFrameCount), labels...)
-		}
-		if c.managementTxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.managementTxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxMgmtFrameCount), labels...)
-		}
-		if c.controlRxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.controlRxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxCtrlFrameCount), labels...)
-		}
-		if c.controlTxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.controlTxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxCtrlFrameCount), labels...)
-		}
-		if c.multicastRxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.multicastRxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.MulticastRxFrameCnt), labels...)
-		}
-		if c.multicastTxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.multicastTxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.MulticastTxFrameCnt), labels...)
-		}
-		if c.totalTxFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.totalTxFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxFrameCount), labels...)
-		}
-		if c.rtsSuccessTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.rtsSuccessTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RtsSuccessCount), labels...)
-		}
-	}
-}
-
-// collectErrorMetrics collects error-related metrics.
-func (c *APCollector) collectErrorMetrics(
-	ch chan<- prometheus.Metric,
-	radioData *ap.ApOperRadioOperData,
-	radioOperStats *ap.ApOperRadioOperStats,
-) {
-	for _, radio := range radioData.RadioOperData {
-		radioSlot := strconv.Itoa(radio.RadioSlotID)
-		labels := []string{radio.WtpMAC, radioSlot}
-
-		// Find corresponding radio statistics
-		currentRadioStats := c.findRadioStats(&radio, radioOperStats)
-		if currentRadioStats == nil {
-			continue
-		}
-
-		// Error metrics
-		if c.rxErrorsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.rxErrorsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxErrorFrameCount), labels...)
-		}
-		if c.txRetriesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.txRetriesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RetryCount), labels...)
-		}
-		if c.ackFailuresTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.ackFailuresTotalDesc, prometheus.CounterValue, float64(currentRadioStats.FailedCount), labels...)
-		}
-		if c.duplicateFramesTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.duplicateFramesTotalDesc, prometheus.CounterValue, float64(currentRadioStats.FrameDuplicateCount), labels...)
-		}
-		if c.fcsErrorsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.fcsErrorsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.FcsErrorCount), labels...)
-		}
-		if c.fragmentationRxTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.fragmentationRxTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RxFragmentCount), labels...)
-		}
-		if c.fragmentationTxTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.fragmentationTxTotalDesc, prometheus.CounterValue, float64(currentRadioStats.TxFragmentCount), labels...)
-		}
-		if c.rtsFailuresTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.rtsFailuresTotalDesc, prometheus.CounterValue, float64(currentRadioStats.RtsFailureCount), labels...)
-		}
-		if c.decryptionErrorsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.decryptionErrorsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.MACDecryErrFrameCount), labels...)
-		}
-		if c.micErrorsTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.micErrorsTotalDesc, prometheus.CounterValue, float64(currentRadioStats.MACMicErrFrameCount), labels...)
-		}
-		if c.wepUndecryptableTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.wepUndecryptableTotalDesc, prometheus.CounterValue, float64(currentRadioStats.WepUndecryptableCount), labels...)
-		}
-
-		// RF Events - placeholder values
-		if c.coverageHoleEventsDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.coverageHoleEventsDesc, prometheus.CounterValue, 0, labels...)
-		}
-		if c.interferenceEventsDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.interferenceEventsDesc, prometheus.CounterValue, 0, labels...)
-		}
-		if c.dfsChannelChangesDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.dfsChannelChangesDesc, prometheus.CounterValue, 0, labels...)
-		}
-		if c.radarDetectedEventsDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.radarDetectedEventsDesc, prometheus.CounterValue, 0, labels...)
-		}
-		if c.radioResetTotalDesc != nil {
-			ch <- prometheus.MustNewConstMetric(c.radioResetTotalDesc, prometheus.CounterValue, 0, labels...)
-		}
-	}
-}
-
 // collectCPUMetrics collects CPU-related metrics.
 func (c *APCollector) collectCPUMetrics(ch chan<- prometheus.Metric, apOperData *ap.ApOperData) {
-	if apOperData == nil {
-		return
-	}
+	// Pre-allocate labels slice for reuse
+	labels := make([]string, 1)
 
 	for _, apOper := range apOperData.OperData {
-		// Build AP-level labels (MAC only)
-		labels := []string{apOper.WtpMAC}
+		labels[0] = apOper.WtpMAC
 
 		if c.cpuUsageCurrentDesc != nil {
 			ch <- prometheus.MustNewConstMetric(c.cpuUsageCurrentDesc, prometheus.GaugeValue,
@@ -965,13 +712,11 @@ func (c *APCollector) collectCPUMetrics(ch chan<- prometheus.Metric, apOperData 
 
 // collectMemoryMetrics collects memory-related metrics.
 func (c *APCollector) collectMemoryMetrics(ch chan<- prometheus.Metric, apOperData *ap.ApOperData) {
-	if apOperData == nil {
-		return
-	}
+	// Pre-allocate labels slice for reuse
+	labels := make([]string, 1)
 
 	for _, apOper := range apOperData.OperData {
-		// Build AP-level labels (MAC only)
-		labels := []string{apOper.WtpMAC}
+		labels[0] = apOper.WtpMAC
 
 		if c.memoryUsageCurrentDesc != nil {
 			ch <- prometheus.MustNewConstMetric(c.memoryUsageCurrentDesc, prometheus.GaugeValue,
@@ -1018,53 +763,251 @@ func (c *APCollector) collectInfoMetrics(
 		swVersion := capwap.DeviceDetail.WtpVersion.SwVersion
 		ethMAC := capwap.DeviceDetail.StaticInfo.BoardData.WtpEnetMAC
 
-		// Build dynamic labels based on configured InfoLabels
-		labels := c.buildInfoLabelValues(
-			radio.WtpMAC, capwap.Name, capwap.IPAddr, radioSlot,
-			band, model, serial, swVersion, ethMAC,
-		)
+		// Build dynamic labels based on configured InfoLabels directly
+		values := make([]string, len(c.infoLabelNames))
+		for i, labelName := range c.infoLabelNames {
+			switch labelName {
+			case "mac":
+				values[i] = radio.WtpMAC
+			case "name":
+				values[i] = capwap.Name
+			case "ip":
+				values[i] = capwap.IPAddr
+			case "radio":
+				values[i] = radioSlot
+			case "band":
+				values[i] = band
+			case "model":
+				values[i] = model
+			case "serial":
+				values[i] = serial
+			case "sw_version":
+				values[i] = swVersion
+			case "eth_mac":
+				values[i] = ethMAC
+			default:
+				values[i] = "" // fallback
+			}
+		}
 
 		// Emit info metric (always value 1)
 		ch <- prometheus.MustNewConstMetric(
 			c.infoDesc,
 			prometheus.GaugeValue,
 			1,
-			labels...,
+			values...,
 		)
 	}
 }
 
-// buildInfoLabelValues constructs the label values array based on configured labels.
-func (c *APCollector) buildInfoLabelValues(
-	mac, name, ip, radio, band, model, serial, swVersion, ethMAC string,
-) []string {
-	// Get the configured labels
-	labelNames := c.infoLabelNames
-	values := make([]string, len(labelNames))
+// collectRadioMetrics collects all radio-level metrics in a single efficient loop.
+func (c *APCollector) collectRadioMetrics(
+	ch chan<- prometheus.Metric,
+	radioData *ap.ApOperRadioOperData,
+	rfCtx *rfMetricContext,
+	radioOperStats *ap.ApOperRadioOperStats,
+) {
+	// Pre-allocate labels slice for reuse (mac, radio)
+	const radioLabelCount = 2
+	labels := make([]string, radioLabelCount)
 
-	// Map field names to values
-	valueMap := map[string]string{
-		"mac":        mac,
-		"name":       name,
-		"ip":         ip,
-		"radio":      radio,
-		"band":       band,
-		"model":      model,
-		"serial":     serial,
-		"sw_version": swVersion,
-		"eth_mac":    ethMAC,
-	}
+	for _, radio := range radioData.RadioOperData {
+		// Build common labels once per radio
+		radioSlot := strconv.Itoa(radio.RadioSlotID)
+		labels[0] = radio.WtpMAC
+		labels[1] = radioSlot
 
-	// Build values array in the same order as label names
-	for i, labelName := range labelNames {
-		if value, exists := valueMap[labelName]; exists {
-			values[i] = value
-		} else {
-			values[i] = "" // fallback for unknown labels
+		// Find radio stats once per radio if needed for traffic/error metrics
+		var radioStats *ap.RadioOperStats
+		if c.metrics.Traffic || c.metrics.Errors {
+			if radioOperStats != nil {
+				radioStats = c.findRadioStats(&radio, radioOperStats)
+			}
+		}
+
+		// Collect State metrics
+		if c.metrics.State {
+			c.collectStateMetrics(ch, &radio, labels)
+		}
+
+		// Collect RF metrics
+		if c.metrics.RF {
+			if rfCtx != nil {
+				c.collectRFMetrics(ch, &radio, labels, rfCtx)
+			}
+		}
+
+		// Collect Physical layer metrics
+		if c.metrics.Phy {
+			c.collectPhyMetrics(ch, &radio, labels)
+		}
+
+		// Collect Traffic metrics
+		if c.metrics.Traffic {
+			// Basic traffic counters
+			ch <- prometheus.MustNewConstMetric(c.rxPacketsTotalDesc, prometheus.CounterValue, float64(radioStats.RxDataFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.txPacketsTotalDesc, prometheus.CounterValue, float64(radioStats.TxDataFrameCount), labels...)
+
+			// Frame counters
+			ch <- prometheus.MustNewConstMetric(c.dataRxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.RxDataFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.dataTxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.TxDataFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.managementRxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.RxMgmtFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.managementTxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.TxMgmtFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.controlRxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.RxCtrlFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.controlTxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.TxCtrlFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.multicastRxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.MulticastRxFrameCnt), labels...)
+			ch <- prometheus.MustNewConstMetric(c.multicastTxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.MulticastTxFrameCnt), labels...)
+			ch <- prometheus.MustNewConstMetric(c.totalTxFramesTotalDesc, prometheus.CounterValue, float64(radioStats.TxFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.rtsSuccessTotalDesc, prometheus.CounterValue, float64(radioStats.RtsSuccessCount), labels...)
+		}
+
+		// Collect Error metrics
+		if c.metrics.Errors {
+			// Radio operational errors
+			ch <- prometheus.MustNewConstMetric(c.rxErrorsTotalDesc, prometheus.CounterValue, float64(radioStats.RxErrorFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.txRetriesTotalDesc, prometheus.CounterValue, float64(radioStats.RetryCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.txDropsTotalDesc, prometheus.CounterValue, float64(radioStats.AckFailureCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.txErrorsTotalDesc, prometheus.CounterValue, float64(radioStats.FailedCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.ackFailuresTotalDesc, prometheus.CounterValue, float64(radioStats.FailedCount), labels...)
+
+			// Frame-level errors
+			ch <- prometheus.MustNewConstMetric(c.duplicateFramesTotalDesc, prometheus.CounterValue, float64(radioStats.FrameDuplicateCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.fcsErrorsTotalDesc, prometheus.CounterValue, float64(radioStats.FcsErrorCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.fragmentationRxTotalDesc, prometheus.CounterValue, float64(radioStats.RxFragmentCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.fragmentationTxTotalDesc, prometheus.CounterValue, float64(radioStats.TxFragmentCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.rtsFailuresTotalDesc, prometheus.CounterValue, float64(radioStats.RtsFailureCount), labels...)
+
+			// Security-related errors
+			ch <- prometheus.MustNewConstMetric(c.decryptionErrorsTotalDesc, prometheus.CounterValue, float64(radioStats.MACDecryErrFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.micErrorsTotalDesc, prometheus.CounterValue, float64(radioStats.MACMicErrFrameCount), labels...)
+			ch <- prometheus.MustNewConstMetric(c.wepUndecryptableTotalDesc, prometheus.CounterValue, float64(radioStats.WepUndecryptableCount), labels...)
+
+			// RF events (placeholder values - not verified in current IOS-XE version)
+			ch <- prometheus.MustNewConstMetric(c.coverageHoleEventsDesc, prometheus.CounterValue, 0.0, labels...)
+			ch <- prometheus.MustNewConstMetric(c.interferenceEventsDesc, prometheus.CounterValue, 0.0, labels...)
+			ch <- prometheus.MustNewConstMetric(c.dfsChannelChangesDesc, prometheus.CounterValue, 0.0, labels...)
+			ch <- prometheus.MustNewConstMetric(c.radarDetectedEventsDesc, prometheus.CounterValue, 0.0, labels...)
+			ch <- prometheus.MustNewConstMetric(c.radioResetTotalDesc, prometheus.CounterValue, 0.0, labels...)
 		}
 	}
+}
 
-	return values
+// collectRFMetrics collects all RF-related metrics efficiently.
+func (c *APCollector) collectRFMetrics(
+	ch chan<- prometheus.Metric,
+	radio *ap.RadioOperData,
+	labels []string,
+	ctx *rfMetricContext,
+) {
+	// Get measurement data once
+	measurement := ctx.measurements[radio.WtpMAC+":"+strconv.Itoa(radio.RadioSlotID)]
+
+	// Early return if no measurement data
+	if measurement == nil {
+		return
+	}
+
+	// Noise floor
+	if c.noiseFloorDesc != nil {
+		value := float64(measurement.Noise.Noise.NoiseData[0].Noise)
+		ch <- prometheus.MustNewConstMetric(c.noiseFloorDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Channel utilization
+	if c.channelUtilizationDesc != nil {
+		value := float64(measurement.Load.CcaUtilPercentage)
+		ch <- prometheus.MustNewConstMetric(c.channelUtilizationDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// RX utilization
+	if c.rxUtilizationDesc != nil {
+		value := float64(measurement.Load.RxUtilPercentage)
+		ch <- prometheus.MustNewConstMetric(c.rxUtilizationDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// TX utilization
+	if c.txUtilizationDesc != nil {
+		value := float64(measurement.Load.TxUtilPercentage)
+		ch <- prometheus.MustNewConstMetric(c.txUtilizationDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Noise utilization
+	if c.noiseUtilizationDesc != nil {
+		value := float64(measurement.Load.RxNoiseChannelUtilization)
+		ch <- prometheus.MustNewConstMetric(c.noiseUtilizationDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Associated clients
+	if c.associatedClientsDesc != nil {
+		var value float64
+		if apCounts, ok := ctx.clientCounts[radio.WtpMAC]; ok {
+			if count, ok := apCounts[radio.RadioSlotID]; ok {
+				value = float64(count)
+			}
+		}
+		ch <- prometheus.MustNewConstMetric(c.associatedClientsDesc, prometheus.GaugeValue, value, labels...)
+	}
+}
+
+// collectPhyMetrics collects all physical layer metrics efficiently.
+func (c *APCollector) collectPhyMetrics(
+	ch chan<- prometheus.Metric,
+	radio *ap.RadioOperData,
+	labels []string,
+) {
+	// TX power
+	if c.txPowerDesc != nil {
+		value := float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)
+		ch <- prometheus.MustNewConstMetric(c.txPowerDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Channel number
+	if c.channelDesc != nil {
+		value := float64(radio.PhyHtCfg.CfgData.CurrFreq)
+		ch <- prometheus.MustNewConstMetric(c.channelDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Channel width
+	if c.channelWidthDesc != nil {
+		value := float64(radio.PhyHtCfg.CfgData.ChanWidth)
+		ch <- prometheus.MustNewConstMetric(c.channelWidthDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// TX power level (default to 1)
+	if c.txPowerLevelDesc != nil {
+		ch <- prometheus.MustNewConstMetric(c.txPowerLevelDesc, prometheus.GaugeValue, 1.0, labels...)
+	}
+
+	// TX power max (use level-1 power)
+	if c.txPowerMaxDesc != nil {
+		value := float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)
+		ch <- prometheus.MustNewConstMetric(c.txPowerMaxDesc, prometheus.GaugeValue, value, labels...)
+	}
+}
+
+// collectStateMetrics collects all state-related metrics efficiently.
+func (c *APCollector) collectStateMetrics(
+	ch chan<- prometheus.Metric,
+	radio *ap.RadioOperData,
+	labels []string,
+) {
+	// Radio state
+	if c.radioStateDesc != nil {
+		value := boolToFloat64(radio.OperState == APRadioStateUp)
+		ch <- prometheus.MustNewConstMetric(c.radioStateDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Admin state
+	if c.adminStateDesc != nil {
+		value := boolToFloat64(radio.AdminState == APAdminStateEnabled)
+		ch <- prometheus.MustNewConstMetric(c.adminStateDesc, prometheus.GaugeValue, value, labels...)
+	}
+
+	// Oper state
+	if c.operStateDesc != nil {
+		value := boolToFloat64(radio.OperState == APRadioStateUp)
+		ch <- prometheus.MustNewConstMetric(c.operStateDesc, prometheus.GaugeValue, value, labels...)
+	}
 }
 
 // getClientDataForAPMetrics retrieves client data and AP name to MAC mapping for AP metrics.
@@ -1099,9 +1042,7 @@ func (c *APCollector) buildAPClientCounts(
 	// Build AP name to MAC mapping for efficient lookup
 	nameToMAC := make(map[string]string)
 	for _, mapping := range nameMACMaps.ApNameMACMap {
-		if mapping.WtpName != "" && mapping.WtpMAC != "" {
-			nameToMAC[mapping.WtpName] = mapping.WtpMAC
-		}
+		nameToMAC[mapping.WtpName] = mapping.WtpMAC
 	}
 
 	// Process each client
@@ -1113,17 +1054,13 @@ func (c *APCollector) buildAPClientCounts(
 
 		// Get AP name and map to MAC address
 		apName := commonData.ApName
-		if apName == "" {
-			continue
-		}
-
 		apMAC, exists := nameToMAC[apName]
 		if !exists {
 			continue
 		}
 
 		// Determine radio slot from radio type
-		radioSlot := mapRadioTypeToSlot(commonData.MsRadioType)
+		radioSlot := MapRadioTypeToSlot(commonData.MsRadioType)
 		if radioSlot == -1 {
 			continue
 		}
@@ -1140,58 +1077,55 @@ func (c *APCollector) buildAPClientCounts(
 	return clientCounts
 }
 
-// mapRadioTypeToSlot maps radio type string to radio slot ID.
-func mapRadioTypeToSlot(radioType string) int {
-	switch radioType {
-	case "dot11bg", "client-dot11ax-24ghz-prot", "client-dot11n-24-ghz-prot", "client-dot11bg-24-ghz-prot":
-		return RadioSlot24GHz
-	case "dot11a", "client-dot11ax-5ghz-prot", "client-dot11ac-5-ghz-prot",
-		"client-dot11n-5-ghz-prot", "client-dot11a-5-ghz-prot":
-		return RadioSlot5GHz
-	case "client-dot11ax-6ghz-prot":
-		return RadioSlot6GHz
-	default:
-		return -1 // unknown radio type
-	}
-}
-
 // getRRMDataForAPMetrics retrieves RRM measurement data for AP metrics.
 func (c *APCollector) getRRMDataForAPMetrics() (*rrm.RRMOperRRMMeasurement, error) {
 	ctx := context.Background()
 	return c.rrmSrc.GetRRMMeasurement(ctx)
 }
 
-// buildChannelUtilizationMap builds channel utilization map from RRM measurement data.
-func (c *APCollector) buildChannelUtilizationMap(
-	rrmData *rrm.RRMOperRRMMeasurement,
-) map[string]map[int]float64 {
-	utilizationMap := make(map[string]map[int]float64)
-
-	if rrmData == nil {
-		return utilizationMap
+// buildRFMetricContext builds the common context needed for RF metrics collection.
+func (c *APCollector) buildRFMetricContext() *rfMetricContext {
+	// Get client data and AP name to MAC mapping for accurate client counts
+	clientData, nameMACMaps, err := c.getClientDataForAPMetrics()
+	if err != nil {
+		slog.Warn("Failed to get client data for AP metrics", "error", err)
 	}
 
-	// Process each RRM measurement
-	for _, measurement := range rrmData.RRMMeasurement {
-		if measurement.Load == nil {
-			continue
-		}
-
-		apMAC := measurement.WtpMAC
-		radioSlot := measurement.RadioSlotID
-
-		if apMAC == "" {
-			continue
-		}
-
-		// Initialize map if needed
-		if utilizationMap[apMAC] == nil {
-			utilizationMap[apMAC] = make(map[int]float64)
-		}
-
-		// Use CCA utilization percentage as channel utilization
-		utilizationMap[apMAC][radioSlot] = float64(measurement.Load.CcaUtilPercentage)
+	// Get RRM measurement data for channel utilization
+	rrmData, err := c.getRRMDataForAPMetrics()
+	if err != nil {
+		slog.Warn("Failed to get RRM data for AP metrics", "error", err)
 	}
 
-	return utilizationMap
+	// Build client count by AP MAC and radio slot from client data and name mapping
+	clientCounts := c.buildAPClientCounts(clientData, nameMACMaps)
+
+	// Pre-calculate measurements per radio to avoid repeated loops
+	measurements := make(map[string]*rrm.RRMMeasurement)
+	if rrmData != nil {
+		for _, measurement := range rrmData.RRMMeasurement {
+			// Use radioSlot as key since we already have WtpMAC in outer loop
+			key := strconv.Itoa(measurement.RadioSlotID)
+			measurements[measurement.WtpMAC+":"+key] = &measurement
+		}
+	}
+
+	return &rfMetricContext{
+		rrmData:      rrmData,
+		clientCounts: clientCounts,
+		measurements: measurements,
+	}
+}
+
+// findRadioStats finds the corresponding radio statistics for a given radio.
+func (c *APCollector) findRadioStats(
+	radio *ap.RadioOperData,
+	radioOperStats *ap.ApOperRadioOperStats,
+) *ap.RadioOperStats {
+	for _, stats := range radioOperStats.RadioOperStats {
+		if stats.ApMAC == radio.WtpMAC && stats.SlotID == radio.RadioSlotID {
+			return &stats
+		}
+	}
+	return nil
 }

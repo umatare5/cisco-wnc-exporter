@@ -4,6 +4,7 @@ package collector
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -566,7 +567,7 @@ func buildWLANInfoLabels(configuredLabels []string) []string {
 	// Add other configured labels in consistent order
 	labelOrder := []string{"name"}
 	for _, label := range labelOrder {
-		if contains(configuredLabels, label) && !contains(labels, label) {
+		if slices.Contains(configuredLabels, label) && !slices.Contains(labels, label) {
 			labels = append(labels, label)
 		}
 	}

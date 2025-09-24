@@ -4,6 +4,7 @@ package collector
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -40,8 +41,9 @@ type ClientCollector struct {
 	infoLabelNames []string // Store configured label names
 
 	// Session metrics
-	stateDesc             *prometheus.Desc
-	associationUptimeDesc *prometheus.Desc
+	stateDesc                  *prometheus.Desc
+	associationUptimeDesc      *prometheus.Desc
+	stateTransitionSecondsDesc *prometheus.Desc
 
 	// PHY metrics
 	protocolDesc       *prometheus.Desc
@@ -121,6 +123,11 @@ func NewClientCollector(
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
 			"Client association uptime in seconds",
+			baseLabels, nil,
+		)
+		collector.stateTransitionSecondsDesc = prometheus.NewDesc(
+			"wnc_client_state_transition_seconds",
+			"Client state transition latency in seconds",
 			baseLabels, nil,
 		)
 	}
@@ -326,6 +333,16 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	// Get mobility history data for state transition metrics
+	var mobilityHistory *client.ClientOperMmIfClientHistory
+	if c.metrics.Session {
+		mobilityHistory, err = c.src.GetMobilityHistory(ctx)
+		if err != nil {
+			slog.Warn("Failed to retrieve mobility history data", "error", err)
+			// Don't return, continue without mobility history data
+		}
+	}
+
 	// Collect metrics according to enabled metrics - 1:1 with describe methods
 	if c.metrics.Inventory {
 		c.collectInventoryMetrics(ch, clientData)
@@ -334,7 +351,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 		c.collectInfoMetrics(ch, clientData, deviceData, dot11Data, sisfdbData)
 	}
 	if c.metrics.Session {
-		c.collectSessionMetrics(ch, clientData, dot11Data)
+		c.collectSessionMetrics(ch, clientData, dot11Data, mobilityHistory)
 	}
 	if c.metrics.Phy {
 		c.collectPhyMetrics(ch, clientData, dot11Data, trafficStats)
@@ -367,6 +384,7 @@ func (c *ClientCollector) describeInfoMetrics(ch chan<- *prometheus.Desc) {
 func (c *ClientCollector) describeSessionMetrics(ch chan<- *prometheus.Desc) {
 	ch <- c.stateDesc
 	ch <- c.associationUptimeDesc
+	ch <- c.stateTransitionSecondsDesc
 }
 
 // describePhyMetrics describes PHY-related metric descriptors.
@@ -492,6 +510,7 @@ func (c *ClientCollector) collectSessionMetrics(
 	ch chan<- prometheus.Metric,
 	clientData *client.ClientOperCommonOperData,
 	dot11Data *client.ClientOperDot11OperData,
+	mobilityHistory *client.ClientOperMmIfClientHistory,
 ) {
 	if clientData == nil {
 		return
@@ -516,7 +535,7 @@ func (c *ClientCollector) collectSessionMetrics(
 
 		// Client state
 		if c.stateDesc != nil {
-			state := mapClientState(commonData.CoState)
+			state := MapClientState(commonData.CoState)
 			ch <- prometheus.MustNewConstMetric(
 				c.stateDesc,
 				prometheus.GaugeValue,
@@ -536,6 +555,25 @@ func (c *ClientCollector) collectSessionMetrics(
 						uptime,
 						baseLabels...,
 					)
+				}
+			}
+		}
+
+		// State transition latency from mobility history
+		if c.stateTransitionSecondsDesc != nil && mobilityHistory != nil {
+			for _, history := range mobilityHistory.MmIfClientHistory {
+				if history.ClientMAC == commonData.ClientMAC && len(history.MobilityHistory.Entry) > 0 {
+					// Use the most recent (first) entry's run latency
+					latencyMs := history.MobilityHistory.Entry[0].RunLatency
+					latencySeconds := float64(latencyMs) / 1000.0 // Convert from milliseconds to seconds
+
+					ch <- prometheus.MustNewConstMetric(
+						c.stateTransitionSecondsDesc,
+						prometheus.GaugeValue,
+						latencySeconds,
+						baseLabels...,
+					)
+					break // Use only the first matching client
 				}
 			}
 		}
@@ -574,7 +612,7 @@ func (c *ClientCollector) collectPhyMetrics(
 		// Protocol information from dot11 data
 		if dot11, ok := dot11Map[commonData.ClientMAC]; ok {
 			if c.protocolDesc != nil {
-				protocol := mapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient)
+				protocol := MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient)
 				ch <- prometheus.MustNewConstMetric(
 					c.protocolDesc,
 					prometheus.GaugeValue,
@@ -1007,44 +1045,6 @@ func isValidMACAddress(mac string) bool {
 	return mac != "" && len(mac) >= 17 // Basic length check for MAC address format
 }
 
-// mapClientState maps client operational state to numeric value.
-func mapClientState(state string) int {
-	switch state {
-	case ClientStatusRun:
-		return ClientStateAssociated // associated
-	case "client-status-authenticated":
-		return 1 // authenticated
-	default:
-		return 0 // disconnected
-	}
-}
-
-// mapWirelessProtocol maps WNC PHY type strings and radio information to WirelessProtocol enum values.
-func mapWirelessProtocol(phyType, radioType string, is11GClient bool) WirelessProtocol {
-	switch {
-	case strings.Contains(phyType, "dot11n"):
-		return ProtocolN
-	case strings.Contains(phyType, "dot11ac"):
-		return ProtocolAC
-	case strings.Contains(phyType, "dot11ax"):
-		return ProtocolAX
-	case strings.Contains(phyType, "dot11be"), strings.Contains(phyType, "eht"):
-		return ProtocolBE
-	case strings.Contains(phyType, "dot11bg"):
-		// 802.11b/g mixed mode - determine by is-11g-client flag
-		if is11GClient {
-			return Protocol11G
-		}
-		return Protocol11B
-	case strings.Contains(phyType, "dot11a") || radioType == "dot11-radio-type-a":
-		return Protocol11A
-	case strings.Contains(phyType, "dot11g") || is11GClient:
-		return Protocol11G
-	default:
-		return ProtocolUnknown
-	}
-}
-
 // buildClientInfoLabelsConfig constructs the Client info labels slice based on configuration.
 func buildClientInfoLabelsConfig(configuredLabels []string) []string {
 	// mac is always required as first label
@@ -1053,7 +1053,7 @@ func buildClientInfoLabelsConfig(configuredLabels []string) []string {
 	// Add other configured labels in consistent order
 	labelOrder := []string{"ap", "band", "wlan", "name", "username", "ipv4", "ipv6"}
 	for _, label := range labelOrder {
-		if contains(configuredLabels, label) && !contains(labels, label) {
+		if slices.Contains(configuredLabels, label) && !slices.Contains(labels, label) {
 			labels = append(labels, label)
 		}
 	}
