@@ -15,6 +15,7 @@ type ClientSource interface {
 	GetDot11Data(ctx context.Context) (*client.ClientOperDot11OperData, error)
 	GetSISFDBData(ctx context.Context) (*client.ClientOperSisfDBMac, error)
 	GetTrafficStats(ctx context.Context) (*client.ClientOperTrafficStats, error)
+	GetMobilityHistory(ctx context.Context) (*client.ClientOperMmIfClientHistory, error)
 }
 
 // clientSource implements ClientSource using SharedDataSource for caching.
@@ -35,7 +36,13 @@ func (s *clientSource) GetClientData(ctx context.Context) (*client.ClientOperCom
 	if err != nil {
 		return nil, err
 	}
-	return data.CommonOperData, nil
+	if data.CommonOperData == nil {
+		return &client.ClientOperCommonOperData{}, nil // Return empty struct instead of nil
+	}
+
+	// Validate and sanitize client data
+	validated := s.validateClientData(data.CommonOperData)
+	return validated, nil
 }
 
 // GetDeviceData returns device classification info from WNC via SharedDataSource (cached).
@@ -72,4 +79,36 @@ func (s *clientSource) GetTrafficStats(ctx context.Context) (*client.ClientOperT
 		return nil, err
 	}
 	return data.TrafficStats, nil
+}
+
+// GetMobilityHistory returns mobility manager interface client history from WNC via SharedDataSource (cached).
+func (s *clientSource) GetMobilityHistory(ctx context.Context) (*client.ClientOperMmIfClientHistory, error) {
+	data, err := s.sharedDataSource.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return data.MmIfClientHistory, nil
+}
+
+// validateClientData validates and sanitizes client operational data.
+// NOTE: This function will be simplified further once SDK removes omitempty
+// from Live: IOS-XE 17.12.5 fields and ensures data completeness.
+func (s *clientSource) validateClientData(data *client.ClientOperCommonOperData) *client.ClientOperCommonOperData {
+	if data == nil {
+		return &client.ClientOperCommonOperData{}
+	}
+
+	// TODO: Remove this validation once SDK ensures data completeness
+	// Currently needed to filter out clients with invalid AP names
+	validatedData := make([]client.CommonOperData, 0, len(data.CommonOperData))
+	for _, commonData := range data.CommonOperData {
+		// Only include clients with valid AP names
+		if commonData.ApName != "" {
+			validatedData = append(validatedData, commonData)
+		}
+	}
+
+	return &client.ClientOperCommonOperData{
+		CommonOperData: validatedData,
+	}
 }

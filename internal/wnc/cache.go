@@ -25,11 +25,12 @@ type WNCDataCache struct {
 	NameMACMaps    *ap.ApOperApNameMACMap
 
 	// Client data
-	CommonOperData *client.ClientOperCommonOperData
-	DCInfo         *client.ClientOperDcInfo
-	Dot11OperData  *client.ClientOperDot11OperData
-	SisfDBMac      *client.ClientOperSisfDBMac
-	TrafficStats   *client.ClientOperTrafficStats
+	CommonOperData    *client.ClientOperCommonOperData
+	DCInfo            *client.ClientOperDcInfo
+	Dot11OperData     *client.ClientOperDot11OperData
+	SisfDBMac         *client.ClientOperSisfDBMac
+	TrafficStats      *client.ClientOperTrafficStats
+	MmIfClientHistory *client.ClientOperMmIfClientHistory
 
 	// RRM data
 	RRMMeasurements *rrm.RRMOperRRMMeasurement
@@ -89,7 +90,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.CAPWAPData = data
-			slog.Info("AP CAPWAP data retrieved from WNC successfully", "count", len(data.CAPWAPData))
+			slog.Info(
+				"AP CAPWAP data retrieved from WNC successfully",
+				"count",
+				len(data.CAPWAPData),
+			)
 			return nil
 		}},
 		{"AP operational", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -98,7 +103,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.ApOperData = data
-			slog.Info("AP operational data retrieved from WNC successfully", "count", len(data.OperData))
+			slog.Info(
+				"AP operational data retrieved from WNC successfully",
+				"count",
+				len(data.OperData),
+			)
 			return nil
 		}},
 		{"radio operational", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -107,7 +116,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.RadioOperData = data
-			slog.Info("radio operational data retrieved from WNC successfully", "count", len(data.RadioOperData))
+			slog.Info(
+				"radio operational data retrieved from WNC successfully",
+				"count",
+				len(data.RadioOperData),
+			)
 			return nil
 		}},
 		{"AP name to MAC mapping", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -116,7 +129,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.NameMACMaps = data
-			slog.Info("AP name to MAC mapping data retrieved from WNC successfully", "count", len(data.ApNameMACMap))
+			slog.Info(
+				"AP name to MAC mapping data retrieved from WNC successfully",
+				"count",
+				len(data.ApNameMACMap),
+			)
 			return nil
 		}},
 		{"RRM measurements", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -125,7 +142,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.RRMMeasurements = data
-			slog.Info("RRM measurement data retrieved from WNC successfully", "count", len(data.RRMMeasurement))
+			slog.Info(
+				"RRM measurement data retrieved from WNC successfully",
+				"count",
+				len(data.RRMMeasurement),
+			)
 			return nil
 		}},
 		{"WLAN configuration entries", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -138,7 +159,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 			if data != nil && data.WlanCfgEntries != nil {
 				profileCount = len(data.WlanCfgEntries.WlanCfgEntry)
 			}
-			slog.Info("WLAN configuration entries retrieved from WNC successfully", "count", profileCount)
+			slog.Info(
+				"WLAN configuration entries retrieved from WNC successfully",
+				"count",
+				profileCount,
+			)
 			return nil
 		}},
 		{"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -160,7 +185,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.CommonOperData = data
-			slog.Info("client common data retrieved from WNC successfully", "count", len(data.CommonOperData))
+			slog.Info(
+				"client common data retrieved from WNC successfully",
+				"count",
+				len(data.CommonOperData),
+			)
 			return nil
 		}},
 		{"client device classification", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -169,7 +198,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.DCInfo = data
-			slog.Info("client device classification data retrieved from WNC successfully", "count", len(data.DcInfo))
+			slog.Info(
+				"client device classification data retrieved from WNC successfully",
+				"count",
+				len(data.DcInfo),
+			)
 			return nil
 		}},
 		{"client 802.11", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -189,7 +222,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.SisfDBMac = data
-			slog.Info("SISF database data retrieved from WNC successfully", "count", len(data.SisfDBMac))
+			slog.Info(
+				"SISF database data retrieved from WNC successfully",
+				"count",
+				len(data.SisfDBMac),
+			)
 			return nil
 		}},
 		{"client traffic stats", true, func(ctx context.Context, c *WNCDataCache) error {
@@ -198,18 +235,37 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 				return err
 			}
 			c.TrafficStats = data
-			slog.Info("client traffic stats data retrieved from WNC successfully", "count", len(data.TrafficStats))
+			slog.Info(
+				"client traffic stats data retrieved from WNC successfully",
+				"count",
+				len(data.TrafficStats),
+			)
 			return nil
 		}},
-
-		// Optional data - failures are logged but don't abort cache refresh
+		{"client mobility history", true, func(ctx context.Context, c *WNCDataCache) error {
+			data, err := s.client.Client().ListMmIfClientHistory(ctx)
+			if err != nil {
+				return err
+			}
+			c.MmIfClientHistory = data
+			slog.Info(
+				"client mobility history data retrieved from WNC successfully",
+				"count",
+				len(data.MmIfClientHistory),
+			)
+			return nil
+		}},
 		{"radio statistics", false, func(ctx context.Context, c *WNCDataCache) error {
 			data, err := s.client.AP().ListRadioOperStats(ctx)
 			if err != nil {
 				return err
 			}
 			c.RadioOperStats = data
-			slog.Info("radio statistics data retrieved from WNC successfully", "count", len(data.RadioOperStats))
+			slog.Info(
+				"radio statistics data retrieved from WNC successfully",
+				"count",
+				len(data.RadioOperStats),
+			)
 			return nil
 		}},
 	}
