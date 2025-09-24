@@ -84,7 +84,47 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 3. Metrics Naming & Labels
+## 3. Data Validation Architecture
+
+- **DV-001 (MUST)** **Data validation is the exclusive responsibility of the WNC layer (`internal/wnc`)**. The collector layer (`internal/collector`) must focus solely on business logic (metrics transformation and exposition).
+
+- **DV-002 (MUST)** **Eliminate all type checks, nil checks, and data structure validations from collectors**. Examples of prohibited patterns in collectors:
+
+  ```go
+  // ❌ PROHIBITED in collectors:
+  if measurement.Load == nil { return }
+  if measurement.Noise != nil && len(measurement.Noise.Noise.NoiseData) > 0 { ... }
+  if apOper.ApSysStats == nil { continue }
+  if len(radio.RadioBandInfo) == 0 { return }
+  ```
+
+- **DV-003 (MUST)** **WNC layer must ensure data completeness and validity**. Return sanitized, complete data structures or empty safe defaults. Never return nil pointers that would require defensive programming in collectors.
+
+- **DV-004 (MUST)** **Use consistent data validation patterns in WNC layer**:
+
+  ```go
+  // ✅ CORRECT pattern in internal/wnc:
+  func (s *rrmSource) GetValidatedRRMMeasurement(ctx context.Context) (*rrm.RRMOperRRMMeasurement, error) {
+      data, err := s.sharedDataSource.GetCachedData(ctx)
+      if err != nil {
+          return nil, err
+      }
+
+      // Validate and sanitize data structure
+      validated := validateRRMData(data.RRMData)
+      return validated, nil
+  }
+  ```
+
+- **DV-005 (SHOULD)** **Create validation helper functions** for complex data structures to ensure consistency across the WNC layer.
+
+- **DV-006 (MUST)** **Collectors assume valid data**. If WNC layer returns data, collectors must be able to use it directly without additional checks.
+
+- **DV-007 (SHOULD)** **Prepare for SDK omitempty removal**. Fields marked with "Live: IOS-XE 17.12.5" in the SDK will have `omitempty` tags removed in future versions. Current validation should be minimal and include TODO comments for future simplification.
+
+---
+
+## 4. Metrics Naming & Labels
 
 - **MN-001 (MUST)** Prefix names with `wnc_`. Use `snake_case` and **unit suffixes** (`_bytes`, `_seconds`, `_ratio`, `_percent`, `_count`).
 - **MN-002 (MUST)** **Counters** for monotonic totals; **Gauges** for instantaneous values; **Histograms/Summaries** only with strong justification.
@@ -132,7 +172,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 4. Config & Flags
+## 5. Config & Flags
 
 - **CF-001 (MUST)** Define defaults as **named constants**; mirror to env vars with clear precedence (env → flag default or vice versa; document).
 - **CF-002 (MUST)** Validate flag combinations; fail fast with actionable errors.
@@ -140,7 +180,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 5. HTTP Server
+## 6. HTTP Server
 
 - **HS-001 (MUST)** Use `promhttp.HandlerFor(customRegistry, promhttp.HandlerOpts{EnableOpenMetrics: true, MaxRequestsInFlight: N})`.
 - **HS-002 (MUST)** Implement **graceful shutdown** (context + timeout) and log start/stop with bind address.
@@ -149,7 +189,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 6. Context, Transport & SDK
+## 7. Context, Transport & SDK
 
 - **CT-001 (MUST)** Thread `context.Context` through all outbound calls; respect deadlines and cancellation.
 - **CT-002 (MUST)** Reuse a single `http.Client` with timeouts; **always** close `resp.Body`.
@@ -158,7 +198,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 7. Errors & Logging
+## 8. Errors & Logging
 
 - **EL-001 (MUST)** Wrap errors with `%w` and include identifiers (never secrets). Provide typed/sentinel errors where useful.
 - **EL-002 (MUST)** Use `log/slog` with structured key/value fields. Keep messages concise.
@@ -166,7 +206,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 ---
 
-## 8. Testing Framework
+## 9. Testing Framework
 
 ### 8.A Unit Tests
 
@@ -226,7 +266,7 @@ func TestAPCollector_Collect_MetricsSurface(t *testing.T) {
 
 ---
 
-## 9. Performance & Memory
+## 10. Performance & Memory
 
 - **PM-001 (MUST)** Avoid per‑scrape allocations (prebuild descriptors/const labels, reuse buffers).
 - **PM-002 (MUST)** Avoid unbounded maps keyed by user input or names.
@@ -234,7 +274,7 @@ func TestAPCollector_Collect_MetricsSurface(t *testing.T) {
 
 ---
 
-## 10. Naming & API Conventions
+## 11. Naming & API Conventions
 
 - **NA-001 (MUST)** Use **imperative verbs** for actions (`Run`, `Start`, `Shutdown`).
 - **NA-002 (MUST)** Keep package names singular and stutter‑free (`collector/ap`, not `collectors` or `apcollector`).
@@ -247,7 +287,7 @@ func TestAPCollector_Collect_MetricsSurface(t *testing.T) {
 
 ---
 
-## 11. Documentation
+## 12. Documentation
 
 - **DC-001 (MUST)** Start each exported type/function comment with its identifier.
 - **DC-002 (MUST)** Document each metric family in code (help text) and in `README.md` table (name, type, labels).
@@ -255,7 +295,7 @@ func TestAPCollector_Collect_MetricsSurface(t *testing.T) {
 
 ---
 
-## 12. Quality Gate
+## 13. Quality Gate
 
 - **QG-001 (MUST)** CI must run: `go vet`, `staticcheck`, `golangci-lint`, `go test ./...`, and (if configured) `promtool` checks for examples.
 - **QG-002 (MUST)** `go.mod` is tidy; pinned minimal dependencies (prefer stdlib + `client_golang`).
@@ -263,7 +303,7 @@ func TestAPCollector_Collect_MetricsSurface(t *testing.T) {
 
 ---
 
-## 13. Example: Server Wiring
+## 14. Example: Server Wiring
 
 ```go
 // internal/server/server.go
