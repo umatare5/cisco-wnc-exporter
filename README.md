@@ -332,7 +332,7 @@ This exporter implements the recommended workaround by using `failed-count` from
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
 > ```bash
-> wnc_ap_radio_admin_state * on(mac,radio) group_left(name,ip) wnc_ap_info{name="TEST-AP01"}
+> wnc_ap_radio_admin_state * on(mac,radio) group_left(name,ip) wnc_ap_info
 > ```
 
 ### Client Collector
@@ -422,7 +422,7 @@ This was verified through direct RESTCONF API access to the live WNC environment
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
 > ```bash
-> wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info{ap="TEST-AP01"}
+> wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
 > ```
 
 ### WLAN Collector
@@ -461,7 +461,7 @@ WLAN collector focus on logical SSID performance and parameter checks.
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
 > ```bash
-> wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info{name="labo-wifi"}
+> wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info
 > ```
 
 ## Usage
