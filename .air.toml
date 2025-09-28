@@ -24,7 +24,7 @@ tmp_dir = "tmp"
                   --collector.wlan.traffic \
                   --collector.wlan.config \
                   --collector.wlan.info \
-                  --collector.wlan.info-labels="name"'
+                  --collector.wlan.info-labels "name"'
 
   exclude_dir = ["assets", "tmp", "vendor", "test_data", ".git", ".github", ".vscode", "node_modules", "dist", "build"]
   exclude_regex = ["_test\\.go"]
