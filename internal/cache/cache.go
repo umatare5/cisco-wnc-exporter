@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// Cache provides generic caching with TTL support and double-checked locking pattern.
-// T represents the type of data being cached.
 type Cache[T any] struct {
 	mu       sync.RWMutex
 	data     T
@@ -25,8 +23,6 @@ func New[T any](ttl time.Duration, name string) *Cache[T] {
 	}
 }
 
-// Get retrieves cached data if fresh, otherwise calls refreshFunc to update the cache.
-// Uses double-checked locking pattern to avoid race conditions.
 func (c *Cache[T]) Get(refreshFunc func() (T, error)) (T, error) {
 	// Fast path: check cache with read lock
 	c.mu.RLock()
@@ -41,7 +37,6 @@ func (c *Cache[T]) Get(refreshFunc func() (T, error)) (T, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Double-check pattern to avoid race conditions
 	if c.isFresh() {
 		return c.data, nil
 	}

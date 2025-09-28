@@ -1,5 +1,4 @@
-// Package server provides HTTP server functionality for the cisco-wnc-exporter.
-// It serves Prometheus metrics and health check endpoints.
+// Package server provides HTTP server functionality.
 package server
 
 import (
@@ -10,31 +9,27 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// New creates a new HTTP server with /metrics, /healthz, and /readyz endpoints.
-// It uses a custom Prometheus registry and enables OpenMetrics format.
+// New creates a new HTTP server with metrics and health endpoints.
 func New(reg *prometheus.Registry, addr string) *http.Server {
 	mux := http.NewServeMux()
 
-	// Prometheus metrics endpoint with custom registry
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
 		EnableOpenMetrics:   true,
-		MaxRequestsInFlight: 10, // Limit concurrent metric requests
+		MaxRequestsInFlight: 10,
 	}))
 
-	// Health check endpoints
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK\n")) // Ignore write error for health check
+		_, _ = w.Write([]byte("OK\n"))
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK\n")) // Ignore write error for readiness check
+		_, _ = w.Write([]byte("OK\n"))
 	})
 
-	// Root endpoint with basic information
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -52,6 +47,6 @@ func New(reg *prometheus.Registry, addr string) *http.Server {
 	return &http.Server{
 		Addr:              addr,
 		Handler:           mux,
-		ReadHeaderTimeout: 30 * time.Second, // Prevent Slowloris attacks
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 }
