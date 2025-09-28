@@ -33,8 +33,8 @@ github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjR
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/umatare5/cisco-ios-xe-wireless-go v0.3.6 h1:U9mweopFoqxHACppGP9LKdpcxB+Y1YHCaZG90LcEStg=
-github.com/umatare5/cisco-ios-xe-wireless-go v0.3.6/go.mod h1:OSknGkFByTcwsbf2pEqSvuz6gfF4MBho1LWbaBZUtKM=
+github.com/umatare5/cisco-ios-xe-wireless-go v0.4.2 h1:EKaVjPt0ZHIZbHqb7Y9TFutdh4ouEJVh48alWcFcEoU=
+github.com/umatare5/cisco-ios-xe-wireless-go v0.4.2/go.mod h1:OSknGkFByTcwsbf2pEqSvuz6gfF4MBho1LWbaBZUtKM=
 github.com/urfave/cli/v3 v3.4.1 h1:1M9UOCy5bLmGnuu1yn3t3CB4rG79Rtoxuv1sPhnm6qM=
 github.com/urfave/cli/v3 v3.4.1/go.mod h1:FJSKtM/9AiiTOJL4fJ6TbMUkxBXn7GO9guZqoZtpYpo=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=

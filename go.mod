@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/prometheus/client_golang v1.23.1
-	github.com/umatare5/cisco-ios-xe-wireless-go v0.3.6
+	github.com/umatare5/cisco-ios-xe-wireless-go v0.4.2
 	github.com/urfave/cli/v3 v3.4.1
 )
 
