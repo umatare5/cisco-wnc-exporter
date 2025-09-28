@@ -163,7 +163,7 @@ AP collector focus on RF foundation and radio performance.
 | radio   | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
 | radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
 | radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Channel noise floor (dBm)                        |
-| radio   | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage (CCA-based)       |
+| radio   | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage (CCA)             |
 | radio   | `wnc_ap_rx_utilization_percent`       | Gauge   | RX utilization percentage                        |
 | radio   | `wnc_ap_tx_utilization_percent`       | Gauge   | TX utilization percentage                        |
 | radio   | `wnc_ap_noise_utilization_percent`    | Gauge   | Noise channel utilization percentage             |
