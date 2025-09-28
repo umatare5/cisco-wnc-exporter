@@ -23,9 +23,9 @@
 
 This exporter allows a prometheus instance to scrape metrics from [Cisco C9800 Wireless Network Controller](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
-- 🔧 **RESTCONF Support**: Collects configs and states from Cisco C9800 with greater flexibility than legacy SNMP
-- 🛡️ **Critical State Monitoring**: Tracks vital changes such as AP misconfiguration or WLAN enable/disable events
-- 📊 **Long-Term Observability**: Retains metrics beyond device limits, enabling historical analysis and trend insight
+- 🔧 **RESTCONF Support**: Collects configs and states from Cisco C9800 with more flexibility than SNMP
+- 🛡️ **Critical State Monitoring**: Detects changes such as AP misconfigurations or WLAN enable/disable
+- 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
 
 > [!Important]
 >
