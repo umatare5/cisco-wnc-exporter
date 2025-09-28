@@ -533,7 +533,7 @@ Once the pull request is merged, the GitHub Workflow automatically creates and p
 
 ## Acknowledgement
 
-I originally launched this project with the help of **GitHub Copilot Coding Agent**, and I am grateful to the global developer community for their contributions to open source projects and public repositories.
+I launched this project with the help of **GitHub Copilot Coding Agent**, and I am grateful to the global developer community for their contributions to open source projects and public repositories.
 
 ## Licence
 
