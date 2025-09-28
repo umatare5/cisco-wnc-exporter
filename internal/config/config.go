@@ -1,4 +1,4 @@
-// Package config provides configuration parsing and validation for cisco-wnc-exporter.
+// Package config provides configuration parsing and validation.
 package config
 
 import (
@@ -12,28 +12,24 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Default configuration constants.
 const (
-	DefaultListenAddress     = "0.0.0.0"
-	DefaultListenPort        = 10040
-	DefaultTelemetryPath     = "/metrics"
-	DefaultWNCTimeout        = 55 * time.Second
-	DefaultWNCCacheTTL       = 55 * time.Second
-	DefaultCollectorCacheTTL = 1800 * time.Second
-	DefaultLogLevel          = "info"
-	DefaultLogFormat         = "json"
+	DefaultListenAddress         = "0.0.0.0"
+	DefaultListenPort            = 10040
+	DefaultTelemetryPath         = "/metrics"
+	DefaultWNCTimeout            = 55 * time.Second
+	DefaultWNCCacheTTL           = 55 * time.Second
+	DefaultCollectorInfoCacheTTL = 1800 * time.Second
+	DefaultLogLevel              = "info"
+	DefaultLogFormat             = "json"
 
-	// Info-labels default values.
 	DefaultAPInfoLabels     = "name,ip"
 	DefaultClientInfoLabels = "name,ipv4"
 	DefaultWLANInfoLabels   = "name"
 
-	// Info-labels available options.
 	AvailableAPInfoLabels     = "name,ip,band,model,serial,sw_version,eth_mac"
 	AvailableClientInfoLabels = "ap,band,wlan,name,username,ipv4,ipv6"
 	AvailableWLANInfoLabels   = "name"
 
-	// Info-labels required fields.
 	RequiredAPInfoLabels     = "mac,radio"
 	RequiredClientInfoLabels = "mac"
 	RequiredWLANInfoLabels   = "id"
@@ -67,28 +63,53 @@ type WNC struct {
 
 // Collectors holds collector module configuration.
 type Collectors struct {
-	AP       CollectorModules `json:"ap"`
-	Client   CollectorModules `json:"client"`
-	WLAN     CollectorModules `json:"wlan"`
-	CacheTTL time.Duration    `json:"cache_ttl"`
+	AP           APCollectorModules     `json:"ap"`
+	Client       ClientCollectorModules `json:"client"`
+	WLAN         WLANCollectorModules   `json:"wlan"`
+	InfoCacheTTL time.Duration          `json:"info_cache_ttl"`
 }
 
-// CollectorModules represents a set of collector modules.
-type CollectorModules struct {
-	Inventory  bool     `json:"inventory"`
+// APCollectorModules represents AP collector modules.
+type APCollectorModules struct {
+	// General: admin_state, oper_state, radio_state, config_state, uptime, CPU, memory
+	General bool `json:"general"`
+	// Radio: channel, power, noise, utilization
+	Radio bool `json:"radio"`
+	// Traffic: clients, bytes, packets, frames
+	Traffic bool `json:"traffic"`
+	// Errors: errors, drops, retries, failures
+	Errors bool `json:"errors"`
+	// Info: info metric with labels
 	Info       bool     `json:"info"`
 	InfoLabels []string `json:"info_labels"`
-	State      bool     `json:"state"`
-	Phy        bool     `json:"phy"`
-	RF         bool     `json:"rf"`
-	Traffic    bool     `json:"traffic"`
-	Errors     bool     `json:"errors"`
-	CPU        bool     `json:"cpu"`
-	Memory     bool     `json:"memory"`
-	Session    bool     `json:"session"`
-	Power      bool     `json:"power"`
-	Security   bool     `json:"security"`
-	Networking bool     `json:"networking"`
+}
+
+// ClientCollectorModules represents Client collector modules.
+type ClientCollectorModules struct {
+	// General: state, uptime, power_save_state
+	General bool `json:"general"`
+	// Radio: protocol, mcs, streams, speed, rssi, snr
+	Radio bool `json:"radio"`
+	// Traffic: bytes, packets
+	Traffic bool `json:"traffic"`
+	// Errors: retries, drops, failures
+	Errors bool `json:"errors"`
+	// Info: info metric with labels
+	Info       bool     `json:"info"`
+	InfoLabels []string `json:"info_labels"`
+}
+
+// WLANCollectorModules represents WLAN collector modules.
+type WLANCollectorModules struct {
+	// General: enabled
+	General bool `json:"general"`
+	// Traffic: clients, bytes
+	Traffic bool `json:"traffic"`
+	// Config: auth, security, networking settings
+	Config bool `json:"config"`
+	// Info: info metric with labels
+	Info       bool     `json:"info"`
+	InfoLabels []string `json:"info_labels"`
 }
 
 // Log holds logging configuration.
@@ -119,39 +140,30 @@ func Parse(cmd *cli.Command) (*Config, error) {
 			TLSSkipVerify: cmd.Bool("wnc.tls-skip-verify"),
 		},
 		Collectors: Collectors{
-			AP: CollectorModules{
-				Inventory:  cmd.Bool("collector.ap.inventory"),
-				Info:       cmd.Bool("collector.ap.info"),
-				InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
-				State:      cmd.Bool("collector.ap.state"),
-				Phy:        cmd.Bool("collector.ap.phy"),
-				RF:         cmd.Bool("collector.ap.rf"),
+			AP: APCollectorModules{
+				General:    cmd.Bool("collector.ap.general"),
+				Radio:      cmd.Bool("collector.ap.radio"),
 				Traffic:    cmd.Bool("collector.ap.traffic"),
 				Errors:     cmd.Bool("collector.ap.errors"),
-				CPU:        cmd.Bool("collector.ap.cpu"),
-				Memory:     cmd.Bool("collector.ap.memory"),
+				Info:       cmd.Bool("collector.ap.info"),
+				InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
 			},
-			Client: CollectorModules{
-				Inventory:  cmd.Bool("collector.client.inventory"),
-				Info:       cmd.Bool("collector.client.info"),
-				InfoLabels: parseClientInfoLabels(cmd.String("collector.client.info-labels")),
-				Session:    cmd.Bool("collector.client.session"),
-				Phy:        cmd.Bool("collector.client.phy"),
-				RF:         cmd.Bool("collector.client.rf"),
+			Client: ClientCollectorModules{
+				General:    cmd.Bool("collector.client.general"),
+				Radio:      cmd.Bool("collector.client.radio"),
 				Traffic:    cmd.Bool("collector.client.traffic"),
 				Errors:     cmd.Bool("collector.client.errors"),
-				Power:      cmd.Bool("collector.client.power"),
+				Info:       cmd.Bool("collector.client.info"),
+				InfoLabels: parseClientInfoLabels(cmd.String("collector.client.info-labels")),
 			},
-			WLAN: CollectorModules{
-				Inventory:  cmd.Bool("collector.wlan.inventory"),
+			WLAN: WLANCollectorModules{
+				General:    cmd.Bool("collector.wlan.general"),
+				Traffic:    cmd.Bool("collector.wlan.traffic"),
+				Config:     cmd.Bool("collector.wlan.config"),
 				Info:       cmd.Bool("collector.wlan.info"),
 				InfoLabels: parseWLANInfoLabels(cmd.String("collector.wlan.info-labels")),
-				State:      cmd.Bool("collector.wlan.state"),
-				Traffic:    cmd.Bool("collector.wlan.traffic"),
-				Security:   cmd.Bool("collector.wlan.security"),
-				Networking: cmd.Bool("collector.wlan.networking"),
 			},
-			CacheTTL: cmd.Duration("collector.cache-ttl"),
+			InfoCacheTTL: cmd.Duration("collector.info-cache-ttl"),
 		},
 		Log: Log{
 			Level:  cmd.String("log.level"),
@@ -194,7 +206,7 @@ func (c *Config) Validate() error {
 			c.WNC.CacheTTL <= 0, fmt.Sprintf("WNC cache TTL must be positive, got: %v", c.WNC.CacheTTL),
 		},
 		{
-			c.Collectors.CacheTTL <= 0, fmt.Sprintf("collector cache TTL must be positive, got: %v", c.Collectors.CacheTTL),
+			c.Collectors.InfoCacheTTL <= 0, fmt.Sprintf("collector info cache TTL must be positive, got: %v", c.Collectors.InfoCacheTTL),
 		},
 		{
 			c.Web.TelemetryPath == "", "telemetry path cannot be empty",
@@ -246,7 +258,7 @@ func (c *Config) LogLevel() slog.Level {
 // isValidLogLevel checks if the log level is valid.
 func isValidLogLevel(level string) bool {
 	validLevels := []string{"debug", "info", "warn", "error"}
-	return contains(validLevels, strings.ToLower(level))
+	return slices.Contains(validLevels, strings.ToLower(level))
 }
 
 // isValidLogFormat checks if the log format is valid.
@@ -276,10 +288,9 @@ func parseAPInfoLabels(labelsStr string) []string {
 	}
 
 	labels := parseInfoLabels(labelsStr)
-	requiredLabels := strings.Split(RequiredAPInfoLabels, ",")
 
 	// Ensure required labels are always present
-	for _, required := range requiredLabels {
+	for required := range strings.SplitSeq(RequiredAPInfoLabels, ",") {
 		if !contains(labels, required) {
 			labels = append(labels, required)
 		}
@@ -294,10 +305,9 @@ func parseClientInfoLabels(labelsStr string) []string {
 	}
 
 	labels := parseInfoLabels(labelsStr)
-	requiredLabels := strings.Split(RequiredClientInfoLabels, ",")
 
 	// Ensure required labels are always present
-	for _, required := range requiredLabels {
+	for required := range strings.SplitSeq(RequiredClientInfoLabels, ",") {
 		if !contains(labels, required) {
 			labels = append(labels, required)
 		}
@@ -312,10 +322,9 @@ func parseWLANInfoLabels(labelsStr string) []string {
 	}
 
 	labels := parseInfoLabels(labelsStr)
-	requiredLabels := strings.Split(RequiredWLANInfoLabels, ",")
 
 	// Ensure required labels are always present
-	for _, required := range requiredLabels {
+	for required := range strings.SplitSeq(RequiredWLANInfoLabels, ",") {
 		if !contains(labels, required) {
 			labels = append(labels, required)
 		}
@@ -327,52 +336,70 @@ func parseWLANInfoLabels(labelsStr string) []string {
 func (c *Config) validateCollectorInfoLabels() error {
 	// AP collector validation
 	if c.Collectors.AP.Info {
-		apRequiredLabels := strings.Split(RequiredAPInfoLabels, ",")
 		apAvailableLabels := strings.Split("mac,radio,"+AvailableAPInfoLabels, ",")
-		if err := validateInfoLabels(c.Collectors.AP.InfoLabels, apRequiredLabels, apAvailableLabels, "AP"); err != nil {
-			return err
+
+		// Check required labels
+		for required := range strings.SplitSeq(RequiredAPInfoLabels, ",") {
+			if !contains(c.Collectors.AP.InfoLabels, required) {
+				return fmt.Errorf("AP collector requires '%s' label in info-labels", required)
+			}
+		}
+
+		// Check available labels
+		for _, label := range c.Collectors.AP.InfoLabels {
+			if !contains(apAvailableLabels, label) {
+				return fmt.Errorf(
+					"AP collector: unknown label '%s' in info-labels (available: %s)",
+					label,
+					strings.Join(apAvailableLabels, ", "),
+				)
+			}
 		}
 	}
 
 	// Client collector validation
 	if c.Collectors.Client.Info {
-		clientRequiredLabels := strings.Split(RequiredClientInfoLabels, ",")
 		clientAvailableLabels := strings.Split("mac,"+AvailableClientInfoLabels, ",")
-		if err := validateInfoLabels(c.Collectors.Client.InfoLabels, clientRequiredLabels, clientAvailableLabels, "Client"); err != nil {
-			return err
+
+		// Check required labels
+		for required := range strings.SplitSeq(RequiredClientInfoLabels, ",") {
+			if !contains(c.Collectors.Client.InfoLabels, required) {
+				return fmt.Errorf("client collector requires '%s' label in info-labels", required)
+			}
+		}
+
+		// Check available labels
+		for _, label := range c.Collectors.Client.InfoLabels {
+			if !contains(clientAvailableLabels, label) {
+				return fmt.Errorf(
+					"client collector: unknown label '%s' in info-labels (available: %s)",
+					label,
+					strings.Join(clientAvailableLabels, ", "),
+				)
+			}
 		}
 	}
 
 	// WLAN collector validation
 	if c.Collectors.WLAN.Info {
-		wlanRequiredLabels := strings.Split(RequiredWLANInfoLabels, ",")
 		wlanAvailableLabels := strings.Split("id,"+AvailableWLANInfoLabels, ",")
-		if err := validateInfoLabels(c.Collectors.WLAN.InfoLabels, wlanRequiredLabels, wlanAvailableLabels, "WLAN"); err != nil {
-			return err
+
+		// Check required labels
+		for required := range strings.SplitSeq(RequiredWLANInfoLabels, ",") {
+			if !contains(c.Collectors.WLAN.InfoLabels, required) {
+				return fmt.Errorf("WLAN collector requires '%s' label in info-labels", required)
+			}
 		}
-	}
 
-	return nil
-}
-
-// validateInfoLabels validates info labels against required and available labels.
-func validateInfoLabels(infoLabels, requiredLabels, availableLabels []string, collectorName string) error {
-	// Ensure required labels are present
-	for _, required := range requiredLabels {
-		if !contains(infoLabels, required) {
-			return fmt.Errorf("%s collector requires '%s' label in info-labels", collectorName, required)
-		}
-	}
-
-	// Ensure all specified labels are available
-	for _, label := range infoLabels {
-		if !contains(availableLabels, label) {
-			return fmt.Errorf(
-				"%s collector: unknown label '%s' in info-labels (available: %s)",
-				collectorName,
-				label,
-				strings.Join(availableLabels, ", "),
-			)
+		// Check available labels
+		for _, label := range c.Collectors.WLAN.InfoLabels {
+			if !contains(wlanAvailableLabels, label) {
+				return fmt.Errorf(
+					"WLAN collector: unknown label '%s' in info-labels (available: %s)",
+					label,
+					strings.Join(wlanAvailableLabels, ", "),
+				)
+			}
 		}
 	}
 

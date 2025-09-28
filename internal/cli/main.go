@@ -1,4 +1,4 @@
-// Package cli provides the CLI implementation for the cisco-wnc-exporter.
+// Package cli provides the CLI implementation.
 package cli
 
 import (
@@ -23,22 +23,18 @@ func NewApp() *cli.Command {
 		Flags:   registerFlags(),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, err := config.Parse(cmd)
-			// Handle configuration parsing errors
 			if err != nil {
 				slog.Error("Configuration parsing failed", "error", err)
 				return errors.New("configuration error")
 			}
 
-			// Setup logger
 			slog.SetDefault(log.Setup(cfg.Log))
 
-			// Handle dry-run mode early exit
 			if cfg.DryRun {
 				slog.Info("Configuration validation successful", "dry_run", true)
 				return nil
 			}
 
-			// Start the server with the validated configuration
 			return server.StartAndServe(ctx, cfg, getVersion())
 		},
 	}
@@ -124,9 +120,9 @@ func registerWNCFlags() []cli.Flag {
 func registerCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.DurationFlag{
-			Name:     "collector.cache-ttl",
-			Usage:    "Cache TTL for collector metrics in seconds",
-			Value:    config.DefaultCollectorCacheTTL,
+			Name:     "collector.info-cache-ttl",
+			Usage:    "Cache TTL for collector info metrics",
+			Value:    config.DefaultCollectorInfoCacheTTL,
 			Category: "* Collector Wide Options",
 		},
 	}
@@ -136,8 +132,26 @@ func registerCollectorFlags() []cli.Flag {
 func registerAPCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
-			Name:        "collector.ap.inventory",
-			Usage:       "Enable AP inventory metrics",
+			Name:        "collector.ap.general",
+			Usage:       "Enable AP general metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.ap.radio",
+			Usage:       "Enable AP radio metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.ap.traffic",
+			Usage:       "Enable AP traffic metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.ap.errors",
+			Usage:       "Enable AP error metrics",
 			Category:    "# AP Collector Options",
 			HideDefault: true,
 		},
@@ -156,48 +170,6 @@ func registerAPCollectorFlags() []cli.Flag {
 				TrimSpace: true,
 			},
 		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.state",
-			Usage:       "Enable AP state metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.phy",
-			Usage:       "Enable AP physical layer metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.rf",
-			Usage:       "Enable AP RF environment metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.traffic",
-			Usage:       "Enable AP traffic metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.errors",
-			Usage:       "Enable AP error metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.cpu",
-			Usage:       "Enable AP CPU usage metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.ap.memory",
-			Usage:       "Enable AP memory usage metrics",
-			Category:    "# AP Collector Options",
-			HideDefault: true,
-		},
 	}
 }
 
@@ -205,8 +177,20 @@ func registerAPCollectorFlags() []cli.Flag {
 func registerWLANCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
-			Name:        "collector.wlan.inventory",
-			Usage:       "Enable WLAN inventory collector",
+			Name:        "collector.wlan.general",
+			Usage:       "Enable WLAN general metrics",
+			Category:    "# WLAN Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.wlan.traffic",
+			Usage:       "Enable WLAN traffic metrics",
+			Category:    "# WLAN Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.wlan.config",
+			Usage:       "Enable WLAN config metrics",
 			Category:    "# WLAN Collector Options",
 			HideDefault: true,
 		},
@@ -225,30 +209,6 @@ func registerWLANCollectorFlags() []cli.Flag {
 				TrimSpace: true,
 			},
 		},
-		&cli.BoolFlag{
-			Name:        "collector.wlan.state",
-			Usage:       "Enable WLAN state collector",
-			Category:    "# WLAN Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.wlan.traffic",
-			Usage:       "Enable WLAN traffic collector",
-			Category:    "# WLAN Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.wlan.security",
-			Usage:       "Enable WLAN security collector",
-			Category:    "# WLAN Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.wlan.networking",
-			Usage:       "Enable WLAN networking collector",
-			Category:    "# WLAN Collector Options",
-			HideDefault: true,
-		},
 	}
 }
 
@@ -256,14 +216,32 @@ func registerWLANCollectorFlags() []cli.Flag {
 func registerClientCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
-			Name:        "collector.client.inventory",
-			Usage:       "Enable Client inventory collector",
+			Name:        "collector.client.general",
+			Usage:       "Enable Client general metrics",
+			Category:    "# Client Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.client.radio",
+			Usage:       "Enable Client radio metrics",
+			Category:    "# Client Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.client.traffic",
+			Usage:       "Enable Client traffic metrics",
+			Category:    "# Client Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name:        "collector.client.errors",
+			Usage:       "Enable Client error metrics",
 			Category:    "# Client Collector Options",
 			HideDefault: true,
 		},
 		&cli.BoolFlag{
 			Name:        "collector.client.info",
-			Usage:       "Enable Client info collector",
+			Usage:       "Enable Client info metrics",
 			Category:    "# Client Collector Options",
 			HideDefault: true,
 		},
@@ -275,42 +253,6 @@ func registerClientCollectorFlags() []cli.Flag {
 			Config: cli.StringConfig{
 				TrimSpace: true,
 			},
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.session",
-			Usage:       "Enable Client session collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.phy",
-			Usage:       "Enable Client PHY collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.rf",
-			Usage:       "Enable Client RF collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.traffic",
-			Usage:       "Enable Client traffic collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.errors",
-			Usage:       "Enable Client errors collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name:        "collector.client.power",
-			Usage:       "Enable Client power collector",
-			Category:    "# Client Collector Options",
-			HideDefault: true,
 		},
 	}
 }
