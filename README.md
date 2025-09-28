@@ -57,7 +57,7 @@ USAGE:
 VERSION:
    0.1.0
 
-GLOBAL OPTIONS:
+OPTIONS:
    --dry-run                    Validate configuration without starting the server
    --help, -h                   show help
    --log.format string          Log format (json, text) (default: "json")
@@ -67,51 +67,42 @@ GLOBAL OPTIONS:
    --web.listen-port int        Port number to bind the HTTP server to (default: 10040)
    --web.telemetry-path string  Path for the metrics endpoint (default: "/metrics")
    --wnc.access-token string    WNC API access token [$WNC_ACCESS_TOKEN]
-   --wnc.cache-ttl duration     WNC API response cache TTL (in seconds) (default: 55s)
+   --wnc.cache-ttl duration     WNC API response cache TTL in seconds (default: 55s)
    --wnc.controller string      WNC controller hostname or IP address [$WNC_CONTROLLER]
    --wnc.timeout duration       WNC API request timeout (default: 55s)
    --wnc.tls-skip-verify        Skip TLS certificate verification (default: false)
 
    # AP Collector Options
 
-   --collector.ap.cpu                 Enable AP CPU usage metrics
    --collector.ap.errors              Enable AP error metrics
+   --collector.ap.general             Enable AP general metrics
    --collector.ap.info                Enable AP info metrics
    --collector.ap.info-labels string  Comma-separated list of AP info labels (default: "name,ip")
-   --collector.ap.inventory           Enable AP inventory metrics
-   --collector.ap.memory              Enable AP memory usage metrics
-   --collector.ap.phy                 Enable AP physical layer metrics
-   --collector.ap.rf                  Enable AP RF environment metrics
-   --collector.ap.state               Enable AP state metrics
+   --collector.ap.radio               Enable AP radio metrics
    --collector.ap.traffic             Enable AP traffic metrics
 
    # Client Collector Options
 
-   --collector.client.errors              Enable Client errors collector
-   --collector.client.info                Enable Client info collector
+   --collector.client.errors              Enable Client error metrics
+   --collector.client.general             Enable Client general metrics
+   --collector.client.info                Enable Client info metrics
    --collector.client.info-labels string  Comma-separated list of Client info labels (default: "name,ipv4")
-   --collector.client.inventory           Enable Client inventory collector
-   --collector.client.phy                 Enable Client PHY collector
-   --collector.client.power               Enable Client power collector
-   --collector.client.rf                  Enable Client RF collector
-   --collector.client.session             Enable Client session collector
-   --collector.client.traffic             Enable Client traffic collector
+   --collector.client.radio               Enable Client radio metrics
+   --collector.client.traffic             Enable Client traffic metrics
 
    # WLAN Collector Options
 
+   --collector.wlan.config              Enable WLAN config metrics
+   --collector.wlan.general             Enable WLAN general metrics
    --collector.wlan.info                Enable WLAN info metrics
    --collector.wlan.info-labels string  Comma-separated list of WLAN info labels (default: "name")
-   --collector.wlan.inventory           Enable WLAN inventory collector
-   --collector.wlan.networking          Enable WLAN networking collector
-   --collector.wlan.security            Enable WLAN security collector
-   --collector.wlan.state               Enable WLAN state collector
-   --collector.wlan.traffic             Enable WLAN traffic collector
+   --collector.wlan.traffic             Enable WLAN traffic metrics
 
-   # Collector Wide Options
+   * Collector Wide Options
 
-   --collector.cache-ttl duration  Cache TTL for collector metrics (in seconds) (default: 1800s)
+   --collector.info-cache-ttl duration  Cache TTL for collector info metrics (default: 30m0s)
 
-   # Internal Collector Options
+   * Internal Collector Options
 
    --collector.internal.go-runtime  Enable Go runtime metrics collector
    --collector.internal.process     Enable process metrics collector
@@ -150,63 +141,63 @@ All collectors have multiple modules to allow fine-grained control over which me
 >
 > - Info metrics are cached for 1800 seconds (30 minutes)
 > - Wireless clients often roam between APs, causing the `ap` label to change frequently
-> - You can adjust it with the `--collector.cache-ttl` flag
+> - You can adjust it with the `--collector.info-cache-ttl` flag
 
 ### AP Collector
 
 AP collector focus on RF foundation and radio performance.
 
-| Module    | Metric                                | Type    | Description                                      |
-| :-------- | :------------------------------------ | :------ | :----------------------------------------------- |
-| inventory | `wnc_ap_count`                        | Gauge   | Total access points                              |
-| state     | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
-| state     | `wnc_ap_oper_state`                   | Gauge   | Operational state (0=down, 1=up)                 |
-| state     | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
-| state     | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
-| phy       | `wnc_ap_channel_number`               | Gauge   | Operating channel number                         |
-| phy       | `wnc_ap_channel_width_mhz`            | Gauge   | Channel bandwidth (MHz)                          |
-| phy       | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
-| phy       | `wnc_ap_tx_power_level`               | Gauge   | TX power level (0-8)                             |
-| phy       | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power (dBm)                           |
-| rf        | `wnc_ap_noise_floor_dbm`              | Gauge   | Channel noise floor (dBm)                        |
-| rf        | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage                   |
-| traffic   | `wnc_ap_clients_total`                | Gauge   | Associated clients count (calclulated)           |
-| traffic   | `wnc_ap_rx_bytes_total`               | Counter | Total received bytes (calculated)                |
-| traffic   | `wnc_ap_tx_bytes_total`               | Counter | Total transmitted bytes (calculated)             |
-| traffic   | `wnc_ap_rx_packets_total`             | Counter | Total received packets                           |
-| traffic   | `wnc_ap_tx_packets_total`             | Counter | Total transmitted packets                        |
-| traffic   | `wnc_ap_total_tx_frames_total`        | Counter | Total TX frames                                  |
-| traffic   | `wnc_ap_data_rx_frames_total`         | Counter | Data RX frames                                   |
-| traffic   | `wnc_ap_data_tx_frames_total`         | Counter | Data TX frames                                   |
-| traffic   | `wnc_ap_management_rx_frames_total`   | Counter | Management RX frames                             |
-| traffic   | `wnc_ap_management_tx_frames_total`   | Counter | Management TX frames                             |
-| traffic   | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*1)**                      |
-| traffic   | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*1)**                      |
-| traffic   | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*1)**                    |
-| traffic   | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
-| traffic   | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
-| errors    | `wnc_ap_tx_errors_total`              | Counter | Total TX errors **(\*1)**                        |
-| errors    | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
-| errors    | `wnc_ap_tx_drops_total`               | Counter | Total TX drops (calculated)                      |
-| errors    | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
-| errors    | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
-| errors    | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |
-| errors    | `wnc_ap_fcs_errors_total`             | Counter | Frame Check Sequence errors                      |
-| errors    | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*1)**                  |
-| errors    | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*1)**                  |
-| errors    | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
-| errors    | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
-| errors    | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
-| errors    | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
-| errors    | `wnc_ap_coverage_hole_events_total`   | Counter | Coverage hole events                             |
-| errors    | `wnc_ap_interference_events_total`    | Counter | Interference events                              |
-| errors    | `wnc_ap_dfs_channel_changes_total`    | Counter | DFS channel change events                        |
-| errors    | `wnc_ap_radar_detected_events_total`  | Counter | Radar detection events                           |
-| errors    | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
-| cpu       | `wnc_ap_cpu_usage_current_percent`    | Gauge   | Current CPU utilization %                        |
-| cpu       | `wnc_ap_cpu_usage_average_percent`    | Gauge   | Average CPU utilization %                        |
-| memory    | `wnc_ap_memory_usage_current_percent` | Gauge   | Current memory utilization %                     |
-| memory    | `wnc_ap_memory_usage_average_percent` | Gauge   | Average memory utilization %                     |
+| Module  | Metric                                | Type    | Description                                      |
+| :------ | :------------------------------------ | :------ | :----------------------------------------------- |
+| general | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
+| general | `wnc_ap_oper_state`                   | Gauge   | Operational state (0=down, 1=up)                 |
+| general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
+| general | `wnc_ap_config_state`                 | Gauge   | Radio state (0=valid, 1=invalid)                 |
+| general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
+| general | `wnc_ap_cpu_usage_current_percent`    | Gauge   | Current CPU utilization %                        |
+| general | `wnc_ap_cpu_usage_average_percent`    | Gauge   | Average CPU utilization %                        |
+| general | `wnc_ap_memory_usage_current_percent` | Gauge   | Current memory utilization %                     |
+| general | `wnc_ap_memory_usage_average_percent` | Gauge   | Average memory utilization %                     |
+| radio   | `wnc_ap_channel_number`               | Gauge   | Operating channel number                         |
+| radio   | `wnc_ap_channel_width_mhz`            | Gauge   | Channel bandwidth (MHz)                          |
+| radio   | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
+| radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
+| radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Channel noise floor (dBm)                        |
+| radio   | `wnc_ap_channel_utilization_percent`  | Gauge   | Channel utilization percentage (CCA-based)       |
+| radio   | `wnc_ap_rx_utilization_percent`       | Gauge   | RX utilization percentage                        |
+| radio   | `wnc_ap_tx_utilization_percent`       | Gauge   | TX utilization percentage                        |
+| radio   | `wnc_ap_noise_utilization_percent`    | Gauge   | Noise channel utilization percentage             |
+| traffic | `wnc_ap_clients_total`                | Gauge   | Associated clients count (calclulated)           |
+| traffic | `wnc_ap_rx_bytes_total`               | Counter | Total received bytes (calculated)                |
+| traffic | `wnc_ap_tx_bytes_total`               | Counter | Total transmitted bytes (calculated)             |
+| traffic | `wnc_ap_rx_packets_total`             | Counter | Total received packets                           |
+| traffic | `wnc_ap_tx_packets_total`             | Counter | Total transmitted packets                        |
+| traffic | `wnc_ap_total_tx_frames_total`        | Counter | Total TX frames                                  |
+| traffic | `wnc_ap_data_rx_frames_total`         | Counter | Data RX frames                                   |
+| traffic | `wnc_ap_data_tx_frames_total`         | Counter | Data TX frames                                   |
+| traffic | `wnc_ap_management_rx_frames_total`   | Counter | Management RX frames                             |
+| traffic | `wnc_ap_management_tx_frames_total`   | Counter | Management TX frames                             |
+| traffic | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*1)**                      |
+| traffic | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*1)**                      |
+| traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*1)**                    |
+| traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
+| traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
+| errors  | `wnc_ap_tx_errors_total`              | Counter | Total TX errors **(\*1)**                        |
+| errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
+| errors  | `wnc_ap_tx_drops_total`               | Counter | Total TX drops (calculated)                      |
+| errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
+| errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
+| errors  | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |
+| errors  | `wnc_ap_fcs_errors_total`             | Counter | Frame Check Sequence errors                      |
+| errors  | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*1)**                  |
+| errors  | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*1)**                  |
+| errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
+| errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
+| errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
+| errors  | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
+| errors  | `wnc_ap_coverage_hole_events_total`   | Counter | Coverage hole events                             |
+| errors  | `wnc_ap_last_radar_on_radio_at`       | Gauge   | Last radar detection unix timestamp              |
+| errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
 
 <details>
 <summary>*1 Metrics consistently returning zero values on Cisco IOS-XE 17.12.5 with FlexConnect AP</summary>
@@ -326,17 +317,17 @@ This exporter implements the recommended workaround by using `failed-count` from
 >
 > `info` module provides `wnc_ap_info` contains following labels to join with other metrics:
 >
-> | Labels       | Description             | Example Value       | Required | Default |
-> | :----------- | :---------------------- | :------------------ | :------: | :-----: |
-> | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0` | **Yes**  | **Yes** |
-> | `name`       | AP hostname             | `TEST-AP01`         |    No    | **Yes** |
-> | `ip`         | AP IP address           | `192.168.1.10`      |    No    | **Yes** |
-> | `radio`      | Radio identifier        | `0`, `1`, `2`       | **Yes**  | **Yes** |
-> | `band`       | Radio band              | `2.4`, `5`, `6`     |    No    |   No    |
-> | `model`      | AP model                | `AIR-AP1815I-Q-K9`  |    No    |   No    |
-> | `serial`     | AP serial number        | `FGL1234ABCD`       |    No    |   No    |
-> | `sw_version` | Software version        | `17.12.5.41`        |    No    |   No    |
-> | `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22` |    No    |   No    |
+> | Labels       | Description             | Example Value       | Default | Required |
+> | :----------- | :---------------------- | :------------------ | :-----: | :------: |
+> | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0` | **Yes** | **Yes**  |
+> | `name`       | AP hostname             | `TEST-AP01`         | **Yes** |    No    |
+> | `ip`         | AP IP address           | `192.168.1.10`      | **Yes** |    No    |
+> | `radio`      | Radio identifier        | `0`, `1`, `2`       | **Yes** | **Yes**  |
+> | `band`       | Radio band              | `2.4`, `5`, `6`     |   No    |    No    |
+> | `model`      | AP model                | `AIR-AP1815I-Q-K9`  |   No    |    No    |
+> | `serial`     | AP serial number        | `FGL1234ABCD`       |   No    |    No    |
+> | `sw_version` | Software version        | `17.12.5.41`        |   No    |    No    |
+> | `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22` |   No    |    No    |
 >
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
@@ -348,34 +339,34 @@ This exporter implements the recommended workaround by using `failed-count` from
 
 Client collector focus on user experience quality and connection performance.
 
-| Module    | Metric                                | Type    | Description                          |
-| :-------- | :------------------------------------ | :------ | :----------------------------------- |
-| inventory | `wnc_clients_total`                   | Gauge   | Total connected clients              |
-| session   | `wnc_client_state`                    | Gauge   | Client state (0-2)                   |
-| session   | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
-| phy       | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (5=ac, 6=ax)         |
-| phy       | `wnc_client_mcs_index`                | Gauge   | MCS index (-1=legacy, 0-11)          |
-| phy       | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
-| phy       | `wnc_client_speed_mbps`               | Gauge   | Connection throughput                |
-| rf        | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)                |
-| rf        | `wnc_client_snr_decibels`             | Gauge   | Signal-to-noise ratio (dB)           |
-| traffic   | `wnc_client_rx_bytes_total`           | Counter | Received bytes                       |
-| traffic   | `wnc_client_tx_bytes_total`           | Counter | Transmitted bytes                    |
-| traffic   | `wnc_client_rx_packets_total`         | Counter | Received packets                     |
-| traffic   | `wnc_client_tx_packets_total`         | Counter | Transmitted packets                  |
-| errors    | `wnc_client_retry_ratio_percent`      | Gauge   | Retry rate percentage                |
-| errors    | `wnc_client_tx_retries_total`         | Counter | TX retries count **(\*3)**           |
-| errors    | `wnc_client_data_retries_total`       | Counter | Data retries by mobile station       |
-| errors    | `wnc_client_excessive_retries_total`  | Counter | Excessive retries count **(\*3)**    |
-| errors    | `wnc_client_rts_retries_total`        | Counter | RTS retries count **(\*3)**          |
-| errors    | `wnc_client_duplicate_received_total` | Counter | Duplicate packets received **(\*3)** |
-| errors    | `wnc_client_tx_drops_total`           | Counter | TX drops count                       |
-| errors    | `wnc_client_decryption_failed_total`  | Counter | Decryption failures                  |
-| errors    | `wnc_client_mic_mismatch_total`       | Counter | MIC mismatch errors **(\*3)**        |
-| errors    | `wnc_client_mic_missing_total`        | Counter | MIC missing errors **(\*3)**         |
-| errors    | `wnc_client_policy_errors_total`      | Counter | Policy errors **(\*3)**              |
-| errors    | `wnc_client_rx_group_counter_total`   | Counter | RX group counter **(\*3)**           |
-| power     | `wnc_client_power_save_state`         | Gauge   | Power save state (0=active, 1=save)  |
+| Module  | Metric                                | Type    | Description                          |
+| :------ | :------------------------------------ | :------ | :----------------------------------- |
+| general | `wnc_client_state`                    | Gauge   | Client state (0-2)                   |
+| general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
+| general | `wnc_client_power_save_state`         | Gauge   | Power save state (0=active, 1=save)  |
+| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (5=ac, 6=ax)         |
+| general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
+| radio   | `wnc_client_mcs_index`                | Gauge   | MCS index (-1=legacy, 0-11)          |
+| radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
+| radio   | `wnc_client_speed_mbps`               | Gauge   | Connection throughput                |
+| radio   | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)                |
+| radio   | `wnc_client_snr_decibels`             | Gauge   | Signal-to-noise ratio (dB)           |
+| traffic | `wnc_client_rx_bytes_total`           | Counter | Received bytes                       |
+| traffic | `wnc_client_tx_bytes_total`           | Counter | Transmitted bytes                    |
+| traffic | `wnc_client_rx_packets_total`         | Counter | Received packets                     |
+| traffic | `wnc_client_tx_packets_total`         | Counter | Transmitted packets                  |
+| errors  | `wnc_client_retry_ratio_percent`      | Gauge   | Retry rate percentage                |
+| errors  | `wnc_client_tx_retries_total`         | Counter | TX retries count **(\*3)**           |
+| errors  | `wnc_client_data_retries_total`       | Counter | Data retries by mobile station       |
+| errors  | `wnc_client_excessive_retries_total`  | Counter | Excessive retries count **(\*3)**    |
+| errors  | `wnc_client_rts_retries_total`        | Counter | RTS retries count **(\*3)**          |
+| errors  | `wnc_client_duplicate_received_total` | Counter | Duplicate packets received **(\*3)** |
+| errors  | `wnc_client_tx_drops_total`           | Counter | TX drops count                       |
+| errors  | `wnc_client_decryption_failed_total`  | Counter | Decryption failures                  |
+| errors  | `wnc_client_mic_mismatch_total`       | Counter | MIC mismatch errors **(\*3)**        |
+| errors  | `wnc_client_mic_missing_total`        | Counter | MIC missing errors **(\*3)**         |
+| errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors **(\*3)**              |
+| errors  | `wnc_client_rx_group_counter_total`   | Counter | RX group counter **(\*3)**           |
 
 <details>
 <summary>*3 Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.5 with FlexConnect AP</summary>
@@ -417,16 +408,16 @@ This was verified through direct RESTCONF API access to the live WNC environment
 >
 > `info` module provides `wnc_client_info` contains following labels to join with other metrics:
 >
-> | Labels     | Description                 | Example Value                 | Required | Default |
-> | :--------- | :-------------------------- | :---------------------------- | :------: | :-----: |
-> | `mac`      | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes**  | **Yes** |
-> | `ap`       | Access point identifier     | `TEST-AP01`                   |    No    |   No    |
-> | `band`     | Radio band                  | `2.4`, `5`, `6`               |    No    |   No    |
-> | `wlan`     | WLAN ESSID name             | `labo-wifi`                   |    No    |   No    |
-> | `name`     | Device Classification Name  | `MacBook Pro (14-inch, 2021)` |    No    | **Yes** |
-> | `username` | EAP authentication identity | `john.doe@example.com`        |    No    |   No    |
-> | `ipv4`     | Client IPv4 address         | `192.168.1.100`               |    No    | **Yes** |
-> | `ipv6`     | Client IPv6 address         | `2001:db8::1`                 |    No    |   No    |
+> | Labels     | Description                 | Example Value                 | Default | Required |
+> | :--------- | :-------------------------- | :---------------------------- | :-----: | :------: |
+> | `mac`      | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
+> | `ap`       | Access point identifier     | `TEST-AP01`                   |   No    |    No    |
+> | `band`     | Radio band                  | `2.4`, `5`, `6`               |   No    |    No    |
+> | `wlan`     | WLAN ESSID name             | `labo-wifi`                   |   No    |    No    |
+> | `name`     | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** |    No    |
+> | `username` | EAP authentication identity | `john.doe@example.com`        |   No    |    No    |
+> | `ipv4`     | Client IPv4 address         | `192.168.1.100`               | **Yes** |    No    |
+> | `ipv6`     | Client IPv6 address         | `2001:db8::1`                 |   No    |    No    |
 >
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
@@ -438,35 +429,34 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 WLAN collector focus on logical SSID performance and parameter checks.
 
-| Module     | Metric                                    | Type    | Description                                               |
-| :--------- | :---------------------------------------- | :------ | :-------------------------------------------------------- |
-| inventory  | `wnc_wlans_total`                         | Gauge   | Total configured WLANs                                    |
-| state      | `wnc_wlan_enabled`                        | Gauge   | WLAN status<br>(0=disabled, 1=enabled)                    |
-| traffic    | `wnc_wlan_clients_total`                  | Gauge   | Connected clients count<br>(calclulated by client)        |
-| traffic    | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes<br>(calclulated by client)            |
-| traffic    | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes<br>(calclulated by client)         |
-| security   | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled<br>(0=disabled, 1=enabled)     |
-| security   | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled<br>(0=disabled, 1=enabled)  |
-| security   | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled<br>(0=disabled, 1=enabled)     |
-| security   | `wnc_wlan_wpa2_enabled`                   | Gauge   | WPA2 support enabled<br>(0=disabled, 1=enabled)           |
-| security   | `wnc_wlan_wpa3_enabled`                   | Gauge   | WPA3 support enabled<br>(0=disabled, 1=enabled)           |
-| security   | `wnc_wlan_session_timeout_seconds`        | Gauge   | Session timeout duration<br>in seconds                    |
-| networking | `wnc_wlan_load_balance_enabled`           | Gauge   | Load balancing enabled<br>(0=disabled, 1=enabled)         |
-| networking | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge   | 802.11k neighbor list enabled<br>(0=disabled, 1=enabled)  |
-| networking | `wnc_wlan_client_steering_enabled`        | Gauge   | 6GHz client steering enabled<br>(0=disabled, 1=enabled)   |
-| networking | `wnc_wlan_central_switching_enabled`      | Gauge   | Central switching enabled<br>(0=disabled, 1=enabled)      |
-| networking | `wnc_wlan_central_authentication_enabled` | Gauge   | Central authentication enabled<br>(0=disabled, 1=enabled) |
-| networking | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled<br>(0=disabled, 1=enabled)           |
-| networking | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled<br>(0=disabled, 1=enabled)    |
+| Module  | Metric                                    | Type    | Description                           |
+| :------ | :---------------------------------------- | :------ | :------------------------------------ |
+| general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                           |
+| traffic | `wnc_wlan_clients_total`                  | Gauge   | Connected clients count (calclulated) |
+| traffic | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes (calclulated)     |
+| traffic | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes (calclulated)  |
+| config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled            |
+| config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled         |
+| config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled            |
+| config  | `wnc_wlan_wpa2_enabled`                   | Gauge   | WPA2 support enabled                  |
+| config  | `wnc_wlan_wpa3_enabled`                   | Gauge   | WPA3 support enabled                  |
+| config  | `wnc_wlan_session_timeout_seconds`        | Gauge   | Session timeout duration              |
+| config  | `wnc_wlan_load_balance_enabled`           | Gauge   | Load balancing enabled                |
+| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge   | 802.11k neighbor list enabled         |
+| config  | `wnc_wlan_client_steering_enabled`        | Gauge   | 6GHz client steering enabled          |
+| config  | `wnc_wlan_central_switching_enabled`      | Gauge   | Central switching enabled             |
+| config  | `wnc_wlan_central_authentication_enabled` | Gauge   | Central authentication enabled        |
+| config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                  |
+| config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled           |
 
 > [!Tip]
 >
 > `info` module provides `wnc_wlan_info` contains following labels to join with other metrics:
 >
-> | Labels | Description     | Example Value  | Required | Default |
-> | :----- | :-------------- | :------------- | :------: | :-----: |
-> | `id`   | WLAN identifier | `1`, `5`, `10` | **Yes**  | **Yes** |
-> | `name` | WLAN ESSID name | `labo-wifi`    |    No    | **Yes** |
+> | Labels | Description     | Example Value  | Default | Required |
+> | :----- | :-------------- | :------------- | :-----: | :------: |
+> | `id`   | WLAN identifier | `1`, `5`, `10` | **Yes** | **Yes**  |
+> | `name` | WLAN ESSID name | `labo-wifi`    | **Yes** |    No    |
 >
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
@@ -501,9 +491,7 @@ Enable essential collectors for basic monitoring:
 $ WNC_CONTROLLER="wnc1.example.internal"
 $ WNC_ACCESS_TOKEN="foobarbaz"
 $ ./cisco-wnc-exporter \
-    --collector.ap.inventory --collector.ap.info --collector.ap.state \
-    --collector.client.inventory --collector.client.info --collector.client.session \
-    --collector.wlan.inventory --collector.wlan.info --collector.wlan.state
+    --collector.ap.general --collector.client.general --collector.wlan.general
 ```
 
 #### Complete Usage
@@ -517,8 +505,9 @@ All the above examples can be run with Docker by adding the appropriate flags:
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
 $ WNC_ACCESS_TOKEN="foobarbaz"
-$ docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter \
-    --collector.ap.inventory --collector.ap.info --collector.ap.state
+$ docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
+    ghcr.io/umatare5/cisco-wnc-exporter \
+      -collector.ap.general --collector.client.general --collector.wlan.general
 ```
 
 ## Development

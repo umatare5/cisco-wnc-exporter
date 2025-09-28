@@ -1,10 +1,11 @@
 ## About Labo Environment
 
-- **Live WNC Version**: IOS-XE 17.12.5
+- **Live WNC Version**: IOS-XE 17.12.6a
 
 - **Path to YANG Models**:
 
   - IOS-XE 17.12.1: `~/LOCAL/yang/vendor/cisco/xe/17121/`
+  - IOS-XE 17.15.1: `~/LOCAL/yang/vendor/cisco/xe/17151/`
   - IOS-XE 17.18.1: `~/LOCAL/yang/vendor/cisco/xe/17181/`
 
 - **Example to Access Cisco WNC using cURL**:
