@@ -10,11 +10,12 @@ import (
 
 // ClientSource provides access to client data from WNC via REST API.
 type ClientSource interface {
-	GetClientData(ctx context.Context) (*client.ClientOperCommonOperData, error)
-	GetDeviceData(ctx context.Context) (*client.ClientOperDcInfo, error)
-	GetDot11Data(ctx context.Context) (*client.ClientOperDot11OperData, error)
-	GetSISFDBData(ctx context.Context) (*client.ClientOperSisfDBMac, error)
-	GetTrafficStats(ctx context.Context) (*client.ClientOperTrafficStats, error)
+	GetClientData(ctx context.Context) ([]client.CommonOperData, error)
+	GetDeviceData(ctx context.Context) ([]client.DcInfo, error)
+	GetDot11Data(ctx context.Context) ([]client.Dot11OperData, error)
+	GetSISFDBData(ctx context.Context) ([]client.SisfDBMac, error)
+	GetTrafficStats(ctx context.Context) ([]client.TrafficStats, error)
+	GetMobilityHistory(ctx context.Context) ([]client.MmIfClientHistory, error)
 }
 
 // clientSource implements ClientSource using SharedDataSource for caching.
@@ -30,7 +31,7 @@ func NewClientSource(sharedDataSource DataSource) ClientSource {
 }
 
 // GetClientData returns client common operational data from WNC via SharedDataSource (cached).
-func (s *clientSource) GetClientData(ctx context.Context) (*client.ClientOperCommonOperData, error) {
+func (s *clientSource) GetClientData(ctx context.Context) ([]client.CommonOperData, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
@@ -39,7 +40,7 @@ func (s *clientSource) GetClientData(ctx context.Context) (*client.ClientOperCom
 }
 
 // GetDeviceData returns device classification info from WNC via SharedDataSource (cached).
-func (s *clientSource) GetDeviceData(ctx context.Context) (*client.ClientOperDcInfo, error) {
+func (s *clientSource) GetDeviceData(ctx context.Context) ([]client.DcInfo, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
@@ -48,7 +49,7 @@ func (s *clientSource) GetDeviceData(ctx context.Context) (*client.ClientOperDcI
 }
 
 // GetDot11Data returns 802.11 operational data from WNC via SharedDataSource (cached).
-func (s *clientSource) GetDot11Data(ctx context.Context) (*client.ClientOperDot11OperData, error) {
+func (s *clientSource) GetDot11Data(ctx context.Context) ([]client.Dot11OperData, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
@@ -57,7 +58,7 @@ func (s *clientSource) GetDot11Data(ctx context.Context) (*client.ClientOperDot1
 }
 
 // GetSISFDBData returns SISF database information from WNC via SharedDataSource (cached).
-func (s *clientSource) GetSISFDBData(ctx context.Context) (*client.ClientOperSisfDBMac, error) {
+func (s *clientSource) GetSISFDBData(ctx context.Context) ([]client.SisfDBMac, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
@@ -66,10 +67,19 @@ func (s *clientSource) GetSISFDBData(ctx context.Context) (*client.ClientOperSis
 }
 
 // GetTrafficStats returns traffic statistics from WNC via SharedDataSource (cached).
-func (s *clientSource) GetTrafficStats(ctx context.Context) (*client.ClientOperTrafficStats, error) {
+func (s *clientSource) GetTrafficStats(ctx context.Context) ([]client.TrafficStats, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return data.TrafficStats, nil
+}
+
+// GetMobilityHistory returns mobility manager interface client history from WNC via SharedDataSource (cached).
+func (s *clientSource) GetMobilityHistory(ctx context.Context) ([]client.MmIfClientHistory, error) {
+	data, err := s.sharedDataSource.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return data.MmIfClientHistory, nil
 }

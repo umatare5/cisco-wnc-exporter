@@ -10,7 +10,9 @@ import (
 
 // RRMSource provides access to RRM data from WNC via REST API.
 type RRMSource interface {
-	GetRRMMeasurement(ctx context.Context) (*rrm.RRMOperRRMMeasurement, error)
+	GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error)
+	GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error)
+	GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error)
 }
 
 // rrmSource implements RRMSource using SharedDataSource for caching.
@@ -25,11 +27,29 @@ func NewRRMSource(sharedDataSource DataSource) RRMSource {
 	}
 }
 
-// GetRRMMeasurement returns RRM measurement data from WNC via SharedDataSource (cached).
-func (s *rrmSource) GetRRMMeasurement(ctx context.Context) (*rrm.RRMOperRRMMeasurement, error) {
+// GetRRMMeasurements returns RRM measurement data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return data.RRMMeasurements, nil
+}
+
+// GetRRMCoverage returns RRM coverage data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error) {
+	data, err := s.sharedDataSource.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return data.RRMCoverage, nil
+}
+
+// GetApDot11RadarData returns AP radar detection data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error) {
+	data, err := s.sharedDataSource.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return data.ApDot11RadarData, nil
 }

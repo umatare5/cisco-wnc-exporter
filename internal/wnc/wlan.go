@@ -10,8 +10,9 @@ import (
 
 // WLANSource provides access to WLAN data from WNC via REST API.
 type WLANSource interface {
-	ListConfigEntries(ctx context.Context) (*wlan.WlanCfgWlanCfgEntries, error)
-	ListPolicies(ctx context.Context) (*wlan.WlanCfgWlanPolicies, error)
+	ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry, error)
+	ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error)
+	ListPolicyListEntries(ctx context.Context) ([]wlan.PolicyListEntry, error)
 }
 
 // wlanSource implements WLANSource using SharedDataSource for caching.
@@ -27,7 +28,7 @@ func NewWLANSource(sharedDataSource DataSource) WLANSource {
 }
 
 // ListConfigEntries retrieves WLAN configuration entries via SharedDataSource (cached).
-func (s *wlanSource) ListConfigEntries(ctx context.Context) (*wlan.WlanCfgWlanCfgEntries, error) {
+func (s *wlanSource) ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
@@ -36,10 +37,19 @@ func (s *wlanSource) ListConfigEntries(ctx context.Context) (*wlan.WlanCfgWlanCf
 }
 
 // ListPolicies retrieves WLAN policies via SharedDataSource (cached).
-func (s *wlanSource) ListPolicies(ctx context.Context) (*wlan.WlanCfgWlanPolicies, error) {
+func (s *wlanSource) ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error) {
 	data, err := s.sharedDataSource.GetCachedData(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return data.WLANPolicies, nil
+}
+
+// ListPolicyListEntries retrieves policy list entries via SharedDataSource (cached).
+func (s *wlanSource) ListPolicyListEntries(ctx context.Context) ([]wlan.PolicyListEntry, error) {
+	data, err := s.sharedDataSource.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return data.WLANPolicyListEntries, nil
 }
