@@ -1,4 +1,4 @@
-// Package collector provides registry management and collector registration functionality.
+// Package collector provides registry management and collector registration.
 package collector
 
 import (
@@ -15,10 +15,22 @@ import (
 type Collector struct {
 	registry         *prometheus.Registry
 	cfg              *config.Config
-	sharedDataSource wnc.DataSource // Shared data source for caching
+	sharedDataSource wnc.DataSource
 }
 
-// NewCollector creates a new collector manager with a custom Prometheus registry and SharedDataSource.
+// Float64Metric represents a metric with float64 value.
+type Float64Metric struct {
+	Desc  *prometheus.Desc
+	Value float64
+}
+
+// StringMetric represents a metric with string value that needs conversion.
+type StringMetric struct {
+	Desc  *prometheus.Desc
+	Value string
+}
+
+// NewCollector creates a new collector manager.
 func NewCollector(cfg *config.Config) *Collector {
 	sharedDataSource := wnc.NewDataSource(cfg.WNC)
 
@@ -69,16 +81,12 @@ func (c *Collector) RegisterSystemCollectors() {
 // RegisterServiceCollectors registers all service-specific collectors based on configuration.
 func (c *Collector) RegisterServiceCollectors() {
 	// Register AP collector if any AP module is enabled
-	if isEnabled(
-		c.cfg.Collectors.AP.Inventory,
-		c.cfg.Collectors.AP.Info,
-		c.cfg.Collectors.AP.State,
-		c.cfg.Collectors.AP.Phy,
-		c.cfg.Collectors.AP.RF,
+	if IsEnabled(
+		c.cfg.Collectors.AP.General,
+		c.cfg.Collectors.AP.Radio,
 		c.cfg.Collectors.AP.Traffic,
 		c.cfg.Collectors.AP.Errors,
-		c.cfg.Collectors.AP.CPU,
-		c.cfg.Collectors.AP.Memory,
+		c.cfg.Collectors.AP.Info,
 	) {
 		apSource := wnc.NewAPSource(c.sharedDataSource)
 		rrmSource := wnc.NewRRMSource(c.sharedDataSource)
@@ -89,56 +97,49 @@ func (c *Collector) RegisterServiceCollectors() {
 	}
 
 	// Register WLAN collector if any WLAN module is enabled
-	if isEnabled(
-		c.cfg.Collectors.WLAN.Inventory,
-		c.cfg.Collectors.WLAN.Info,
-		c.cfg.Collectors.WLAN.State,
+	if IsEnabled(
+		c.cfg.Collectors.WLAN.General,
 		c.cfg.Collectors.WLAN.Traffic,
+		c.cfg.Collectors.WLAN.Config,
+		c.cfg.Collectors.WLAN.Info,
 	) {
 		wlanSource := wnc.NewWLANSource(c.sharedDataSource)
 		clientSource := wnc.NewClientSource(c.sharedDataSource)
 		c.registerWLANCollector(wlanSource, clientSource)
 	} else {
-		slog.Debug("Skipped WLAN collector registration (no modules enabled)")
+		slog.Debug("Skipped WLAN collector registration - all modules disabled")
 	}
 
 	// Register Client collector if any Client module is enabled
-	if isEnabled(
-		c.cfg.Collectors.Client.Inventory,
-		c.cfg.Collectors.Client.Info,
-		c.cfg.Collectors.Client.Session,
-		c.cfg.Collectors.Client.Phy,
-		c.cfg.Collectors.Client.RF,
+	if IsEnabled(
+		c.cfg.Collectors.Client.General,
+		c.cfg.Collectors.Client.Radio,
 		c.cfg.Collectors.Client.Traffic,
 		c.cfg.Collectors.Client.Errors,
-		c.cfg.Collectors.Client.Power,
+		c.cfg.Collectors.Client.Info,
 	) {
 		clientSource := wnc.NewClientSource(c.sharedDataSource)
 		c.registerClientCollector(clientSource)
 	} else {
-		slog.Debug("Skipped Client collector registration (no modules enabled)")
+		slog.Debug("Skipped Client collector registration - all modules disabled")
 	}
 }
 
 // registerAPCollector registers the AP collector with its modules.
 func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRMSource, clientSource wnc.ClientSource) {
 	baseCollector := NewAPCollector(apSource, rrmSource, clientSource, APMetrics{
-		Inventory:  c.cfg.Collectors.AP.Inventory,
-		Info:       c.cfg.Collectors.AP.Info,
-		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
-		State:      c.cfg.Collectors.AP.State,
-		Phy:        c.cfg.Collectors.AP.Phy,
-		RF:         c.cfg.Collectors.AP.RF,
+		General:    c.cfg.Collectors.AP.General,
+		Radio:      c.cfg.Collectors.AP.Radio,
 		Traffic:    c.cfg.Collectors.AP.Traffic,
 		Errors:     c.cfg.Collectors.AP.Errors,
-		CPU:        c.cfg.Collectors.AP.CPU,
-		Memory:     c.cfg.Collectors.AP.Memory,
+		Info:       c.cfg.Collectors.AP.Info,
+		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
 	})
 
 	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.AP.Info {
-		collector = NewInfoCacheCollector(baseCollector, "AP", c.cfg.Collectors.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "AP", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -148,19 +149,17 @@ func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRM
 // registerWLANCollector registers the WLAN collector with its modules.
 func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSource wnc.ClientSource) {
 	baseCollector := NewWLANCollector(wlanSource, clientSource, WLANMetrics{
-		Inventory:  c.cfg.Collectors.WLAN.Inventory,
+		General:    c.cfg.Collectors.WLAN.General,
+		Traffic:    c.cfg.Collectors.WLAN.Traffic,
+		Config:     c.cfg.Collectors.WLAN.Config,
 		Info:       c.cfg.Collectors.WLAN.Info,
 		InfoLabels: c.cfg.Collectors.WLAN.InfoLabels,
-		State:      c.cfg.Collectors.WLAN.State,
-		Traffic:    c.cfg.Collectors.WLAN.Traffic,
-		Security:   c.cfg.Collectors.WLAN.Security,
-		Networking: c.cfg.Collectors.WLAN.Networking,
 	})
 
 	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.WLAN.Info {
-		collector = NewInfoCacheCollector(baseCollector, "WLAN", c.cfg.Collectors.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "WLAN", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -170,33 +169,20 @@ func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSourc
 // registerClientCollector registers the Client collector with its modules.
 func (c *Collector) registerClientCollector(clientSource wnc.ClientSource) {
 	baseCollector := NewClientCollector(clientSource, ClientMetrics{
-		Inventory:  c.cfg.Collectors.Client.Inventory,
-		Info:       c.cfg.Collectors.Client.Info,
-		InfoLabels: c.cfg.Collectors.Client.InfoLabels,
-		Session:    c.cfg.Collectors.Client.Session,
-		Phy:        c.cfg.Collectors.Client.Phy,
-		RF:         c.cfg.Collectors.Client.RF,
+		General:    c.cfg.Collectors.Client.General,
+		Radio:      c.cfg.Collectors.Client.Radio,
 		Traffic:    c.cfg.Collectors.Client.Traffic,
 		Errors:     c.cfg.Collectors.Client.Errors,
-		Power:      c.cfg.Collectors.Client.Power,
+		Info:       c.cfg.Collectors.Client.Info,
+		InfoLabels: c.cfg.Collectors.Client.InfoLabels,
 	})
 
 	// Apply caching for info metrics only when info metrics are enabled.
 	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.Client.Info {
-		collector = NewInfoCacheCollector(baseCollector, "Client", c.cfg.Collectors.CacheTTL)
+		collector = NewInfoCacheCollector(baseCollector, "Client", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
 	slog.Debug("Registered Client collector")
-}
-
-// isEnabled returns true if any of the provided boolean values is true.
-func isEnabled(flags ...bool) bool {
-	for _, enabled := range flags {
-		if enabled {
-			return true
-		}
-	}
-	return false
 }
