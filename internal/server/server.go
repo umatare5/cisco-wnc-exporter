@@ -24,12 +24,6 @@ func New(reg *prometheus.Registry, addr string) *http.Server {
 		_, _ = w.Write([]byte("OK\n"))
 	})
 
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK\n"))
-	})
-
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -39,7 +33,6 @@ func New(reg *prometheus.Registry, addr string) *http.Server {
 <h1>Cisco WNC Exporter</h1>
 <p><a href="/metrics">Metrics</a></p>
 <p><a href="/healthz">Health Check</a></p>
-<p><a href="/readyz">Readiness Check</a></p>
 </body>
 </html>`))
 	})
