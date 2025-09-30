@@ -1,9 +1,10 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo_dark.png" width="180px">
-  <img src="docs/assets/logo.png" width="180px">
-</| errors    | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(*1)** **(*2)**                                                                |icture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo_dark.png" width="180px" />
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo.png" width="180px" />
+    <img src="docs/assets/logo.png" width="180px" />
+  </picture>
 
   <h1>cisco-wnc-exporter</h1>
 
@@ -509,6 +510,20 @@ $ docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
     ghcr.io/umatare5/cisco-wnc-exporter \
       -collector.ap.general --collector.client.general --collector.wlan.general
 ```
+
+### Prometheus Configuration
+
+This section describes how to configure Prometheus to scrape metrics from the controld-exporter.
+
+1. Add the job config to your Prometheus YAML file using [examples/prometheus.yml](./examples/prometheus.yml) as a reference.
+
+### Example Grafana Dashboard
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-exporter-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-exporter-dashboard.png">
+  <img src="docs/assets/cisco-wnc-exporter-dashboard.png">
+</picture>
 
 ## Development
 
