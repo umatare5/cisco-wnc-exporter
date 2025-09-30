@@ -14,7 +14,7 @@ import (
 
 const (
 	DefaultListenAddress         = "0.0.0.0"
-	DefaultListenPort            = 10040
+	DefaultListenPort            = 10039
 	DefaultTelemetryPath         = "/metrics"
 	DefaultWNCTimeout            = 55 * time.Second
 	DefaultWNCCacheTTL           = 55 * time.Second

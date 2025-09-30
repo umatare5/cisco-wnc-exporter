@@ -35,10 +35,10 @@ This exporter allows a prometheus instance to scrape metrics from [Cisco C9800 W
 ## Quick Start
 
 ```bash
-docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter
+docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter
 ```
 
-- `-p`: Maps container port `10040/tcp` to host port `10040/tcp`.
+- `-p`: Maps container port `10039/tcp` to host port `10039/tcp`.
 - `-e`: Passes the environment variables into the container.
 
 > [!Tip]
@@ -65,7 +65,7 @@ OPTIONS:
    --log.level string           Log level (debug, info, warn, error) (default: "info")
    --version, -v                print the version
    --web.listen-address string  Address to bind the HTTP server to (default: "0.0.0.0")
-   --web.listen-port int        Port number to bind the HTTP server to (default: 10040)
+   --web.listen-port int        Port number to bind the HTTP server to (default: 10039)
    --web.telemetry-path string  Path for the metrics endpoint (default: "/metrics")
    --wnc.access-token string    WNC API access token [$WNC_ACCESS_TOKEN]
    --wnc.cache-ttl duration     WNC API response cache TTL in seconds (default: 55s)
@@ -471,7 +471,7 @@ There are multiple ways to run the exporter, including direct binary execution a
 
 ### Exporter
 
-Visit http://localhost:10040/ to verify the exporter is running.
+Visit http://localhost:10039/ to verify the exporter is running.
 
 #### Basic Usage - No Collectors
 
@@ -481,7 +481,7 @@ The exporter starts without any collectors enabled by default:
 $ WNC_CONTROLLER="wnc1.example.internal"
 $ WNC_ACCESS_TOKEN="foobarbaz"
 $ ./cisco-wnc-exporter
-time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10040."
+time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10039."
 ```
 
 #### Essential Usage
@@ -506,7 +506,7 @@ All the above examples can be run with Docker by adding the appropriate flags:
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
 $ WNC_ACCESS_TOKEN="foobarbaz"
-$ docker run -p 10040:10040 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
+$ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
     ghcr.io/umatare5/cisco-wnc-exporter \
       -collector.ap.general --collector.client.general --collector.wlan.general
 ```
@@ -535,7 +535,7 @@ The repository includes a ready to use `Dockerfile`. To build a new Docker image
 make image
 ```
 
-This creates an image named `ghcr.io/$USER/cisco-wnc-exporter` and exposes `10040/tcp`.
+This creates an image named `ghcr.io/$USER/cisco-wnc-exporter` and exposes `10039/tcp`.
 
 ### Release
 
