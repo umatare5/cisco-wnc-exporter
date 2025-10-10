@@ -1,12 +1,22 @@
 ## About Labo Environment
 
-- **Live WNC Version**: IOS-XE 17.12.6a
+This document provides an overview of the Labo environment, which includes a Cisco Wireless Network Controller and three Cisco Access Points. The Wireless Network Controller is configured with three different versions of IOS-XE to facilitate testing and development.
+
+<div align="center">
+  <h3><img src="./diagram-labo-environment.png" width="600px" /></h3>
+</div>
+
+- **Live WNC Versions**:
+
+  - **wnc1.example.internal:** IOS-XE 17.12.6a
+  - **wnc2.example.internal:** IOS-XE 17.15.4b
+  - **wnc3.example.internal:** IOS-XE 17.18.1
 
 - **Path to YANG Models**:
 
-  - IOS-XE 17.12.1: `~/LOCAL/yang/vendor/cisco/xe/17121/`
-  - IOS-XE 17.15.1: `~/LOCAL/yang/vendor/cisco/xe/17151/`
-  - IOS-XE 17.18.1: `~/LOCAL/yang/vendor/cisco/xe/17181/`
+  - **IOS-XE 17.12.1**: `~/LOCAL/yang/vendor/cisco/xe/17121/`
+  - **IOS-XE 17.15.1**: `~/LOCAL/yang/vendor/cisco/xe/17151/`
+  - **IOS-XE 17.18.1**: `~/LOCAL/yang/vendor/cisco/xe/17181/`
 
 - **Example to Access Cisco WNC using cURL**:
 
