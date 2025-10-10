@@ -215,6 +215,8 @@ linters:
           - perfsprint   # Allow fmt.Errorf in tests
           - staticcheck  # Allow ignoring some staticcheck issues in tests
           - unused       # Allow unused code in tests
+          - tagliatelle  # Allow SDK-matching JSON tags (e.g., zone-id from Cisco YANG)
+          - testpackage  # Allow same-package tests for internal access
       - path: ^cmd/
         linters:
           - mnd          # Allow magic numbers for CLI configuration
