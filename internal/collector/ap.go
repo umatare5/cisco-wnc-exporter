@@ -793,15 +793,15 @@ func (c *APCollector) collectInfoMetrics(
 	values := make([]string, len(c.infoLabelNames))
 	for i, labelName := range c.infoLabelNames {
 		switch labelName {
-		case "mac":
+		case labelMAC:
 			values[i] = radio.WtpMAC
-		case "name":
+		case labelName:
 			values[i] = capwap.Name
 		case "ip":
 			values[i] = capwap.IPAddr
 		case "radio":
 			values[i] = radioSlot
-		case "band":
+		case labelBand:
 			values[i] = band
 		case "model":
 			values[i] = model
