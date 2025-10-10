@@ -1,7 +1,7 @@
 ---
 description: "Edit Go code related to this project, ensuring consistency across files and adherence to specified rules."
 mode: "agent"
-model: "Claude Sonnet 4"
+model: "Claude Sonnet 4.5 (Preview)"
 ---
 
 ## Inputs
