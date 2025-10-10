@@ -318,47 +318,6 @@ type wlanStats struct {
 	packetsTx   uint64
 }
 
-// buildWLANStats builds client traffic statistics by WLAN ID.
-func (c *WLANCollector) buildWLANStats(
-	clientData []client.CommonOperData,
-	trafficStats []client.TrafficStats,
-) map[int]wlanStats {
-	wlanStats := make(map[int]wlanStats)
-
-	if clientData == nil || trafficStats == nil {
-		return wlanStats
-	}
-
-	trafficMap := make(map[string]client.TrafficStats)
-	for _, traffic := range trafficStats {
-		if traffic.MsMACAddress != "" {
-			trafficMap[traffic.MsMACAddress] = traffic
-		}
-	}
-
-	for _, commonData := range clientData {
-		if commonData.CoState != ClientStatusRun {
-			continue
-		}
-
-		wlanID := commonData.WlanID
-
-		stats := wlanStats[wlanID]
-		stats.clientCount++
-
-		if traffic, ok := trafficMap[commonData.ClientMAC]; ok {
-			stats.bytesRx += stringToUint64(traffic.BytesRx)
-			stats.bytesTx += stringToUint64(traffic.BytesTx)
-			stats.packetsRx += stringToUint64(traffic.PktsRx)
-			stats.packetsTx += stringToUint64(traffic.PktsTx)
-		}
-
-		wlanStats[wlanID] = stats
-	}
-
-	return wlanStats
-}
-
 // collectConfigMetrics collects config metrics.
 func (c *WLANCollector) collectConfigMetrics(
 	ch chan<- prometheus.Metric,
@@ -411,6 +370,47 @@ func (c *WLANCollector) collectInfoMetrics(
 		1,
 		labelValues...,
 	)
+}
+
+// buildWLANStats builds client traffic statistics by WLAN ID.
+func (c *WLANCollector) buildWLANStats(
+	clientData []client.CommonOperData,
+	trafficStats []client.TrafficStats,
+) map[int]wlanStats {
+	wlanStats := make(map[int]wlanStats)
+
+	if clientData == nil || trafficStats == nil {
+		return wlanStats
+	}
+
+	trafficMap := make(map[string]client.TrafficStats)
+	for _, traffic := range trafficStats {
+		if traffic.MsMACAddress != "" {
+			trafficMap[traffic.MsMACAddress] = traffic
+		}
+	}
+
+	for _, commonData := range clientData {
+		if commonData.CoState != ClientStatusRun {
+			continue
+		}
+
+		wlanID := commonData.WlanID
+
+		stats := wlanStats[wlanID]
+		stats.clientCount++
+
+		if traffic, ok := trafficMap[commonData.ClientMAC]; ok {
+			stats.bytesRx += stringToUint64(traffic.BytesRx)
+			stats.bytesTx += stringToUint64(traffic.BytesTx)
+			stats.packetsRx += stringToUint64(traffic.PktsRx)
+			stats.packetsTx += stringToUint64(traffic.PktsTx)
+		}
+
+		wlanStats[wlanID] = stats
+	}
+
+	return wlanStats
 }
 
 // buildWLANInfoLabelValues constructs the label values array based on configured labels.
