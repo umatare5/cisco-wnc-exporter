@@ -7,7 +7,6 @@ tmp_dir = "tmp"
   cmd = "go build -o ./tmp/cisco-wnc-exporter ./cmd/main.go"
   full_bin = 'tmp/cisco-wnc-exporter \
                   --wnc.tls-skip-verify \
-                  --web.listen-port 3000 \
                   --collector.ap.general \
                   --collector.ap.radio \
                   --collector.ap.traffic \
