@@ -13,8 +13,9 @@
   <p>
     <img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/umatare5/cisco-wnc-exporter?label=Latest%20version" />
     <a href="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml"><img alt="Test and Build" src="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml/badge.svg?branch=main" /></a>
-    <a href="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter" /></a>
-    <a href="https://pkg.go.dev/github.com/umatare5/cisco-wnc-exporter@main"><img alt="Go Reference" src="https://pkg.go.dev/badge/umatare5/cisco-wnc-exporter.svg" /></a>
+    <img alt="Test Coverage" src="docs/assets/coverage.svg" />
+    <a href="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter" /></a><br/>
+    <a href="https://www.bestpractices.dev/projects/11293"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/11293/badge" /></a>
     <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
   </p>
 
@@ -465,11 +466,11 @@ WLAN collector focus on logical SSID performance and parameter checks.
 > wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info
 > ```
 
-## Usage
+## Usecase
 
 There are multiple ways to run the exporter, including direct binary execution and Docker containerization.
 
-### Exporter
+### Exporter Configuration
 
 Visit http://localhost:10039/ to verify the exporter is running.
 
@@ -499,18 +500,6 @@ $ ./cisco-wnc-exporter \
 
 For complete monitoring, see [`.air.toml`](./.air.toml) which enables all collectors with maximum info-labels.
 
-#### Using Docker
-
-All the above examples can be run with Docker by adding the appropriate flags:
-
-```bash
-$ WNC_CONTROLLER="wnc1.example.internal"
-$ WNC_ACCESS_TOKEN="foobarbaz"
-$ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
-    ghcr.io/umatare5/cisco-wnc-exporter \
-      -collector.ap.general --collector.client.general --collector.wlan.general
-```
-
 ### Prometheus Configuration
 
 This section describes how to configure Prometheus to scrape metrics from the controld-exporter.
@@ -526,6 +515,20 @@ This section describes how to configure Prometheus to scrape metrics from the co
 </picture>
 
 ## Development
+
+### Commands
+
+The following `make` commands are available for development and testing:
+
+| Command              | Description                                    |
+| :------------------- | :--------------------------------------------- |
+| `make help`          | Display available targets and requirements     |
+| `make build`         | Build the binary to `./tmp/cisco-wnc-exporter` |
+| `make lint`          | Run golangci-lint and tidy go.mod              |
+| `make test-unit`     | Run unit tests with coverage using gotestsum   |
+| `make test-coverage` | Generate HTML coverage report                  |
+| `make clean`         | Remove build artifacts and backup files        |
+| `make image`         | Build Docker image                             |
 
 ### Build
 
