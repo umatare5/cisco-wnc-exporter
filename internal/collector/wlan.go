@@ -57,7 +57,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		metrics:   metrics,
 	}
 
-	labels := []string{"id"}
+	labels := []string{labelID}
 
 	if metrics.General {
 		collector.enabledDesc = prometheus.NewDesc(
@@ -419,12 +419,12 @@ func (c *WLANCollector) buildWLANInfoLabelValues(id, name string) []string {
 	values := make([]string, len(labelNames))
 
 	valueMap := map[string]string{
-		"id":   id,
-		"name": name,
+		labelID:   id,
+		labelName: name,
 	}
 
-	for i, labelName := range labelNames {
-		if value, exists := valueMap[labelName]; exists {
+	for i, label := range labelNames {
+		if value, exists := valueMap[label]; exists {
 			values[i] = value
 		} else {
 			values[i] = ""

@@ -66,7 +66,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		metrics: metrics,
 	}
 
-	labels := []string{"mac"}
+	labels := []string{labelMAC}
 
 	if metrics.General {
 		collector.stateDesc = prometheus.NewDesc(
@@ -214,7 +214,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		infoLabels := buildInfoLabels(
 			labels,
 			metrics.InfoLabels,
-			[]string{"ap", "band", "wlan", "name", "username", "ipv4", "ipv6"},
+			[]string{labelAP, labelBand, labelWLAN, labelName, labelUsername, labelIPv4, labelIPv6},
 		)
 		collector.infoDesc = prometheus.NewDesc(
 			"wnc_client_info",
@@ -501,23 +501,23 @@ func (c *ClientCollector) collectInfoMetrics(
 
 	// Build dynamic labels based on configured labels
 	values := make([]string, len(c.infoLabelNames))
-	for i, labelName := range c.infoLabelNames {
-		switch labelName {
-		case "mac":
+	for i, label := range c.infoLabelNames {
+		switch label {
+		case labelMAC:
 			values[i] = data.ClientMAC
-		case "ap":
+		case labelAP:
 			values[i] = data.ApName
-		case "band":
+		case labelBand:
 			values[i] = band
-		case "wlan":
+		case labelWLAN:
 			values[i] = wlan
-		case "name":
+		case labelName:
 			values[i] = name
-		case "username":
+		case labelUsername:
 			values[i] = data.Username
-		case "ipv4":
+		case labelIPv4:
 			values[i] = ipv4
-		case "ipv6":
+		case labelIPv6:
 			values[i] = ipv6
 		default:
 			values[i] = ""

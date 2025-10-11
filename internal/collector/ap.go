@@ -14,12 +14,6 @@ import (
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
 
-const (
-	labelMAC  = "mac"
-	labelName = "name"
-	labelBand = "band"
-)
-
 // APMetrics represents which AP metrics are enabled.
 type APMetrics struct {
 	General    bool
@@ -94,7 +88,7 @@ type APCollector struct {
 func NewAPCollector(
 	src wnc.APSource, rrmSrc wnc.RRMSource, clientSrc wnc.ClientSource, metrics APMetrics,
 ) *APCollector {
-	baseRadioLabels := []string{labelMAC, "radio"}
+	baseRadioLabels := []string{labelMAC, labelRadio}
 	baseAPLabels := []string{labelMAC}
 
 	collector := &APCollector{
@@ -105,8 +99,8 @@ func NewAPCollector(
 	}
 
 	if metrics.Info {
-		requiredLabels := []string{labelMAC, "radio"}
-		availableLabels := []string{labelName, "ip", labelBand, "model", "serial", "sw_version", "eth_mac"}
+		requiredLabels := []string{labelMAC, labelRadio}
+		availableLabels := []string{labelName, labelIP, labelBand, labelModel, labelSerial, labelSWVersion, labelEthMAC}
 		infoLabels := buildInfoLabels(requiredLabels, metrics.InfoLabels, availableLabels)
 		collector.infoDesc = prometheus.NewDesc(
 			"wnc_ap_info",
@@ -658,18 +652,39 @@ func (c *APCollector) collectRadioMetrics(
 		}
 	}
 
-	metrics := []Float64Metric{
-		{c.txPowerDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
-		{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
-		{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
-		{c.txPowerMaxDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
-		{c.channelUtilizationDesc, float64(rrmMeasurementsMap[radioID].Load.CcaUtilPercentage)},
-		{c.rxUtilizationDesc, float64(rrmMeasurementsMap[radioID].Load.RxUtilPercentage)},
-		{c.txUtilizationDesc, float64(rrmMeasurementsMap[radioID].Load.TxUtilPercentage)},
-		{c.noiseUtilizationDesc, float64(rrmMeasurementsMap[radioID].Load.RxNoiseChannelUtilization)},
-		{c.noiseFloorDesc, float64(rrmMeasurementsMap[radioID].Noise.Noise.NoiseData[0].Noise)},
-		{c.associatedClientsDesc, clientCount},
+	metrics := []Float64Metric{}
+
+	if len(radio.RadioBandInfo) > 0 {
+		metrics = append(metrics,
+			Float64Metric{c.txPowerDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
+			Float64Metric{c.txPowerMaxDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
+		)
 	}
+
+	if radio.PhyHtCfg != nil {
+		metrics = append(metrics,
+			Float64Metric{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
+			Float64Metric{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
+		)
+	}
+
+	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
+			Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
+			Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
+			Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
+		)
+		if len(rrmData.Noise.Noise.NoiseData) > 0 {
+			metrics = append(metrics,
+				Float64Metric{c.noiseFloorDesc, float64(rrmData.Noise.Noise.NoiseData[0].Noise)},
+			)
+		}
+	}
+
+	metrics = append(metrics,
+		Float64Metric{c.associatedClientsDesc, clientCount},
+	)
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
@@ -791,25 +806,25 @@ func (c *APCollector) collectInfoMetrics(
 	ethMAC := capwap.DeviceDetail.StaticInfo.BoardData.WtpEnetMAC
 
 	values := make([]string, len(c.infoLabelNames))
-	for i, labelName := range c.infoLabelNames {
-		switch labelName {
+	for i, label := range c.infoLabelNames {
+		switch label {
 		case labelMAC:
 			values[i] = radio.WtpMAC
 		case labelName:
 			values[i] = capwap.Name
-		case "ip":
+		case labelIP:
 			values[i] = capwap.IPAddr
-		case "radio":
+		case labelRadio:
 			values[i] = radioSlot
 		case labelBand:
 			values[i] = band
-		case "model":
+		case labelModel:
 			values[i] = model
-		case "serial":
+		case labelSerial:
 			values[i] = serial
-		case "sw_version":
+		case labelSWVersion:
 			values[i] = swVersion
-		case "eth_mac":
+		case labelEthMAC:
 			values[i] = ethMAC
 		default:
 			values[i] = ""
