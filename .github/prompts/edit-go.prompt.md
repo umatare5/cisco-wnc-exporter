@@ -16,6 +16,7 @@ model: "Claude Sonnet 4.5 (Preview)"
 
 ## Environment
 
+- [README.md](../../README.md)
 - [about-labo-environment.md](./appendix/about-labo-environment.md)
 
 ## Instructions
