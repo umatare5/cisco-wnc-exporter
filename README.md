@@ -25,8 +25,8 @@
 
 This exporter allows a prometheus instance to scrape metrics from [Cisco C9800 Wireless Network Controller](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
-- 🔧 **RESTCONF Support**: Collects configs and states from Cisco C9800 with more flexibility than SNMP
-- 🛡️ **Critical State Monitoring**: Detects changes such as AP misconfigurations or WLAN enable/disable
+- 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
+- 🌐 **Client Connection Tracking**: Monitors client's signal strength, speed, protocols, traffic and latency
 - 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
 
 > [!Important]
@@ -548,6 +548,14 @@ To release a new version, follow these steps:
 2. Submit a pull request with the updated `VERSION` file.
 
 Once the pull request is merged, the GitHub Workflow automatically creates and pushes a new tag, after which I manually publish a release using the [GitHub Actions release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml).
+
+## Contribution
+
+1. Fork ([https://github.com/umatare5/cisco-wnc-exporter/fork](https://github.com/umatare5/cisco-wnc-exporter/fork))
+2. Create a feature branch
+3. Commit your changes
+4. Rebase your local changes against the master branch
+5. Create a new Pull Request
 
 ## Acknowledgement
 
