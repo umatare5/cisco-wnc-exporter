@@ -1,0 +1,4369 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>cmd: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/umatare5/cisco-wnc-exporter/cmd/main.go (100.0%)</option>
+				
+				<option value="file1">github.com/umatare5/cisco-wnc-exporter/internal/cache/cache.go (97.2%)</option>
+				
+				<option value="file2">github.com/umatare5/cisco-wnc-exporter/internal/cli/main.go (58.8%)</option>
+				
+				<option value="file3">github.com/umatare5/cisco-wnc-exporter/internal/cli/version.go (100.0%)</option>
+				
+				<option value="file4">github.com/umatare5/cisco-wnc-exporter/internal/collector/ap.go (73.5%)</option>
+				
+				<option value="file5">github.com/umatare5/cisco-wnc-exporter/internal/collector/cache.go (100.0%)</option>
+				
+				<option value="file6">github.com/umatare5/cisco-wnc-exporter/internal/collector/client.go (66.8%)</option>
+				
+				<option value="file7">github.com/umatare5/cisco-wnc-exporter/internal/collector/collector.go (93.8%)</option>
+				
+				<option value="file8">github.com/umatare5/cisco-wnc-exporter/internal/collector/utils.go (100.0%)</option>
+				
+				<option value="file9">github.com/umatare5/cisco-wnc-exporter/internal/collector/wlan.go (74.5%)</option>
+				
+				<option value="file10">github.com/umatare5/cisco-wnc-exporter/internal/config/config.go (94.4%)</option>
+				
+				<option value="file11">github.com/umatare5/cisco-wnc-exporter/internal/log/logger.go (100.0%)</option>
+				
+				<option value="file12">github.com/umatare5/cisco-wnc-exporter/internal/server/lifecycle.go (68.0%)</option>
+				
+				<option value="file13">github.com/umatare5/cisco-wnc-exporter/internal/server/server.go (100.0%)</option>
+				
+				<option value="file14">github.com/umatare5/cisco-wnc-exporter/internal/wnc/ap.go (100.0%)</option>
+				
+				<option value="file15">github.com/umatare5/cisco-wnc-exporter/internal/wnc/cache.go (0.8%)</option>
+				
+				<option value="file16">github.com/umatare5/cisco-wnc-exporter/internal/wnc/client.go (100.0%)</option>
+				
+				<option value="file17">github.com/umatare5/cisco-wnc-exporter/internal/wnc/rrm.go (100.0%)</option>
+				
+				<option value="file18">github.com/umatare5/cisco-wnc-exporter/internal/wnc/wlan.go (100.0%)</option>
+				
+				<option value="file19">github.com/umatare5/cisco-wnc-exporter/internal/wnc/wnc_client.go (80.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package main provides the main entry point for the cisco-wnc-exporter.
+package main
+
+import (
+        "github.com/umatare5/cisco-wnc-exporter/internal/cli"
+)
+
+// main is the entry point of the application.
+func main() <span class="cov8" title="1">{
+        cli.NewApp()
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package cache provides generic caching functionality with TTL support.
+package cache
+
+import (
+        "log/slog"
+        "sync"
+        "time"
+)
+
+type Cache[T any] struct {
+        mu       sync.RWMutex
+        data     T
+        cachedAt time.Time
+        ttl      time.Duration
+        name     string // for logging
+}
+
+// New creates a new cache with the specified TTL and name for logging.
+func New[T any](ttl time.Duration, name string) *Cache[T] <span class="cov8" title="1">{
+        return &amp;Cache[T]{
+                ttl:  ttl,
+                name: name,
+        }
+}</span>
+
+func (c *Cache[T]) Get(refreshFunc func() (T, error)) (T, error) <span class="cov8" title="1">{
+        // Fast path: check cache with read lock
+        c.mu.RLock()
+        if c.isFresh() </span><span class="cov8" title="1">{
+                data := c.data
+                c.mu.RUnlock()
+                return data, nil
+        }</span>
+        <span class="cov8" title="1">c.mu.RUnlock()
+
+        // Slow path: refresh cache with write lock
+        c.mu.Lock()
+        defer c.mu.Unlock()
+
+        if c.isFresh() </span><span class="cov0" title="0">{
+                return c.data, nil
+        }</span>
+
+        <span class="cov8" title="1">slog.Info("refreshing cache", "cache_name", c.name)
+        start := time.Now()
+
+        data, err := refreshFunc()
+        if err != nil </span><span class="cov8" title="1">{
+                var zero T
+                return zero, err
+        }</span>
+
+        <span class="cov8" title="1">c.data = data
+        c.cachedAt = time.Now()
+
+        slog.Info("cache refreshed", "cache_name", c.name, "duration_ms", time.Since(start).Milliseconds())
+        return data, nil</span>
+}
+
+// isFresh checks if the cached data is still within TTL.
+// Must be called with at least read lock held.
+func (c *Cache[T]) isFresh() bool <span class="cov8" title="1">{
+        return !c.cachedAt.IsZero() &amp;&amp; time.Since(c.cachedAt) &lt; c.ttl
+}</span>
+
+// GetCached returns cached data without refreshing if available and fresh.
+// Returns zero value and false if cache is stale or empty.
+func (c *Cache[T]) GetCached() (T, bool) <span class="cov8" title="1">{
+        c.mu.RLock()
+        defer c.mu.RUnlock()
+
+        if c.isFresh() </span><span class="cov8" title="1">{
+                return c.data, true
+        }</span>
+
+        <span class="cov8" title="1">var zero T
+        return zero, false</span>
+}
+
+// Invalidate clears the cache, forcing the next Get() call to refresh.
+func (c *Cache[T]) Invalidate() <span class="cov8" title="1">{
+        c.mu.Lock()
+        defer c.mu.Unlock()
+
+        c.cachedAt = time.Time{}
+        slog.Debug("cache invalidated", "cache_name", c.name)
+}</span>
+
+// SetTTL updates the cache TTL. Useful for dynamic TTL adjustment.
+func (c *Cache[T]) SetTTL(ttl time.Duration) <span class="cov8" title="1">{
+        c.mu.Lock()
+        defer c.mu.Unlock()
+
+        c.ttl = ttl
+        slog.Debug("cache TTL updated", "cache_name", c.name, "ttl_seconds", ttl.Seconds())
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Package cli provides the CLI implementation.
+package cli
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+        "os"
+
+        "github.com/urfave/cli/v3"
+
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+        "github.com/umatare5/cisco-wnc-exporter/internal/log"
+        "github.com/umatare5/cisco-wnc-exporter/internal/server"
+)
+
+// NewApp creates a new CLI application.
+func NewApp() *cli.Command <span class="cov0" title="0">{
+        cmd := &amp;cli.Command{
+                Name:    "cisco-wnc-exporter",
+                Usage:   "Prometheus exporter for Cisco WNC",
+                Version: getVersion(),
+                Flags:   registerFlags(),
+                Action: func(ctx context.Context, cmd *cli.Command) error </span><span class="cov0" title="0">{
+                        cfg, err := config.Parse(cmd)
+                        if err != nil </span><span class="cov0" title="0">{
+                                slog.Error("Configuration parsing failed", "error", err)
+                                return errors.New("configuration error")
+                        }</span>
+
+                        <span class="cov0" title="0">slog.SetDefault(log.Setup(cfg.Log))
+
+                        if cfg.DryRun </span><span class="cov0" title="0">{
+                                slog.Info("Configuration validation successful", "dry_run", true)
+                                return nil
+                        }</span>
+
+                        <span class="cov0" title="0">return server.StartAndServe(ctx, cfg, getVersion())</span>
+                },
+        }
+
+        <span class="cov0" title="0">if err := cmd.Run(context.Background(), os.Args); err != nil </span><span class="cov0" title="0">{
+                slog.Error("Application failed", "error", err)
+                os.Exit(1)
+        }</span>
+        <span class="cov0" title="0">return cmd</span>
+}
+
+// registerFlags defines and returns all CLI flags organized by category.
+func registerFlags() []cli.Flag <span class="cov8" title="1">{
+        flags := []cli.Flag{}
+        flags = append(flags, registerWebFlags()...)
+        flags = append(flags, registerWNCFlags()...)
+        flags = append(flags, registerCollectorFlags()...)
+        flags = append(flags, registerLogFlags()...)
+        flags = append(flags, registerUtilityFlags()...)
+        flags = append(flags, registerInternalCollectorFlags()...)
+        flags = append(flags, registerAPCollectorFlags()...)
+        flags = append(flags, registerClientCollectorFlags()...)
+        flags = append(flags, registerWLANCollectorFlags()...)
+        return flags
+}</span>
+
+// registerWebFlags defines flags for HTTP server configuration.
+func registerWebFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.StringFlag{
+                        Name:  "web.listen-address",
+                        Usage: "Address to bind the HTTP server to",
+                        Value: config.DefaultListenAddress,
+                },
+                &amp;cli.IntFlag{
+                        Name:  "web.listen-port",
+                        Usage: "Port number to bind the HTTP server to",
+                        Value: config.DefaultListenPort,
+                },
+                &amp;cli.StringFlag{
+                        Name:  "web.telemetry-path",
+                        Usage: "Path for the metrics endpoint",
+                        Value: config.DefaultTelemetryPath,
+                },
+        }
+}</span>
+
+// registerWNCFlags defines flags for WNC controller connection.
+func registerWNCFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.StringFlag{
+                        Name:        "wnc.controller",
+                        Usage:       "WNC controller hostname or IP address",
+                        Required:    true,
+                        Sources:     cli.EnvVars("WNC_CONTROLLER"),
+                        DefaultText: "&lt;required&gt;",
+                },
+                &amp;cli.StringFlag{
+                        Name:        "wnc.access-token",
+                        Usage:       "WNC API access token",
+                        Required:    true,
+                        Sources:     cli.EnvVars("WNC_ACCESS_TOKEN"),
+                        DefaultText: "&lt;required&gt;",
+                },
+                &amp;cli.DurationFlag{
+                        Name:  "wnc.timeout",
+                        Usage: "WNC API request timeout",
+                        Value: config.DefaultWNCTimeout,
+                },
+                &amp;cli.DurationFlag{
+                        Name:  "wnc.cache-ttl",
+                        Usage: "WNC API response cache TTL in seconds",
+                        Value: config.DefaultWNCCacheTTL,
+                },
+                &amp;cli.BoolFlag{
+                        Name:  "wnc.tls-skip-verify",
+                        Usage: "Skip TLS certificate verification",
+                },
+        }
+}</span>
+
+// registerCollectorFlags defines flags for collector-wide configuration.
+func registerCollectorFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.DurationFlag{
+                        Name:     "collector.info-cache-ttl",
+                        Usage:    "Cache TTL for collector info metrics",
+                        Value:    config.DefaultCollectorInfoCacheTTL,
+                        Category: "* Collector Wide Options",
+                },
+        }
+}</span>
+
+// registerAPCollectorFlags defines flags for AP collector modules.
+func registerAPCollectorFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.BoolFlag{
+                        Name:        "collector.ap.general",
+                        Usage:       "Enable AP general metrics",
+                        Category:    "# AP Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.ap.radio",
+                        Usage:       "Enable AP radio metrics",
+                        Category:    "# AP Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.ap.traffic",
+                        Usage:       "Enable AP traffic metrics",
+                        Category:    "# AP Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.ap.errors",
+                        Usage:       "Enable AP error metrics",
+                        Category:    "# AP Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.ap.info",
+                        Usage:       "Enable AP info metrics",
+                        Category:    "# AP Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.StringFlag{
+                        Name:     "collector.ap.info-labels",
+                        Usage:    "Comma-separated list of AP info labels",
+                        Value:    config.DefaultAPInfoLabels,
+                        Category: "# AP Collector Options",
+                        Config: cli.StringConfig{
+                                TrimSpace: true,
+                        },
+                },
+        }
+}</span>
+
+// registerWLANCollectorFlags defines flags for WLAN collector modules.
+func registerWLANCollectorFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.BoolFlag{
+                        Name:        "collector.wlan.general",
+                        Usage:       "Enable WLAN general metrics",
+                        Category:    "# WLAN Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.wlan.traffic",
+                        Usage:       "Enable WLAN traffic metrics",
+                        Category:    "# WLAN Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.wlan.config",
+                        Usage:       "Enable WLAN config metrics",
+                        Category:    "# WLAN Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.wlan.info",
+                        Usage:       "Enable WLAN info metrics",
+                        Category:    "# WLAN Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.StringFlag{
+                        Name:     "collector.wlan.info-labels",
+                        Usage:    "Comma-separated list of WLAN info labels",
+                        Value:    config.DefaultWLANInfoLabels,
+                        Category: "# WLAN Collector Options",
+                        Config: cli.StringConfig{
+                                TrimSpace: true,
+                        },
+                },
+        }
+}</span>
+
+// registerClientCollectorFlags defines flags for Client collector modules.
+func registerClientCollectorFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.BoolFlag{
+                        Name:        "collector.client.general",
+                        Usage:       "Enable Client general metrics",
+                        Category:    "# Client Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.client.radio",
+                        Usage:       "Enable Client radio metrics",
+                        Category:    "# Client Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.client.traffic",
+                        Usage:       "Enable Client traffic metrics",
+                        Category:    "# Client Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.client.errors",
+                        Usage:       "Enable Client error metrics",
+                        Category:    "# Client Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.client.info",
+                        Usage:       "Enable Client info metrics",
+                        Category:    "# Client Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.StringFlag{
+                        Name:     "collector.client.info-labels",
+                        Usage:    "Comma-separated list of Client info labels",
+                        Value:    config.DefaultClientInfoLabels,
+                        Category: "# Client Collector Options",
+                        Config: cli.StringConfig{
+                                TrimSpace: true,
+                        },
+                },
+        }
+}</span>
+
+// registerLogFlags defines flags for logging configuration.
+func registerLogFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.StringFlag{
+                        Name:  "log.level",
+                        Usage: "Log level (debug, info, warn, error)",
+                        Value: config.DefaultLogLevel,
+                },
+                &amp;cli.StringFlag{
+                        Name:  "log.format",
+                        Usage: "Log format (json, text)",
+                        Value: config.DefaultLogFormat,
+                },
+        }
+}</span>
+
+// registerInternalCollectorFlags defines flags for internal metrics collection configuration.
+func registerInternalCollectorFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.BoolFlag{
+                        Name:        "collector.internal.go-runtime",
+                        Usage:       "Enable Go runtime metrics collector",
+                        Category:    "* Internal Collector Options",
+                        HideDefault: true,
+                },
+                &amp;cli.BoolFlag{
+                        Name:        "collector.internal.process",
+                        Usage:       "Enable process metrics collector",
+                        Category:    "* Internal Collector Options",
+                        HideDefault: true,
+                },
+        }
+}</span>
+
+// registerUtilityFlags defines utility flags.
+func registerUtilityFlags() []cli.Flag <span class="cov8" title="1">{
+        return []cli.Flag{
+                &amp;cli.BoolFlag{
+                        Name:        "dry-run",
+                        Usage:       "Validate configuration without starting the server",
+                        HideDefault: true,
+                },
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Package cli handles the execution of the CLI application.
+package cli
+
+var version = "dev"
+
+func getVersion() string <span class="cov8" title="1">{
+        return version
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Package collector provides collectors for cisco-wnc-exporter.
+package collector
+
+import (
+        "context"
+        "log/slog"
+        "strconv"
+        "time"
+
+        "github.com/prometheus/client_golang/prometheus"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
+        "github.com/umatare5/cisco-wnc-exporter/internal/wnc"
+)
+
+// APMetrics represents which AP metrics are enabled.
+type APMetrics struct {
+        General    bool
+        Radio      bool
+        Traffic    bool
+        Errors     bool
+        Info       bool
+        InfoLabels []string
+}
+
+// APCollector implements prometheus.Collector for AP metrics from WNC.
+type APCollector struct {
+        metrics        APMetrics
+        infoDesc       *prometheus.Desc
+        infoLabelNames []string
+        src            wnc.APSource
+        rrmSrc         wnc.RRMSource
+        clientSrc      wnc.ClientSource
+
+        channelUtilizationDesc      *prometheus.Desc
+        rxUtilizationDesc           *prometheus.Desc
+        txUtilizationDesc           *prometheus.Desc
+        noiseUtilizationDesc        *prometheus.Desc
+        noiseFloorDesc              *prometheus.Desc
+        txPowerDesc                 *prometheus.Desc
+        channelDesc                 *prometheus.Desc
+        channelWidthDesc            *prometheus.Desc
+        associatedClientsDesc       *prometheus.Desc
+        radioStateDesc              *prometheus.Desc
+        adminStateDesc              *prometheus.Desc
+        operStateDesc               *prometheus.Desc
+        configStateDesc             *prometheus.Desc
+        txPowerMaxDesc              *prometheus.Desc
+        rxPacketsTotalDesc          *prometheus.Desc
+        txPacketsTotalDesc          *prometheus.Desc
+        rxBytesTotalDesc            *prometheus.Desc
+        txBytesTotalDesc            *prometheus.Desc
+        dataRxFramesTotalDesc       *prometheus.Desc
+        dataTxFramesTotalDesc       *prometheus.Desc
+        managementRxFramesTotalDesc *prometheus.Desc
+        managementTxFramesTotalDesc *prometheus.Desc
+        controlRxFramesTotalDesc    *prometheus.Desc
+        controlTxFramesTotalDesc    *prometheus.Desc
+        multicastRxFramesTotalDesc  *prometheus.Desc
+        multicastTxFramesTotalDesc  *prometheus.Desc
+        totalTxFramesTotalDesc      *prometheus.Desc
+        rtsSuccessTotalDesc         *prometheus.Desc
+        rxErrorsTotalDesc           *prometheus.Desc
+        txErrorsTotalDesc           *prometheus.Desc
+        txDropsTotalDesc            *prometheus.Desc
+        txRetriesTotalDesc          *prometheus.Desc
+        ackFailuresTotalDesc        *prometheus.Desc
+        duplicateFramesTotalDesc    *prometheus.Desc
+        fcsErrorsTotalDesc          *prometheus.Desc
+        fragmentationRxTotalDesc    *prometheus.Desc
+        fragmentationTxTotalDesc    *prometheus.Desc
+        rtsFailuresTotalDesc        *prometheus.Desc
+        decryptionErrorsTotalDesc   *prometheus.Desc
+        micErrorsTotalDesc          *prometheus.Desc
+        wepUndecryptableTotalDesc   *prometheus.Desc
+        coverageHoleEventsDesc      *prometheus.Desc
+        lastRadarOnRadioAtDesc      *prometheus.Desc
+        radioResetTotalDesc         *prometheus.Desc
+        cpuUsageCurrentDesc         *prometheus.Desc
+        cpuUsageAverageDesc         *prometheus.Desc
+        memoryUsageCurrentDesc      *prometheus.Desc
+        memoryUsageAverageDesc      *prometheus.Desc
+        uptimeSecondsDesc           *prometheus.Desc
+}
+
+// NewAPCollector creates a new AP collector.
+func NewAPCollector(
+        src wnc.APSource, rrmSrc wnc.RRMSource, clientSrc wnc.ClientSource, metrics APMetrics,
+) *APCollector <span class="cov8" title="1">{
+        baseRadioLabels := []string{labelMAC, labelRadio}
+        baseAPLabels := []string{labelMAC}
+
+        collector := &amp;APCollector{
+                metrics:   metrics,
+                src:       src,
+                rrmSrc:    rrmSrc,
+                clientSrc: clientSrc,
+        }
+
+        if metrics.Info </span><span class="cov8" title="1">{
+                requiredLabels := []string{labelMAC, labelRadio}
+                availableLabels := []string{labelName, labelIP, labelBand, labelModel, labelSerial, labelSWVersion, labelEthMAC}
+                infoLabels := buildInfoLabels(requiredLabels, metrics.InfoLabels, availableLabels)
+                collector.infoDesc = prometheus.NewDesc(
+                        "wnc_ap_info",
+                        "AP information labels for joining with other metrics, including device details",
+                        infoLabels, nil,
+                )
+                collector.infoLabelNames = infoLabels
+        }</span>
+
+        <span class="cov8" title="1">if metrics.General </span><span class="cov8" title="1">{
+                collector.radioStateDesc = prometheus.NewDesc(
+                        "wnc_ap_radio_state",
+                        "Radio state (0=down, 1=up)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.adminStateDesc = prometheus.NewDesc(
+                        "wnc_ap_admin_state",
+                        "Admin state (0=disabled, 1=enabled)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.operStateDesc = prometheus.NewDesc(
+                        "wnc_ap_oper_state",
+                        "Operational state (0=down, 1=up)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.configStateDesc = prometheus.NewDesc(
+                        "wnc_ap_config_state",
+                        "Configuration state (0=valid, 1=invalid) from IsApMisconfigured",
+                        baseAPLabels,
+                        nil,
+                )
+                collector.uptimeSecondsDesc = prometheus.NewDesc(
+                        "wnc_ap_uptime_seconds",
+                        "AP uptime in seconds",
+                        baseAPLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Radio </span><span class="cov8" title="1">{
+                collector.channelDesc = prometheus.NewDesc(
+                        "wnc_ap_channel_number",
+                        "Operating channel number",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.channelWidthDesc = prometheus.NewDesc(
+                        "wnc_ap_channel_width_mhz",
+                        "Channel bandwidth (MHz)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txPowerDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_power_dbm",
+                        "Current transmit power (dBm)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txPowerMaxDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_power_max_dbm",
+                        "Maximum TX power capability (dBm)",
+                        baseRadioLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Radio </span><span class="cov8" title="1">{
+                collector.channelUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_channel_utilization_percent",
+                        "Channel utilization percentage (CCA-based)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.rxUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_rx_utilization_percent",
+                        "RX utilization percentage",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_utilization_percent",
+                        "TX utilization percentage",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.noiseUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_noise_utilization_percent",
+                        "Noise channel utilization percentage",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.noiseFloorDesc = prometheus.NewDesc(
+                        "wnc_ap_noise_floor_dbm",
+                        "Channel noise floor (dBm)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.associatedClientsDesc = prometheus.NewDesc(
+                        "wnc_ap_clients_total",
+                        "Number of associated clients",
+                        baseRadioLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.General </span><span class="cov8" title="1">{
+                collector.cpuUsageCurrentDesc = prometheus.NewDesc(
+                        "wnc_ap_cpu_usage_current_percent",
+                        "Current CPU utilization percentage",
+                        baseAPLabels,
+                        nil,
+                )
+                collector.cpuUsageAverageDesc = prometheus.NewDesc(
+                        "wnc_ap_cpu_usage_average_percent",
+                        "Average CPU utilization percentage",
+                        baseAPLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.General </span><span class="cov8" title="1">{
+                collector.memoryUsageCurrentDesc = prometheus.NewDesc(
+                        "wnc_ap_memory_usage_current_percent",
+                        "Current memory utilization percentage",
+                        baseAPLabels,
+                        nil,
+                )
+                collector.memoryUsageAverageDesc = prometheus.NewDesc(
+                        "wnc_ap_memory_usage_average_percent",
+                        "Average memory utilization percentage",
+                        baseAPLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Traffic </span><span class="cov8" title="1">{
+                collector.rxPacketsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_rx_packets_total",
+                        "Total received packets",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txPacketsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_packets_total",
+                        "Total transmitted packets",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.rxBytesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_rx_bytes_total",
+                        "Total received bytes",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txBytesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_bytes_total",
+                        "Total transmitted bytes",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.dataRxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_data_rx_frames_total",
+                        "Data RX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.dataTxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_data_tx_frames_total",
+                        "Data TX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.managementRxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_management_rx_frames_total",
+                        "Management RX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.managementTxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_management_tx_frames_total",
+                        "Management TX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.controlRxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_control_rx_frames_total",
+                        "Control RX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.controlTxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_control_tx_frames_total",
+                        "Control TX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.multicastRxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_multicast_rx_frames_total",
+                        "Multicast RX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.multicastTxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_multicast_tx_frames_total",
+                        "Multicast TX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.totalTxFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_total_tx_frames_total",
+                        "Total TX frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.rtsSuccessTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_rts_success_total",
+                        "Successful RTS transmissions",
+                        baseRadioLabels,
+                        nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Errors </span><span class="cov8" title="1">{
+                collector.rxErrorsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_rx_errors_total",
+                        "Total RX errors (rx-error-frame-count)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txErrorsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_errors_total",
+                        "Total TX errors",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txDropsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_drops_total",
+                        "Total TX drops",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.txRetriesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_tx_retries_total",
+                        "Total TX retries",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.ackFailuresTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_transmission_failures_total",
+                        "Failed transmission attempts",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.duplicateFramesTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_duplicate_frames_total",
+                        "Duplicate frames received",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.fcsErrorsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_fcs_errors_total",
+                        "Frame Check Sequence errors",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.fragmentationRxTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_fragmentation_rx_total",
+                        "RX fragmented packets",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.fragmentationTxTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_fragmentation_tx_total",
+                        "TX fragmented packets",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.rtsFailuresTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_rts_failures_total",
+                        "RTS failures",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.decryptionErrorsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_decryption_errors_total",
+                        "Decryption errors",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.micErrorsTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_mic_errors_total",
+                        "MIC errors",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.wepUndecryptableTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_wep_undecryptable_total",
+                        "WEP undecryptable frames",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.coverageHoleEventsDesc = prometheus.NewDesc(
+                        "wnc_ap_coverage_hole_events_total",
+                        "Coverage hole events",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.lastRadarOnRadioAtDesc = prometheus.NewDesc(
+                        "wnc_ap_last_radar_on_radio_at",
+                        "Last radar detection timestamp (unix time, 0=never detected)",
+                        baseRadioLabels,
+                        nil,
+                )
+                collector.radioResetTotalDesc = prometheus.NewDesc(
+                        "wnc_ap_radio_reset_total",
+                        "Radio reset count",
+                        baseRadioLabels,
+                        nil,
+                )
+        }</span>
+        <span class="cov8" title="1">return collector</span>
+}
+
+// Describe implements prometheus.Collector.
+func (c *APCollector) Describe(ch chan&lt;- *prometheus.Desc) <span class="cov8" title="1">{
+        if c.metrics.General </span><span class="cov8" title="1">{
+                ch &lt;- c.radioStateDesc
+                ch &lt;- c.adminStateDesc
+                ch &lt;- c.operStateDesc
+                ch &lt;- c.configStateDesc
+                ch &lt;- c.uptimeSecondsDesc
+                ch &lt;- c.cpuUsageCurrentDesc
+                ch &lt;- c.cpuUsageAverageDesc
+                ch &lt;- c.memoryUsageCurrentDesc
+                ch &lt;- c.memoryUsageAverageDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Radio </span><span class="cov8" title="1">{
+                ch &lt;- c.channelDesc
+                ch &lt;- c.channelWidthDesc
+                ch &lt;- c.txPowerDesc
+                ch &lt;- c.txPowerMaxDesc
+                ch &lt;- c.noiseFloorDesc
+                ch &lt;- c.channelUtilizationDesc
+                ch &lt;- c.rxUtilizationDesc
+                ch &lt;- c.txUtilizationDesc
+                ch &lt;- c.noiseUtilizationDesc
+                ch &lt;- c.associatedClientsDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Traffic </span><span class="cov8" title="1">{
+                ch &lt;- c.rxPacketsTotalDesc
+                ch &lt;- c.txPacketsTotalDesc
+                ch &lt;- c.rxBytesTotalDesc
+                ch &lt;- c.txBytesTotalDesc
+                ch &lt;- c.dataRxFramesTotalDesc
+                ch &lt;- c.dataTxFramesTotalDesc
+                ch &lt;- c.managementRxFramesTotalDesc
+                ch &lt;- c.managementTxFramesTotalDesc
+                ch &lt;- c.controlRxFramesTotalDesc
+                ch &lt;- c.controlTxFramesTotalDesc
+                ch &lt;- c.multicastRxFramesTotalDesc
+                ch &lt;- c.multicastTxFramesTotalDesc
+                ch &lt;- c.totalTxFramesTotalDesc
+                ch &lt;- c.rtsSuccessTotalDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Errors </span><span class="cov8" title="1">{
+                ch &lt;- c.rxErrorsTotalDesc
+                ch &lt;- c.txErrorsTotalDesc
+                ch &lt;- c.txDropsTotalDesc
+                ch &lt;- c.txRetriesTotalDesc
+                ch &lt;- c.ackFailuresTotalDesc
+                ch &lt;- c.duplicateFramesTotalDesc
+                ch &lt;- c.fcsErrorsTotalDesc
+                ch &lt;- c.fragmentationRxTotalDesc
+                ch &lt;- c.fragmentationTxTotalDesc
+                ch &lt;- c.rtsFailuresTotalDesc
+                ch &lt;- c.decryptionErrorsTotalDesc
+                ch &lt;- c.micErrorsTotalDesc
+                ch &lt;- c.wepUndecryptableTotalDesc
+                ch &lt;- c.coverageHoleEventsDesc
+                ch &lt;- c.lastRadarOnRadioAtDesc
+                ch &lt;- c.radioResetTotalDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Info </span><span class="cov8" title="1">{
+                ch &lt;- c.infoDesc
+        }</span>
+}
+
+// Collect implements prometheus.Collector by retrieving AP data from WNC.
+func (c *APCollector) Collect(ch chan&lt;- prometheus.Metric) <span class="cov8" title="1">{
+        ctx := context.Background()
+
+        if !c.isAnyMetricFlagEnabled() </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">var capwapMap map[string]ap.CAPWAPData
+        capwapData, err := c.src.GetCAPWAPData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Failed to get CAPWAP data", "error", err)
+        }</span>
+        <span class="cov8" title="1">capwapMap = buildCAPWAPMap(capwapData)
+
+        var radioDataMap map[string]*ap.RadioOperData
+        radioDataSlice, err := c.src.GetRadioData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Failed to get radio data", "error", err)
+        }</span>
+        <span class="cov8" title="1">radioDataMap = buildRadioDataMap(radioDataSlice)
+
+        var radioOperStatsMap map[string]map[int]ap.RadioOperStats
+        if IsEnabled(c.metrics.Traffic, c.metrics.Errors) </span><span class="cov0" title="0">{
+                radioOperStats, err := c.src.GetRadioOperStats(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve radio operational stats", "error", err)
+                }</span>
+                <span class="cov0" title="0">radioOperStatsMap = buildRadioOperStatsMap(radioOperStats)</span>
+        }
+
+        <span class="cov8" title="1">var apOperDataMap map[string]ap.OperData
+        if IsEnabled(c.metrics.General) </span><span class="cov8" title="1">{
+                apOperData, err := c.src.GetAPOperData(ctx)
+                if err != nil </span><span class="cov8" title="1">{
+                        slog.Warn("Failed to retrieve AP operational data", "error", err)
+                }</span>
+                <span class="cov8" title="1">apOperDataMap = buildAPOperDataMap(apOperData)</span>
+        }
+
+        <span class="cov8" title="1">var rrmMeasurementsMap map[string]*rrm.RRMMeasurement
+        var rrmCoverageMap map[string]*rrm.RRMCoverage
+        var apDot11RadarMap map[string]*rrm.ApDot11RadarData
+        if IsEnabled(c.metrics.Radio) </span><span class="cov8" title="1">{
+                rrmMeasurements, err := c.rrmSrc.GetRRMMeasurements(ctx)
+                if err != nil </span><span class="cov8" title="1">{
+                        slog.Warn("Failed to get RRM data for radio metrics", "error", err)
+                }</span>
+                <span class="cov8" title="1">rrmMeasurementsMap = buildRRMMeasurementsMap(rrmMeasurements)</span>
+        }
+
+        <span class="cov8" title="1">var radioResetStatsMap map[string]map[int]*ap.RadioResetStats
+        if IsEnabled(c.metrics.Errors) </span><span class="cov0" title="0">{
+                radioResetStats, err := c.src.GetRadioResetStats(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to get radio reset stats for error metrics", "error", err)
+                }</span> else<span class="cov0" title="0"> {
+                        radioResetStatsMap = buildRadioResetStatsMap(radioResetStats)
+                }</span>
+
+                <span class="cov0" title="0">rrmCoverage, err := c.rrmSrc.GetRRMCoverage(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to get RRM coverage for error metrics", "error", err)
+                }</span> else<span class="cov0" title="0"> {
+                        rrmCoverageMap = buildRRMCoverageMap(rrmCoverage)
+                }</span>
+
+                <span class="cov0" title="0">apDot11Radar, err := c.rrmSrc.GetApDot11RadarData(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to get radar data for error metrics", "error", err)
+                }</span> else<span class="cov0" title="0"> {
+                        apDot11RadarMap = buildApDot11RadarMap(apDot11Radar)
+                }</span>
+        }
+
+        <span class="cov8" title="1">if IsEnabled(c.metrics.General) </span><span class="cov8" title="1">{
+                for wtpMAC := range capwapMap </span><span class="cov0" title="0">{
+                        c.collectSystemMetrics(ch, wtpMAC, capwapMap, apOperDataMap)
+                }</span>
+        }
+
+        <span class="cov8" title="1">for _, radio := range radioDataMap </span><span class="cov0" title="0">{
+                if c.metrics.General </span><span class="cov0" title="0">{
+                        c.collectGeneralMetrics(ch, radio)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Radio </span><span class="cov0" title="0">{
+                        c.collectRadioMetrics(ch, radio, rrmMeasurementsMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Traffic </span><span class="cov0" title="0">{
+                        c.collectTrafficMetrics(ch, radio, radioOperStatsMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Errors </span><span class="cov0" title="0">{
+                        c.collectErrorMetrics(
+                                ch, radio, radioOperStatsMap, radioResetStatsMap,
+                                rrmCoverageMap, apDot11RadarMap,
+                        )
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Info </span><span class="cov0" title="0">{
+                        c.collectInfoMetrics(ch, radio, capwapMap)
+                }</span>
+        }
+}
+
+// collectSystemMetrics collects AP system metrics.
+func (c *APCollector) collectSystemMetrics(
+        ch chan&lt;- prometheus.Metric,
+        wtpMAC string,
+        capwapMap map[string]ap.CAPWAPData,
+        apOperDataMap map[string]ap.OperData,
+) <span class="cov0" title="0">{
+        labels := []string{wtpMAC}
+
+        metrics := []Float64Metric{
+                {c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
+                {c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
+                {c.cpuUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
+                {c.cpuUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgCPUUsage)},
+                {c.memoryUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
+                {c.memoryUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgMemoryUsage)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
+        }</span>
+}
+
+// collectGeneralMetrics collects general radio metrics.
+func (c *APCollector) collectGeneralMetrics(
+        ch chan&lt;- prometheus.Metric,
+        radio *ap.RadioOperData,
+) <span class="cov0" title="0">{
+        labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+
+        metrics := []Float64Metric{
+                {c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
+                {c.adminStateDesc, boolToFloat64(radio.AdminState == APAdminStateEnabled)},
+                {c.operStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
+        }</span>
+}
+
+// collectRadioMetrics collects radio-specific metrics.
+func (c *APCollector) collectRadioMetrics(
+        ch chan&lt;- prometheus.Metric,
+        radio *ap.RadioOperData,
+        rrmMeasurementsMap map[string]*rrm.RRMMeasurement,
+) <span class="cov0" title="0">{
+        labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+        radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
+
+        var clientCount float64
+        clientCountsMap := make(map[string]map[int]int)
+        if apCounts, ok := clientCountsMap[radio.WtpMAC]; ok </span><span class="cov0" title="0">{
+                if count, ok := apCounts[radio.RadioSlotID]; ok </span><span class="cov0" title="0">{
+                        clientCount = float64(count)
+                }</span>
+        }
+
+        <span class="cov0" title="0">metrics := []Float64Metric{}
+
+        if len(radio.RadioBandInfo) &gt; 0 </span><span class="cov0" title="0">{
+                metrics = append(metrics,
+                        Float64Metric{c.txPowerDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
+                        Float64Metric{c.txPowerMaxDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
+                )
+        }</span>
+
+        <span class="cov0" title="0">if radio.PhyHtCfg != nil </span><span class="cov0" title="0">{
+                metrics = append(metrics,
+                        Float64Metric{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
+                        Float64Metric{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
+                )
+        }</span>
+
+        <span class="cov0" title="0">if rrmData, ok := rrmMeasurementsMap[radioID]; ok </span><span class="cov0" title="0">{
+                metrics = append(metrics,
+                        Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
+                        Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
+                        Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
+                        Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
+                )
+                if len(rrmData.Noise.Noise.NoiseData) &gt; 0 </span><span class="cov0" title="0">{
+                        metrics = append(metrics,
+                                Float64Metric{c.noiseFloorDesc, float64(rrmData.Noise.Noise.NoiseData[0].Noise)},
+                        )
+                }</span>
+        }
+
+        <span class="cov0" title="0">metrics = append(metrics,
+                Float64Metric{c.associatedClientsDesc, clientCount},
+        )
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
+        }</span>
+}
+
+func (c *APCollector) collectTrafficMetrics(
+        ch chan&lt;- prometheus.Metric,
+        radio *ap.RadioOperData,
+        radioOperStatsMap map[string]map[int]ap.RadioOperStats,
+) <span class="cov0" title="0">{
+        stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
+        if !ok </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+        const averageFrameSize = 1500
+
+        trafficMetrics := []Float64Metric{
+                {c.rxPacketsTotalDesc, float64(stats.RxDataFrameCount)},
+                {c.txPacketsTotalDesc, float64(stats.TxDataFrameCount)},
+                {c.rxBytesTotalDesc, float64(stats.RxDataFrameCount * averageFrameSize)},
+                {c.txBytesTotalDesc, float64(stats.TxDataFrameCount * averageFrameSize)},
+                {c.dataRxFramesTotalDesc, float64(stats.RxDataFrameCount)},
+                {c.dataTxFramesTotalDesc, float64(stats.TxDataFrameCount)},
+                {c.managementRxFramesTotalDesc, float64(stats.RxMgmtFrameCount)},
+                {c.managementTxFramesTotalDesc, float64(stats.TxMgmtFrameCount)},
+                {c.controlRxFramesTotalDesc, float64(stats.RxCtrlFrameCount)},
+                {c.controlTxFramesTotalDesc, float64(stats.TxCtrlFrameCount)},
+                {c.multicastRxFramesTotalDesc, float64(stats.MulticastRxFrameCnt)},
+                {c.multicastTxFramesTotalDesc, float64(stats.MulticastTxFrameCnt)},
+                {c.totalTxFramesTotalDesc, float64(stats.TxFrameCount)},
+                {c.rtsSuccessTotalDesc, float64(stats.RtsSuccessCount)},
+        }
+
+        for _, metric := range trafficMetrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.CounterValue, metric.Value, labels...)
+        }</span>
+}
+
+func (c *APCollector) collectErrorMetrics(
+        ch chan&lt;- prometheus.Metric,
+        radio *ap.RadioOperData,
+        radioOperStatsMap map[string]map[int]ap.RadioOperStats,
+        radioResetStatsMap map[string]map[int]*ap.RadioResetStats,
+        rrmCoverageMap map[string]*rrm.RRMCoverage,
+        apDot11RadarMap map[string]*rrm.ApDot11RadarData,
+) <span class="cov0" title="0">{
+        stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
+        if !ok </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+        radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
+
+        var radioResetCount float64
+        if resetStats, exists := radioResetStatsMap[radio.WtpMAC][radio.RadioSlotID]; exists </span><span class="cov0" title="0">{
+                radioResetCount = float64(resetStats.Count)
+        }</span>
+
+        <span class="cov0" title="0">var coverageHoleEvents float64
+        if coverage, exists := rrmCoverageMap[radioID]; exists </span><span class="cov0" title="0">{
+                coverageHoleEvents = float64(coverage.FailedClientCount)
+        }</span>
+
+        <span class="cov0" title="0">var lastRadarOnRadioAt float64
+        if radar, exists := apDot11RadarMap[radioID]; exists </span><span class="cov0" title="0">{
+                if !radar.LastRadarOnRadio.IsZero() &amp;&amp; radar.LastRadarOnRadio.Year() &gt; 1970 </span><span class="cov0" title="0">{
+                        lastRadarOnRadioAt = float64(radar.LastRadarOnRadio.Unix())
+                }</span>
+        }
+
+        <span class="cov0" title="0">errorMetrics := []Float64Metric{
+                {c.rxErrorsTotalDesc, float64(stats.RxErrorFrameCount)},
+                {c.txErrorsTotalDesc, float64(stats.FailedCount)},
+                {c.txDropsTotalDesc, float64(stats.AckFailureCount)},
+                {c.txRetriesTotalDesc, float64(stats.RetryCount)},
+                {c.ackFailuresTotalDesc, float64(stats.FailedCount)},
+                {c.duplicateFramesTotalDesc, float64(stats.FrameDuplicateCount)},
+                {c.fcsErrorsTotalDesc, float64(stats.FcsErrorCount)},
+                {c.fragmentationRxTotalDesc, float64(stats.RxFragmentCount)},
+                {c.fragmentationTxTotalDesc, float64(stats.TxFragmentCount)},
+                {c.rtsFailuresTotalDesc, float64(stats.RtsFailureCount)},
+                {c.decryptionErrorsTotalDesc, float64(stats.MACDecryErrFrameCount)},
+                {c.micErrorsTotalDesc, float64(stats.MACMicErrFrameCount)},
+                {c.wepUndecryptableTotalDesc, float64(stats.WepUndecryptableCount)},
+                {c.coverageHoleEventsDesc, coverageHoleEvents},
+                {c.lastRadarOnRadioAtDesc, lastRadarOnRadioAt},
+                {c.radioResetTotalDesc, radioResetCount},
+        }
+
+        for _, metric := range errorMetrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.CounterValue, metric.Value, labels...)
+        }</span>
+}
+
+func (c *APCollector) collectInfoMetrics(
+        ch chan&lt;- prometheus.Metric,
+        radio *ap.RadioOperData,
+        capwapMap map[string]ap.CAPWAPData,
+) <span class="cov8" title="1">{
+        if c.infoDesc == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">capwap, exists := capwapMap[radio.WtpMAC]
+        if !exists </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">band := DetermineBandFromRadioInfo(radio.RadioSlotID, radio.RadioType)
+        radioSlot := strconv.Itoa(radio.RadioSlotID)
+
+        model := capwap.DeviceDetail.StaticInfo.ApModels.Model
+        serial := capwap.DeviceDetail.StaticInfo.BoardData.WtpSerialNum
+        swVersion := capwap.DeviceDetail.WtpVersion.SwVersion
+        ethMAC := capwap.DeviceDetail.StaticInfo.BoardData.WtpEnetMAC
+
+        values := make([]string, len(c.infoLabelNames))
+        for i, label := range c.infoLabelNames </span><span class="cov8" title="1">{
+                switch label </span>{
+                case labelMAC:<span class="cov8" title="1">
+                        values[i] = radio.WtpMAC</span>
+                case labelName:<span class="cov8" title="1">
+                        values[i] = capwap.Name</span>
+                case labelIP:<span class="cov8" title="1">
+                        values[i] = capwap.IPAddr</span>
+                case labelRadio:<span class="cov8" title="1">
+                        values[i] = radioSlot</span>
+                case labelBand:<span class="cov8" title="1">
+                        values[i] = band</span>
+                case labelModel:<span class="cov8" title="1">
+                        values[i] = model</span>
+                case labelSerial:<span class="cov8" title="1">
+                        values[i] = serial</span>
+                case labelSWVersion:<span class="cov8" title="1">
+                        values[i] = swVersion</span>
+                case labelEthMAC:<span class="cov8" title="1">
+                        values[i] = ethMAC</span>
+                default:<span class="cov0" title="0">
+                        values[i] = ""</span>
+                }
+        }
+
+        <span class="cov8" title="1">ch &lt;- prometheus.MustNewConstMetric(c.infoDesc, prometheus.GaugeValue, 1, values...)</span>
+}
+
+func buildCAPWAPMap(capwapData []ap.CAPWAPData) map[string]ap.CAPWAPData <span class="cov8" title="1">{
+        capwapMap := make(map[string]ap.CAPWAPData)
+        for _, capwap := range capwapData </span><span class="cov8" title="1">{
+                capwapMap[capwap.WtpMAC] = capwap
+        }</span>
+        <span class="cov8" title="1">return capwapMap</span>
+}
+
+func buildRadioDataMap(radioData []ap.RadioOperData) map[string]*ap.RadioOperData <span class="cov8" title="1">{
+        radioMap := make(map[string]*ap.RadioOperData)
+        for i, radio := range radioData </span><span class="cov8" title="1">{
+                key := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
+                radioMap[key] = &amp;radioData[i]
+        }</span>
+        <span class="cov8" title="1">return radioMap</span>
+}
+
+func buildRadioOperStatsMap(radioOperStats []ap.RadioOperStats) map[string]map[int]ap.RadioOperStats <span class="cov8" title="1">{
+        statsMap := make(map[string]map[int]ap.RadioOperStats)
+        for _, stats := range radioOperStats </span><span class="cov8" title="1">{
+                if statsMap[stats.ApMAC] == nil </span><span class="cov8" title="1">{
+                        statsMap[stats.ApMAC] = make(map[int]ap.RadioOperStats)
+                }</span>
+                <span class="cov8" title="1">statsMap[stats.ApMAC][stats.SlotID] = stats</span>
+        }
+        <span class="cov8" title="1">return statsMap</span>
+}
+
+func buildAPOperDataMap(apOperData []ap.OperData) map[string]ap.OperData <span class="cov8" title="1">{
+        operMap := make(map[string]ap.OperData)
+        for _, oper := range apOperData </span><span class="cov8" title="1">{
+                operMap[oper.WtpMAC] = oper
+        }</span>
+        <span class="cov8" title="1">return operMap</span>
+}
+
+func buildRRMMeasurementsMap(measurements []rrm.RRMMeasurement) map[string]*rrm.RRMMeasurement <span class="cov8" title="1">{
+        measurementMap := make(map[string]*rrm.RRMMeasurement)
+        for i, measurement := range measurements </span><span class="cov8" title="1">{
+                key := measurement.WtpMAC + ":" + strconv.Itoa(measurement.RadioSlotID)
+                measurementMap[key] = &amp;measurements[i]
+        }</span>
+        <span class="cov8" title="1">return measurementMap</span>
+}
+
+func buildRadioResetStatsMap(radioResetStats []ap.RadioResetStats) map[string]map[int]*ap.RadioResetStats <span class="cov8" title="1">{
+        statsMap := make(map[string]map[int]*ap.RadioResetStats)
+        for i, stats := range radioResetStats </span><span class="cov8" title="1">{
+                if statsMap[stats.ApMAC] == nil </span><span class="cov8" title="1">{
+                        statsMap[stats.ApMAC] = make(map[int]*ap.RadioResetStats)
+                }</span>
+                <span class="cov8" title="1">statsMap[stats.ApMAC][stats.RadioID] = &amp;radioResetStats[i]</span>
+        }
+        <span class="cov8" title="1">return statsMap</span>
+}
+
+func buildRRMCoverageMap(rrmCoverage []rrm.RRMCoverage) map[string]*rrm.RRMCoverage <span class="cov8" title="1">{
+        coverageMap := make(map[string]*rrm.RRMCoverage)
+        for i, coverage := range rrmCoverage </span><span class="cov8" title="1">{
+                key := coverage.WtpMAC + ":" + strconv.Itoa(coverage.RadioSlotID)
+                coverageMap[key] = &amp;rrmCoverage[i]
+        }</span>
+        <span class="cov8" title="1">return coverageMap</span>
+}
+
+func buildApDot11RadarMap(apDot11Radar []rrm.ApDot11RadarData) map[string]*rrm.ApDot11RadarData <span class="cov8" title="1">{
+        radarMap := make(map[string]*rrm.ApDot11RadarData)
+        for i, radar := range apDot11Radar </span><span class="cov8" title="1">{
+                key := radar.WtpMAC + ":" + strconv.Itoa(radar.RadioSlotID)
+                radarMap[key] = &amp;apDot11Radar[i]
+        }</span>
+        <span class="cov8" title="1">return radarMap</span>
+}
+
+// determineUptimeFromBootTime determines uptime from boot time timestamp.
+func determineUptimeFromBootTime(bootTimeStr string) int64 <span class="cov8" title="1">{
+        if bootTimeStr == "" </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+
+        <span class="cov8" title="1">bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+
+        <span class="cov8" title="1">uptime := time.Since(bootTime)
+        return int64(uptime.Seconds())</span>
+}
+
+func (c *APCollector) isAnyMetricFlagEnabled() bool <span class="cov8" title="1">{
+        return IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors, c.metrics.Info)
+}</span>
+
+// CalculateUptimeFromBootTime calculates uptime in seconds from boot time ISO 8601 timestamp.
+func CalculateUptimeFromBootTime(bootTimeStr string) (int64, error) <span class="cov8" title="1">{
+        bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, err
+        }</span>
+
+        <span class="cov8" title="1">uptime := time.Since(bootTime)
+        return int64(uptime.Seconds()), nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Package collector provides enhanced collectors with info metrics caching.
+package collector
+
+import (
+        "strings"
+        "time"
+
+        "github.com/prometheus/client_golang/prometheus"
+
+        "github.com/umatare5/cisco-wnc-exporter/internal/cache"
+)
+
+const (
+        // MetricChannelBuffer defines the buffer size for metric channels.
+        MetricChannelBuffer = 100
+)
+
+// MetricsCache provides caching for specific metrics to reduce cardinality explosion from frequent label changes.
+type MetricsCache = cache.Cache[[]prometheus.Metric]
+
+// InfoCacheCollector wraps collectors to cache only info metrics for improved performance.
+type InfoCacheCollector struct {
+        base      prometheus.Collector
+        infoCache *MetricsCache
+        name      string
+}
+
+// NewInfoCacheCollector creates a new collector with info-only metrics caching.
+func NewInfoCacheCollector(base prometheus.Collector, name string, cacheTTL time.Duration) *InfoCacheCollector <span class="cov8" title="1">{
+        return &amp;InfoCacheCollector{
+                base:      base,
+                infoCache: cache.New[[]prometheus.Metric](cacheTTL, name+" info metrics cache"),
+                name:      name,
+        }
+}</span>
+
+// Describe implements prometheus.Collector interface by delegating to base collector.
+func (c *InfoCacheCollector) Describe(ch chan&lt;- *prometheus.Desc) <span class="cov8" title="1">{
+        c.base.Describe(ch)
+}</span>
+
+// Collect implements prometheus.Collector interface with info-only metrics caching.
+// Info metrics are cached, all other metrics are served in real-time.
+func (c *InfoCacheCollector) Collect(ch chan&lt;- prometheus.Metric) <span class="cov8" title="1">{
+        // Collect all metrics from base collector first
+        baseCh := make(chan prometheus.Metric, MetricChannelBuffer)
+        go func() </span><span class="cov8" title="1">{
+                defer close(baseCh)
+                c.base.Collect(baseCh)
+        }</span>()
+
+        // Separate info and non-info metrics
+        <span class="cov8" title="1">var nonInfoMetrics []prometheus.Metric
+        var infoMetrics []prometheus.Metric
+
+        for metric := range baseCh </span><span class="cov8" title="1">{
+                if isInfoMetric(metric) </span><span class="cov8" title="1">{
+                        infoMetrics = append(infoMetrics, metric)
+                }</span> else<span class="cov8" title="1"> {
+                        nonInfoMetrics = append(nonInfoMetrics, metric)
+                }</span>
+        }
+
+        // Serve non-info metrics immediately (real-time)
+        <span class="cov8" title="1">for _, metric := range nonInfoMetrics </span><span class="cov8" title="1">{
+                ch &lt;- metric
+        }</span>
+
+        // Cache and serve info metrics
+        <span class="cov8" title="1">if len(infoMetrics) &gt; 0 </span><span class="cov8" title="1">{
+                cachedInfoMetrics, err := c.infoCache.Get(func() ([]prometheus.Metric, error) </span><span class="cov8" title="1">{
+                        return infoMetrics, nil
+                }</span>)
+                <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                        for _, metric := range cachedInfoMetrics </span><span class="cov8" title="1">{
+                                ch &lt;- metric
+                        }</span>
+                }
+        }
+}
+
+// isInfoMetric determines if a metric is an info metric based on its name.
+func isInfoMetric(metric prometheus.Metric) bool <span class="cov8" title="1">{
+        desc := metric.Desc()
+        fqName := desc.String()
+
+        // Check if metric name contains "_info"
+        // This covers: wnc_ap_info, wnc_client_info, wnc_wlan_info
+        return strings.Contains(fqName, "_info")
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Package collector provides collectors for cisco-wnc-exporter.
+package collector
+
+import (
+        "context"
+        "log/slog"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/prometheus/client_golang/prometheus"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+        "github.com/umatare5/cisco-wnc-exporter/internal/wnc"
+)
+
+// ClientMetrics represents the configuration for client metrics.
+type ClientMetrics struct {
+        General    bool
+        Radio      bool
+        Traffic    bool
+        Errors     bool
+        Info       bool
+        InfoLabels []string
+}
+
+// ClientCollector implements prometheus.Collector for Client metrics.
+type ClientCollector struct {
+        metrics        ClientMetrics
+        infoDesc       *prometheus.Desc
+        infoLabelNames []string
+        src            wnc.ClientSource
+
+        stateDesc                  *prometheus.Desc
+        associationUptimeDesc      *prometheus.Desc
+        stateTransitionSecondsDesc *prometheus.Desc
+        protocolDesc               *prometheus.Desc
+        mcsIndexDesc               *prometheus.Desc
+        spatialStreamsDesc         *prometheus.Desc
+        speedDesc                  *prometheus.Desc
+        rssiDesc                   *prometheus.Desc
+        snrDesc                    *prometheus.Desc
+        bytesRxDesc                *prometheus.Desc
+        bytesTxDesc                *prometheus.Desc
+        packetsRxDesc              *prometheus.Desc
+        packetsTxDesc              *prometheus.Desc
+        retryRatioDesc             *prometheus.Desc
+        policyErrorsDesc           *prometheus.Desc
+        duplicateReceivedDesc      *prometheus.Desc
+        decryptionFailedDesc       *prometheus.Desc
+        micMismatchDesc            *prometheus.Desc
+        micMissingDesc             *prometheus.Desc
+        excessiveRetriesDesc       *prometheus.Desc
+        rxGroupCounterDesc         *prometheus.Desc
+        txTotalDropsDesc           *prometheus.Desc
+        dataRetriesDesc            *prometheus.Desc
+        rtsRetriesDesc             *prometheus.Desc
+        txRetriesDesc              *prometheus.Desc
+        powerSaveStateDesc         *prometheus.Desc
+}
+
+// NewClientCollector creates a new ClientCollector for retrieving metrics from WNC.
+func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientCollector <span class="cov8" title="1">{
+        collector := &amp;ClientCollector{
+                src:     src,
+                metrics: metrics,
+        }
+
+        labels := []string{labelMAC}
+
+        if metrics.General </span><span class="cov8" title="1">{
+                collector.stateDesc = prometheus.NewDesc(
+                        "wnc_client_state",
+                        "Client connection state",
+                        labels, nil,
+                )
+                collector.associationUptimeDesc = prometheus.NewDesc(
+                        "wnc_client_uptime_seconds",
+                        "Client association uptime in seconds",
+                        labels, nil,
+                )
+                collector.stateTransitionSecondsDesc = prometheus.NewDesc(
+                        "wnc_client_state_transition_seconds",
+                        "Client state transition latency in seconds",
+                        labels, nil,
+                )
+                collector.powerSaveStateDesc = prometheus.NewDesc(
+                        "wnc_client_power_save_state",
+                        "Power save state (0=active, 1=power-save)",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Radio </span><span class="cov8" title="1">{
+                collector.protocolDesc = prometheus.NewDesc(
+                        "wnc_client_protocol",
+                        "Client wireless protocol (1=802.11a, 2=802.11b, 3=802.11g, 4=802.11n, 5=802.11ac, 6=802.11ax)",
+                        labels, nil,
+                )
+                collector.mcsIndexDesc = prometheus.NewDesc(
+                        "wnc_client_mcs_index",
+                        "Client MCS index (-1=legacy, 0-11=802.11n/ac/ax MCS values)",
+                        labels, nil,
+                )
+                collector.spatialStreamsDesc = prometheus.NewDesc(
+                        "wnc_client_spatial_streams",
+                        "Number of spatial streams",
+                        labels, nil,
+                )
+                collector.speedDesc = prometheus.NewDesc(
+                        "wnc_client_speed_mbps",
+                        "Connection speed in Mbps",
+                        labels, nil,
+                )
+                collector.rssiDesc = prometheus.NewDesc(
+                        "wnc_client_rssi_dbm",
+                        "Received signal strength in dBm",
+                        labels, nil,
+                )
+                collector.snrDesc = prometheus.NewDesc(
+                        "wnc_client_snr_decibels",
+                        "Signal-to-noise ratio in dB",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Traffic </span><span class="cov8" title="1">{
+                collector.bytesRxDesc = prometheus.NewDesc(
+                        "wnc_client_rx_bytes_total",
+                        "Total bytes received",
+                        labels, nil,
+                )
+                collector.bytesTxDesc = prometheus.NewDesc(
+                        "wnc_client_tx_bytes_total",
+                        "Total bytes transmitted",
+                        labels, nil,
+                )
+                collector.packetsRxDesc = prometheus.NewDesc(
+                        "wnc_client_rx_packets_total",
+                        "Total packets received",
+                        labels, nil,
+                )
+                collector.packetsTxDesc = prometheus.NewDesc(
+                        "wnc_client_tx_packets_total",
+                        "Total packets transmitted",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Errors </span><span class="cov8" title="1">{
+                collector.retryRatioDesc = prometheus.NewDesc(
+                        "wnc_client_retry_ratio_percent",
+                        "Retry rate percentage",
+                        labels, nil,
+                )
+                collector.policyErrorsDesc = prometheus.NewDesc(
+                        "wnc_client_policy_errors_total",
+                        "Policy errors",
+                        labels, nil,
+                )
+                collector.duplicateReceivedDesc = prometheus.NewDesc(
+                        "wnc_client_duplicate_received_total",
+                        "Duplicate packets received",
+                        labels, nil,
+                )
+                collector.decryptionFailedDesc = prometheus.NewDesc(
+                        "wnc_client_decryption_failed_total",
+                        "Decryption failed packets",
+                        labels, nil,
+                )
+                collector.micMismatchDesc = prometheus.NewDesc(
+                        "wnc_client_mic_mismatch_total",
+                        "MIC mismatch errors",
+                        labels, nil,
+                )
+                collector.micMissingDesc = prometheus.NewDesc(
+                        "wnc_client_mic_missing_total",
+                        "MIC missing errors",
+                        labels, nil,
+                )
+                collector.excessiveRetriesDesc = prometheus.NewDesc(
+                        "wnc_client_excessive_retries_total",
+                        "Excessive retries",
+                        labels, nil,
+                )
+                collector.rxGroupCounterDesc = prometheus.NewDesc(
+                        "wnc_client_rx_group_counter_total",
+                        "RX group counter",
+                        labels, nil,
+                )
+                collector.txTotalDropsDesc = prometheus.NewDesc(
+                        "wnc_client_tx_drops_total",
+                        "Total TX drops",
+                        labels, nil,
+                )
+                collector.dataRetriesDesc = prometheus.NewDesc(
+                        "wnc_client_data_retries_total",
+                        "Data retries",
+                        labels, nil,
+                )
+                collector.rtsRetriesDesc = prometheus.NewDesc(
+                        "wnc_client_rts_retries_total",
+                        "RTS retries",
+                        labels, nil,
+                )
+                collector.txRetriesDesc = prometheus.NewDesc(
+                        "wnc_client_tx_retries_total",
+                        "TX retries",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Info </span><span class="cov8" title="1">{
+                infoLabels := buildInfoLabels(
+                        labels,
+                        metrics.InfoLabels,
+                        []string{labelAP, labelBand, labelWLAN, labelName, labelUsername, labelIPv4, labelIPv6},
+                )
+                collector.infoDesc = prometheus.NewDesc(
+                        "wnc_client_info",
+                        "Client information labels for joining with other metrics",
+                        infoLabels, nil,
+                )
+                collector.infoLabelNames = infoLabels
+        }</span>
+
+        <span class="cov8" title="1">return collector</span>
+}
+
+func (c *ClientCollector) isAnyMetricFlagEnabled() bool <span class="cov8" title="1">{
+        return IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors, c.metrics.Info)
+}</span>
+
+// Describe sends the descriptors of all metrics to the provided channel.
+func (c *ClientCollector) Describe(ch chan&lt;- *prometheus.Desc) <span class="cov8" title="1">{
+        if c.metrics.General </span><span class="cov8" title="1">{
+                ch &lt;- c.stateDesc
+                ch &lt;- c.associationUptimeDesc
+                ch &lt;- c.stateTransitionSecondsDesc
+                ch &lt;- c.powerSaveStateDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Info </span><span class="cov8" title="1">{
+                ch &lt;- c.infoDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Radio </span><span class="cov8" title="1">{
+                ch &lt;- c.protocolDesc
+                ch &lt;- c.mcsIndexDesc
+                ch &lt;- c.spatialStreamsDesc
+                ch &lt;- c.speedDesc
+                ch &lt;- c.rssiDesc
+                ch &lt;- c.snrDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Traffic </span><span class="cov8" title="1">{
+                ch &lt;- c.bytesRxDesc
+                ch &lt;- c.bytesTxDesc
+                ch &lt;- c.packetsRxDesc
+                ch &lt;- c.packetsTxDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Errors </span><span class="cov8" title="1">{
+                ch &lt;- c.retryRatioDesc
+                ch &lt;- c.policyErrorsDesc
+                ch &lt;- c.duplicateReceivedDesc
+                ch &lt;- c.decryptionFailedDesc
+                ch &lt;- c.micMismatchDesc
+                ch &lt;- c.micMissingDesc
+                ch &lt;- c.excessiveRetriesDesc
+                ch &lt;- c.rxGroupCounterDesc
+                ch &lt;- c.txTotalDropsDesc
+                ch &lt;- c.dataRetriesDesc
+                ch &lt;- c.rtsRetriesDesc
+                ch &lt;- c.txRetriesDesc
+        }</span>
+}
+
+// Collect implements the prometheus.Collector interface.
+func (c *ClientCollector) Collect(ch chan&lt;- prometheus.Metric) <span class="cov8" title="1">{
+        ctx := context.Background()
+
+        if !c.isAnyMetricFlagEnabled() </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">clientData, err := c.src.GetClientData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Warn("Failed to retrieve client data", "error", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">var deviceMap map[string]client.DcInfo
+        if IsEnabled(c.metrics.Info) </span><span class="cov0" title="0">{
+                deviceData, err := c.src.GetDeviceData(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve device data", "error", err)
+                }</span>
+                <span class="cov0" title="0">deviceMap = buildDeviceMap(deviceData)</span>
+        }
+
+        <span class="cov0" title="0">var dot11Map map[string]client.Dot11OperData
+        if IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Info) </span><span class="cov0" title="0">{
+                dot11Data, err := c.src.GetDot11Data(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve dot11 data", "error", err)
+                }</span>
+                <span class="cov0" title="0">dot11Map = buildDot11Map(dot11Data)</span>
+        }
+
+        <span class="cov0" title="0">var sisfMap map[string]client.SisfDBMac
+        if IsEnabled(c.metrics.Info) </span><span class="cov0" title="0">{
+                sisfdbData, err := c.src.GetSISFDBData(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve SISF database data", "error", err)
+                }</span>
+                <span class="cov0" title="0">sisfMap = buildSISFMap(sisfdbData)</span>
+        }
+
+        <span class="cov0" title="0">var trafficMap map[string]client.TrafficStats
+        if IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors) </span><span class="cov0" title="0">{
+                trafficStats, err := c.src.GetTrafficStats(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve traffic stats", "error", err)
+                }</span>
+                <span class="cov0" title="0">trafficMap = buildTrafficMap(trafficStats)</span>
+        }
+
+        <span class="cov0" title="0">var mobilityMap map[string]client.MmIfClientHistory
+        if IsEnabled(c.metrics.General) </span><span class="cov0" title="0">{
+                mobilityData, err := c.src.GetMobilityHistory(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve mobility history data", "error", err)
+                }</span>
+                <span class="cov0" title="0">mobilityMap = buildMobilityMap(mobilityData)</span>
+        }
+
+        <span class="cov0" title="0">for _, data := range clientData </span><span class="cov0" title="0">{
+                if data.CoState != ClientStatusRun </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov0" title="0">if c.metrics.General </span><span class="cov0" title="0">{
+                        c.collectGeneralMetrics(ch, data, trafficMap, dot11Map, mobilityMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Radio </span><span class="cov0" title="0">{
+                        c.collectRadioMetrics(ch, data, trafficMap, dot11Map)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Traffic </span><span class="cov0" title="0">{
+                        c.collectTrafficMetrics(ch, data, trafficMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Errors </span><span class="cov0" title="0">{
+                        c.collectErrorMetrics(ch, data, trafficMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Info </span><span class="cov0" title="0">{
+                        c.collectInfoMetrics(ch, data, dot11Map, deviceMap, sisfMap)
+                }</span>
+        }
+}
+
+// collectGeneralMetrics collects general client metrics.
+func (c *ClientCollector) collectGeneralMetrics(
+        ch chan&lt;- prometheus.Metric,
+        data client.CommonOperData,
+        trafficMap map[string]client.TrafficStats,
+        dot11Map map[string]client.Dot11OperData,
+        mobilityMap map[string]client.MmIfClientHistory,
+) <span class="cov0" title="0">{
+        labels := []string{data.ClientMAC}
+        traffic := trafficMap[data.ClientMAC]
+        dot11 := dot11Map[data.ClientMAC]
+
+        metrics := []Float64Metric{
+                {c.stateDesc, float64(MapClientState(data.CoState))},
+                {c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()},
+                {c.stateTransitionSecondsDesc, determineLastRunLatency(mobilityMap, data.ClientMAC)},
+                {c.powerSaveStateDesc, float64(traffic.PowerSaveState)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.GaugeValue,
+                        metric.Value,
+                        labels...,
+                )
+        }</span>
+}
+
+// collectRadioMetrics collects radio-related metrics.
+func (c *ClientCollector) collectRadioMetrics(
+        ch chan&lt;- prometheus.Metric,
+        data client.CommonOperData,
+        trafficMap map[string]client.TrafficStats,
+        dot11Map map[string]client.Dot11OperData,
+) <span class="cov0" title="0">{
+        labels := []string{data.ClientMAC}
+        traffic := trafficMap[data.ClientMAC]
+        dot11 := dot11Map[data.ClientMAC]
+
+        metrics := []Float64Metric{
+                {c.protocolDesc, float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient))},
+                {c.speedDesc, float64(traffic.Speed)},
+                {c.spatialStreamsDesc, float64(traffic.SpatialStream)},
+                {c.mcsIndexDesc, float64(parseMCSIndex(traffic.CurrentRate))},
+                {c.rssiDesc, float64(traffic.MostRecentRSSI)},
+                {c.snrDesc, float64(traffic.MostRecentSNR)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.GaugeValue,
+                        metric.Value,
+                        labels...,
+                )
+        }</span>
+}
+
+// collectTrafficMetrics collects traffic-related metrics.
+func (c *ClientCollector) collectTrafficMetrics(
+        ch chan&lt;- prometheus.Metric,
+        data client.CommonOperData,
+        trafficMap map[string]client.TrafficStats,
+) <span class="cov0" title="0">{
+        labels := []string{data.ClientMAC}
+        traffic := trafficMap[data.ClientMAC]
+
+        metrics := []StringMetric{
+                {c.bytesRxDesc, traffic.BytesRx},
+                {c.bytesTxDesc, traffic.BytesTx},
+                {c.packetsRxDesc, traffic.PktsRx},
+                {c.packetsTxDesc, traffic.PktsTx},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.CounterValue,
+                        float64(stringToUint64(metric.Value)),
+                        labels...,
+                )
+        }</span>
+}
+
+// collectErrorMetrics collects error-related metrics.
+func (c *ClientCollector) collectErrorMetrics(
+        ch chan&lt;- prometheus.Metric,
+        data client.CommonOperData,
+        trafficMap map[string]client.TrafficStats,
+) <span class="cov0" title="0">{
+        labels := []string{data.ClientMAC}
+        traffic := trafficMap[data.ClientMAC]
+
+        dataRetries := stringToUint64(traffic.DataRetries)
+        txRetries := stringToUint64(traffic.TxRetries)
+        packetsTx := stringToUint64(traffic.PktsTx)
+        retryRatio := (float64(dataRetries+txRetries) / float64(packetsTx)) * 100.0
+
+        ch &lt;- prometheus.MustNewConstMetric(
+                c.retryRatioDesc,
+                prometheus.GaugeValue,
+                retryRatio,
+                labels...,
+        )
+
+        metrics := []StringMetric{
+                {c.policyErrorsDesc, traffic.PolicyErrs},
+                {c.duplicateReceivedDesc, traffic.DuplicateRcv},
+                {c.decryptionFailedDesc, traffic.DecryptFailed},
+                {c.micMismatchDesc, traffic.MicMismatch},
+                {c.micMissingDesc, traffic.MicMissing},
+                {c.excessiveRetriesDesc, traffic.TxExcessiveRetries},
+                {c.rxGroupCounterDesc, traffic.RxGroupCounter},
+                {c.txTotalDropsDesc, traffic.TxTotalDrops},
+                {c.dataRetriesDesc, traffic.DataRetries},
+                {c.rtsRetriesDesc, traffic.RtsRetries},
+                {c.txRetriesDesc, traffic.TxRetries},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.CounterValue,
+                        float64(stringToUint64(metric.Value)),
+                        labels...,
+                )
+        }</span>
+}
+
+// collectInfoMetrics collects client info metrics.
+func (c *ClientCollector) collectInfoMetrics(
+        ch chan&lt;- prometheus.Metric,
+        data client.CommonOperData,
+        dot11Map map[string]client.Dot11OperData,
+        deviceMap map[string]client.DcInfo,
+        sisfMap map[string]client.SisfDBMac,
+) <span class="cov8" title="1">{
+        dot11 := dot11Map[data.ClientMAC]
+
+        band := DetermineBandFromRadioInfo(-1, data.MsRadioType)
+        name := determineDeviceNameFromDeviceMap(deviceMap, data.ClientMAC)
+        wlan := dot11.VapSsid
+        ipv4 := determineIPv4FromSISF(sisfMap[data.ClientMAC])
+        ipv6 := determineIPv6FromSISF(sisfMap[data.ClientMAC])
+
+        // Build dynamic labels based on configured labels
+        values := make([]string, len(c.infoLabelNames))
+        for i, label := range c.infoLabelNames </span><span class="cov8" title="1">{
+                switch label </span>{
+                case labelMAC:<span class="cov8" title="1">
+                        values[i] = data.ClientMAC</span>
+                case labelAP:<span class="cov8" title="1">
+                        values[i] = data.ApName</span>
+                case labelBand:<span class="cov8" title="1">
+                        values[i] = band</span>
+                case labelWLAN:<span class="cov8" title="1">
+                        values[i] = wlan</span>
+                case labelName:<span class="cov8" title="1">
+                        values[i] = name</span>
+                case labelUsername:<span class="cov8" title="1">
+                        values[i] = data.Username</span>
+                case labelIPv4:<span class="cov8" title="1">
+                        values[i] = ipv4</span>
+                case labelIPv6:<span class="cov8" title="1">
+                        values[i] = ipv6</span>
+                default:<span class="cov0" title="0">
+                        values[i] = ""</span>
+                }
+        }
+
+        <span class="cov8" title="1">ch &lt;- prometheus.MustNewConstMetric(
+                c.infoDesc,
+                prometheus.GaugeValue,
+                1, // Emit info metric (always value 1)
+                values...,
+        )</span>
+}
+
+func buildDeviceMap(deviceData []client.DcInfo) map[string]client.DcInfo <span class="cov8" title="1">{
+        deviceMap := make(map[string]client.DcInfo)
+        for _, device := range deviceData </span><span class="cov8" title="1">{
+                if device.ClientMAC != "" </span><span class="cov8" title="1">{
+                        deviceMap[device.ClientMAC] = device
+                }</span>
+        }
+        <span class="cov8" title="1">return deviceMap</span>
+}
+
+func buildDot11Map(dot11Data []client.Dot11OperData) map[string]client.Dot11OperData <span class="cov8" title="1">{
+        dot11Map := make(map[string]client.Dot11OperData)
+        for _, dot11 := range dot11Data </span><span class="cov8" title="1">{
+                if dot11.MsMACAddress != "" </span><span class="cov8" title="1">{
+                        dot11Map[dot11.MsMACAddress] = dot11
+                }</span>
+        }
+        <span class="cov8" title="1">return dot11Map</span>
+}
+
+func buildSISFMap(sisfdbData []client.SisfDBMac) map[string]client.SisfDBMac <span class="cov8" title="1">{
+        sisfMap := make(map[string]client.SisfDBMac)
+        for _, sisf := range sisfdbData </span><span class="cov8" title="1">{
+                if sisf.MACAddr != "" </span><span class="cov8" title="1">{
+                        sisfMap[sisf.MACAddr] = sisf
+                }</span>
+        }
+        <span class="cov8" title="1">return sisfMap</span>
+}
+
+func buildTrafficMap(trafficStats []client.TrafficStats) map[string]client.TrafficStats <span class="cov8" title="1">{
+        trafficMap := make(map[string]client.TrafficStats)
+        for _, traffic := range trafficStats </span><span class="cov8" title="1">{
+                if traffic.MsMACAddress != "" </span><span class="cov8" title="1">{
+                        trafficMap[traffic.MsMACAddress] = traffic
+                }</span>
+        }
+        <span class="cov8" title="1">return trafficMap</span>
+}
+
+func buildMobilityMap(mobilityData []client.MmIfClientHistory) map[string]client.MmIfClientHistory <span class="cov8" title="1">{
+        mobilityMap := make(map[string]client.MmIfClientHistory)
+        for _, mobility := range mobilityData </span><span class="cov8" title="1">{
+                if mobility.ClientMAC != "" </span><span class="cov8" title="1">{
+                        mobilityMap[mobility.ClientMAC] = mobility
+                }</span>
+        }
+        <span class="cov8" title="1">return mobilityMap</span>
+}
+
+// determineDeviceNameFromDeviceMap extracts device name from device classification data.
+func determineDeviceNameFromDeviceMap(deviceMap map[string]client.DcInfo, mac string) string <span class="cov8" title="1">{
+        if device, ok := deviceMap[mac]; ok </span><span class="cov8" title="1">{
+                return device.DeviceName
+        }</span>
+        <span class="cov8" title="1">return ""</span>
+}
+
+// determineIPv4FromSISF extracts IPv4 address from SISF data.
+func determineIPv4FromSISF(sisf client.SisfDBMac) string <span class="cov8" title="1">{
+        if sisf.Ipv4Binding.IPKey.IPAddr != "" </span><span class="cov8" title="1">{
+                return sisf.Ipv4Binding.IPKey.IPAddr
+        }</span>
+        <span class="cov8" title="1">return ""</span>
+}
+
+// determineIPv6FromSISF extracts the first non-link-local IPv6 address from SISF data.
+func determineIPv6FromSISF(sisf client.SisfDBMac) string <span class="cov8" title="1">{
+        for _, ipv6Binding := range sisf.Ipv6Binding </span><span class="cov8" title="1">{
+                if ipv6Binding.Ipv6BindingIPKey.IPAddr != "" &amp;&amp;
+                        !strings.HasPrefix(ipv6Binding.Ipv6BindingIPKey.IPAddr, "fe80:") </span><span class="cov8" title="1">{
+                        return ipv6Binding.Ipv6BindingIPKey.IPAddr
+                }</span>
+        }
+        <span class="cov8" title="1">return ""</span>
+}
+
+// determineLastRunLatency extracts state transition latency from mobility map.
+func determineLastRunLatency(mobilityMap map[string]client.MmIfClientHistory, clientMAC string) float64 <span class="cov8" title="1">{
+        const millisecondsToSeconds = 1000.0
+
+        if mobility, ok := mobilityMap[clientMAC]; ok </span><span class="cov8" title="1">{
+                latencyMs := mobility.MobilityHistory.Entry[0].RunLatency
+
+                return float64(latencyMs) / millisecondsToSeconds
+        }</span>
+        <span class="cov8" title="1">return 0.0</span>
+}
+
+// parseMCSIndex extracts MCS index from current-rate string.
+func parseMCSIndex(currentRate string) int <span class="cov8" title="1">{
+        if currentRate == "" </span><span class="cov8" title="1">{
+                return -1
+        }</span>
+
+        <span class="cov8" title="1">if strings.HasPrefix(currentRate, "m") </span><span class="cov8" title="1">{
+                // Extract number after 'm'
+                parts := strings.Fields(currentRate)
+                mcsStr := strings.TrimPrefix(parts[0], "m")
+                if mcs, err := strconv.Atoi(mcsStr); err == nil </span><span class="cov8" title="1">{
+                        return mcs
+                }</span>
+        }
+
+        <span class="cov8" title="1">return -1</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// Package collector provides registry management and collector registration.
+package collector
+
+import (
+        "log/slog"
+
+        "github.com/prometheus/client_golang/prometheus"
+        "github.com/prometheus/client_golang/prometheus/collectors"
+
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+        "github.com/umatare5/cisco-wnc-exporter/internal/wnc"
+)
+
+// Collector manages Prometheus collectors and registry.
+type Collector struct {
+        registry         *prometheus.Registry
+        cfg              *config.Config
+        sharedDataSource wnc.DataSource
+}
+
+// Float64Metric represents a metric with float64 value.
+type Float64Metric struct {
+        Desc  *prometheus.Desc
+        Value float64
+}
+
+// StringMetric represents a metric with string value that needs conversion.
+type StringMetric struct {
+        Desc  *prometheus.Desc
+        Value string
+}
+
+// NewCollector creates a new collector manager.
+func NewCollector(cfg *config.Config) *Collector <span class="cov8" title="1">{
+        sharedDataSource := wnc.NewDataSource(cfg.WNC)
+
+        return &amp;Collector{
+                registry:         prometheus.NewRegistry(),
+                cfg:              cfg,
+                sharedDataSource: sharedDataSource,
+        }
+}</span>
+
+// Registry returns the Prometheus registry managed by this collector.
+func (c *Collector) Registry() *prometheus.Registry <span class="cov8" title="1">{
+        return c.registry
+}</span>
+
+// Setup configures and registers all collectors based on configuration.
+func (c *Collector) Setup(version string) <span class="cov8" title="1">{
+        c.RegisterBuildInfo(version)
+        c.RegisterSystemCollectors()
+        c.RegisterServiceCollectors()
+}</span>
+
+// RegisterBuildInfo registers the build information metric.
+func (c *Collector) RegisterBuildInfo(version string) <span class="cov8" title="1">{
+        buildInfo := prometheus.NewGaugeVec(
+                prometheus.GaugeOpts{
+                        Name: "wnc_build_info",
+                        Help: "Build information for the WNC exporter.",
+                },
+                []string{"version"},
+        )
+        buildInfo.WithLabelValues(version).Set(1)
+        c.registry.MustRegister(buildInfo)
+}</span>
+
+// RegisterSystemCollectors registers Go and process collectors conditionally.
+func (c *Collector) RegisterSystemCollectors() <span class="cov8" title="1">{
+        if c.cfg.InternalCollector.EnableGoCollector </span><span class="cov8" title="1">{
+                c.registry.MustRegister(collectors.NewGoCollector())
+                slog.Debug("Registered Go collector")
+        }</span>
+        <span class="cov8" title="1">if c.cfg.InternalCollector.EnableProcessCollector </span><span class="cov8" title="1">{
+                c.registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+                slog.Debug("Registered process collector")
+        }</span>
+}
+
+// RegisterServiceCollectors registers all service-specific collectors based on configuration.
+func (c *Collector) RegisterServiceCollectors() <span class="cov8" title="1">{
+        // Register AP collector if any AP module is enabled
+        if IsEnabled(
+                c.cfg.Collectors.AP.General,
+                c.cfg.Collectors.AP.Radio,
+                c.cfg.Collectors.AP.Traffic,
+                c.cfg.Collectors.AP.Errors,
+                c.cfg.Collectors.AP.Info,
+        ) </span><span class="cov8" title="1">{
+                apSource := wnc.NewAPSource(c.sharedDataSource)
+                rrmSource := wnc.NewRRMSource(c.sharedDataSource)
+                clientSource := wnc.NewClientSource(c.sharedDataSource)
+                c.registerAPCollector(apSource, rrmSource, clientSource)
+        }</span> else<span class="cov8" title="1"> {
+                slog.Debug("Skipped AP collector registration - all modules disabled")
+        }</span>
+
+        // Register WLAN collector if any WLAN module is enabled
+        <span class="cov8" title="1">if IsEnabled(
+                c.cfg.Collectors.WLAN.General,
+                c.cfg.Collectors.WLAN.Traffic,
+                c.cfg.Collectors.WLAN.Config,
+                c.cfg.Collectors.WLAN.Info,
+        ) </span><span class="cov8" title="1">{
+                wlanSource := wnc.NewWLANSource(c.sharedDataSource)
+                clientSource := wnc.NewClientSource(c.sharedDataSource)
+                c.registerWLANCollector(wlanSource, clientSource)
+        }</span> else<span class="cov8" title="1"> {
+                slog.Debug("Skipped WLAN collector registration - all modules disabled")
+        }</span>
+
+        // Register Client collector if any Client module is enabled
+        <span class="cov8" title="1">if IsEnabled(
+                c.cfg.Collectors.Client.General,
+                c.cfg.Collectors.Client.Radio,
+                c.cfg.Collectors.Client.Traffic,
+                c.cfg.Collectors.Client.Errors,
+                c.cfg.Collectors.Client.Info,
+        ) </span><span class="cov8" title="1">{
+                clientSource := wnc.NewClientSource(c.sharedDataSource)
+                c.registerClientCollector(clientSource)
+        }</span> else<span class="cov8" title="1"> {
+                slog.Debug("Skipped Client collector registration - all modules disabled")
+        }</span>
+}
+
+// registerAPCollector registers the AP collector with its modules.
+func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRMSource, clientSource wnc.ClientSource) <span class="cov8" title="1">{
+        baseCollector := NewAPCollector(apSource, rrmSource, clientSource, APMetrics{
+                General:    c.cfg.Collectors.AP.General,
+                Radio:      c.cfg.Collectors.AP.Radio,
+                Traffic:    c.cfg.Collectors.AP.Traffic,
+                Errors:     c.cfg.Collectors.AP.Errors,
+                Info:       c.cfg.Collectors.AP.Info,
+                InfoLabels: c.cfg.Collectors.AP.InfoLabels,
+        })
+
+        // Apply caching for info metrics only when info metrics are enabled.
+        var collector prometheus.Collector = baseCollector
+        if c.cfg.Collectors.AP.Info </span><span class="cov0" title="0">{
+                collector = NewInfoCacheCollector(baseCollector, "AP", c.cfg.Collectors.InfoCacheTTL)
+        }</span>
+
+        <span class="cov8" title="1">c.registry.MustRegister(collector)
+        slog.Debug("Registered AP collector")</span>
+}
+
+// registerWLANCollector registers the WLAN collector with its modules.
+func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSource wnc.ClientSource) <span class="cov8" title="1">{
+        baseCollector := NewWLANCollector(wlanSource, clientSource, WLANMetrics{
+                General:    c.cfg.Collectors.WLAN.General,
+                Traffic:    c.cfg.Collectors.WLAN.Traffic,
+                Config:     c.cfg.Collectors.WLAN.Config,
+                Info:       c.cfg.Collectors.WLAN.Info,
+                InfoLabels: c.cfg.Collectors.WLAN.InfoLabels,
+        })
+
+        // Apply caching for info metrics only when info metrics are enabled.
+        var collector prometheus.Collector = baseCollector
+        if c.cfg.Collectors.WLAN.Info </span><span class="cov0" title="0">{
+                collector = NewInfoCacheCollector(baseCollector, "WLAN", c.cfg.Collectors.InfoCacheTTL)
+        }</span>
+
+        <span class="cov8" title="1">c.registry.MustRegister(collector)
+        slog.Debug("Registered WLAN collector")</span>
+}
+
+// registerClientCollector registers the Client collector with its modules.
+func (c *Collector) registerClientCollector(clientSource wnc.ClientSource) <span class="cov8" title="1">{
+        baseCollector := NewClientCollector(clientSource, ClientMetrics{
+                General:    c.cfg.Collectors.Client.General,
+                Radio:      c.cfg.Collectors.Client.Radio,
+                Traffic:    c.cfg.Collectors.Client.Traffic,
+                Errors:     c.cfg.Collectors.Client.Errors,
+                Info:       c.cfg.Collectors.Client.Info,
+                InfoLabels: c.cfg.Collectors.Client.InfoLabels,
+        })
+
+        // Apply caching for info metrics only when info metrics are enabled.
+        var collector prometheus.Collector = baseCollector
+        if c.cfg.Collectors.Client.Info </span><span class="cov0" title="0">{
+                collector = NewInfoCacheCollector(baseCollector, "Client", c.cfg.Collectors.InfoCacheTTL)
+        }</span>
+
+        <span class="cov8" title="1">c.registry.MustRegister(collector)
+        slog.Debug("Registered Client collector")</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">// Package collector provides utilities for WNC collectors.
+package collector
+
+import (
+        "slices"
+        "strconv"
+        "strings"
+)
+
+// Client state constants.
+const (
+        ClientStatusRun       = "client-status-run"
+        ClientStateAssociated = 2
+)
+
+// AP state constants.
+const (
+        APRadioStateUp      = "radio-up"
+        APAdminStateEnabled = "enabled"
+)
+
+// Band constants for radio bands.
+const (
+        BandUnknown = "unknown"
+        Band24GHz   = "2.4"
+        Band5GHz    = "5"
+        Band6GHz    = "6"
+)
+
+// Radio slot constants for band mapping.
+const (
+        RadioSlot24GHz = 0
+        RadioSlot5GHz  = 1
+        RadioSlot6GHz  = 2
+)
+
+type WirelessProtocol int
+
+const (
+        ProtocolUnknown WirelessProtocol = iota
+        Protocol11A
+        Protocol11B
+        Protocol11G
+        ProtocolN
+        ProtocolAC
+        ProtocolAX
+        ProtocolBE
+)
+
+// MapClientState maps client operational state to numeric value.
+func MapClientState(state string) int <span class="cov8" title="1">{
+        switch state </span>{
+        case ClientStatusRun:<span class="cov8" title="1">
+                return ClientStateAssociated</span> // associated
+        case "client-status-authenticated":<span class="cov8" title="1">
+                return 1</span> // authenticated
+        default:<span class="cov8" title="1">
+                return 0</span> // disconnected
+        }
+}
+
+// MapWirelessProtocol maps WNC PHY type strings to WirelessProtocol enum values.
+func MapWirelessProtocol(phyType, radioType string, is11GClient bool) WirelessProtocol <span class="cov8" title="1">{
+        switch </span>{
+        case strings.Contains(phyType, "dot11n"):<span class="cov8" title="1">
+                return ProtocolN</span>
+        case strings.Contains(phyType, "dot11ac"):<span class="cov8" title="1">
+                return ProtocolAC</span>
+        case strings.Contains(phyType, "dot11ax"):<span class="cov8" title="1">
+                return ProtocolAX</span>
+        case strings.Contains(phyType, "dot11be"), strings.Contains(phyType, "eht"):<span class="cov8" title="1">
+                return ProtocolBE</span>
+        case strings.Contains(phyType, "dot11bg"):<span class="cov8" title="1">
+                if is11GClient </span><span class="cov8" title="1">{
+                        return Protocol11G
+                }</span>
+                <span class="cov8" title="1">return Protocol11B</span>
+        case strings.Contains(phyType, "dot11a") || radioType == "dot11-radio-type-a":<span class="cov8" title="1">
+                return Protocol11A</span>
+        case strings.Contains(phyType, "dot11g") || is11GClient:<span class="cov8" title="1">
+                return Protocol11G</span>
+        default:<span class="cov8" title="1">
+                return ProtocolUnknown</span>
+        }
+}
+
+func stringToUint64(value string) uint64 <span class="cov8" title="1">{
+        if value == "" </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">if parsed, err := strconv.ParseUint(value, 10, 64); err == nil </span><span class="cov8" title="1">{
+                return parsed
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func boolToFloat64(b bool) float64 <span class="cov8" title="1">{
+        if b </span><span class="cov8" title="1">{
+                return 1.0
+        }</span>
+        <span class="cov8" title="1">return 0.0</span>
+}
+
+// buildInfoLabels constructs info labels slice based on configuration.
+func buildInfoLabels(requiredLabels, configuredLabels, availableLabels []string) []string <span class="cov8" title="1">{
+        labels := make([]string, 0, len(requiredLabels)+len(configuredLabels))
+        labels = append(labels, requiredLabels...)
+
+        for _, label := range availableLabels </span><span class="cov8" title="1">{
+                if slices.Contains(configuredLabels, label) &amp;&amp; !slices.Contains(labels, label) </span><span class="cov8" title="1">{
+                        labels = append(labels, label)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return labels</span>
+}
+
+// DetermineBandFromRadioInfo determines radio band from slot ID and radio type.
+func DetermineBandFromRadioInfo(radioSlotID int, radioType string) string <span class="cov8" title="1">{
+        band := MapRadioSlotToBand(radioSlotID)
+
+        if band == BandUnknown || radioType != "" </span><span class="cov8" title="1">{
+                if typeBasedSlot := MapRadioTypeToSlot(radioType); typeBasedSlot != -1 </span><span class="cov8" title="1">{
+                        band = MapRadioSlotToBand(typeBasedSlot)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return band</span>
+}
+
+// MapRadioTypeToSlot maps radio type string to radio slot ID.
+func MapRadioTypeToSlot(radioType string) int <span class="cov8" title="1">{
+        switch radioType </span>{
+        case "dot11bg",
+                "client-dot11ax-24ghz-prot", "client-dot11n-24-ghz-prot", "client-dot11bg-24-ghz-prot":<span class="cov8" title="1">
+                return RadioSlot24GHz</span>
+        case "dot11a",
+                "client-dot11ax-5ghz-prot", "client-dot11ac-5-ghz-prot", "client-dot11n-5-ghz-prot", "client-dot11a-5-ghz-prot":<span class="cov8" title="1">
+                return RadioSlot5GHz</span>
+        case "client-dot11ax-6ghz-prot":<span class="cov8" title="1">
+                return RadioSlot6GHz</span>
+        default:<span class="cov8" title="1">
+                return 0</span> // unknown state
+        }
+}
+
+// MapRadioSlotToBand maps radio slot ID to band string.
+func MapRadioSlotToBand(radioSlotID int) string <span class="cov8" title="1">{
+        switch radioSlotID </span>{
+        case RadioSlot24GHz:<span class="cov8" title="1">
+                return Band24GHz</span>
+        case RadioSlot5GHz:<span class="cov8" title="1">
+                return Band5GHz</span>
+        case RadioSlot6GHz:<span class="cov8" title="1">
+                return Band6GHz</span>
+        default:<span class="cov8" title="1">
+                return BandUnknown</span>
+        }
+}
+
+// IsEnabled returns true if any of the provided boolean values is true.
+func IsEnabled(flags ...bool) bool <span class="cov8" title="1">{
+        for _, enabled := range flags </span><span class="cov8" title="1">{
+                if enabled </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">// Package collector provides collectors for cisco-wnc-exporter.
+package collector
+
+import (
+        "context"
+        "log/slog"
+        "strconv"
+
+        "github.com/prometheus/client_golang/prometheus"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
+        "github.com/umatare5/cisco-wnc-exporter/internal/wnc"
+)
+
+// WLANMetrics represents the configuration for WLAN metrics.
+type WLANMetrics struct {
+        General    bool
+        Traffic    bool
+        Config     bool
+        Info       bool
+        InfoLabels []string
+}
+
+// WLANCollector implements prometheus.Collector for WLAN metrics.
+type WLANCollector struct {
+        metrics        WLANMetrics
+        infoDesc       *prometheus.Desc
+        infoLabelNames []string
+        src            wnc.WLANSource
+        clientSrc      wnc.ClientSource
+
+        enabledDesc               *prometheus.Desc
+        clientCountDesc           *prometheus.Desc
+        bytesRxDesc               *prometheus.Desc
+        bytesTxDesc               *prometheus.Desc
+        authPskDesc               *prometheus.Desc
+        authDot1xDesc             *prometheus.Desc
+        authDot1xSha256Desc       *prometheus.Desc
+        wpa2EnabledDesc           *prometheus.Desc
+        wpa3EnabledDesc           *prometheus.Desc
+        sessionTimeoutDesc        *prometheus.Desc
+        loadBalanceDesc           *prometheus.Desc
+        wlan11kNeighDesc          *prometheus.Desc
+        clientSteeringDesc        *prometheus.Desc
+        centralSwitchingDesc      *prometheus.Desc
+        centralAuthenticationDesc *prometheus.Desc
+        centralDHCPDesc           *prometheus.Desc
+        centralAssocEnableDesc    *prometheus.Desc
+}
+
+// NewWLANCollector creates a new WLAN collector.
+func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WLANMetrics) *WLANCollector <span class="cov8" title="1">{
+        collector := &amp;WLANCollector{
+                src:       src,
+                clientSrc: clientSrc,
+                metrics:   metrics,
+        }
+
+        labels := []string{labelID}
+
+        if metrics.General </span><span class="cov8" title="1">{
+                collector.enabledDesc = prometheus.NewDesc(
+                        "wnc_wlan_enabled",
+                        "WLAN status (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Traffic </span><span class="cov8" title="1">{
+                collector.clientCountDesc = prometheus.NewDesc(
+                        "wnc_wlan_clients_total",
+                        "Number of connected clients",
+                        labels, nil,
+                )
+                collector.bytesRxDesc = prometheus.NewDesc(
+                        "wnc_wlan_rx_bytes_total",
+                        "WLAN received bytes",
+                        labels, nil,
+                )
+                collector.bytesTxDesc = prometheus.NewDesc(
+                        "wnc_wlan_tx_bytes_total",
+                        "WLAN transmitted bytes",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Config </span><span class="cov8" title="1">{
+                collector.authPskDesc = prometheus.NewDesc(
+                        "wnc_wlan_auth_psk_enabled",
+                        "PSK authentication enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.authDot1xDesc = prometheus.NewDesc(
+                        "wnc_wlan_auth_dot1x_enabled",
+                        "802.1x authentication enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.authDot1xSha256Desc = prometheus.NewDesc(
+                        "wnc_wlan_auth_dot1x_sha256_enabled",
+                        "802.1x SHA256 authentication enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.wpa2EnabledDesc = prometheus.NewDesc(
+                        "wnc_wlan_wpa2_enabled",
+                        "WPA2 support enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.wpa3EnabledDesc = prometheus.NewDesc(
+                        "wnc_wlan_wpa3_enabled",
+                        "WPA3 support enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.sessionTimeoutDesc = prometheus.NewDesc(
+                        "wnc_wlan_session_timeout_seconds",
+                        "Session timeout duration in seconds",
+                        labels, nil,
+                )
+                collector.loadBalanceDesc = prometheus.NewDesc(
+                        "wnc_wlan_load_balance_enabled",
+                        "Load balancing enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.wlan11kNeighDesc = prometheus.NewDesc(
+                        "wnc_wlan_11k_neighbor_list_enabled",
+                        "802.11k neighbor list enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.clientSteeringDesc = prometheus.NewDesc(
+                        "wnc_wlan_client_steering_enabled",
+                        "6GHz client steering enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.centralSwitchingDesc = prometheus.NewDesc(
+                        "wnc_wlan_central_switching_enabled",
+                        "Central switching enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.centralAuthenticationDesc = prometheus.NewDesc(
+                        "wnc_wlan_central_authentication_enabled",
+                        "Central authentication enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.centralDHCPDesc = prometheus.NewDesc(
+                        "wnc_wlan_central_dhcp_enabled",
+                        "Central DHCP enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+                collector.centralAssocEnableDesc = prometheus.NewDesc(
+                        "wnc_wlan_central_association_enabled",
+                        "Central association enabled (0=disabled, 1=enabled)",
+                        labels, nil,
+                )
+        }</span>
+
+        <span class="cov8" title="1">if metrics.Info </span><span class="cov8" title="1">{
+                requiredLabels := []string{"id"}
+                availableLabels := []string{"name"}
+                infoLabels := buildInfoLabels(requiredLabels, metrics.InfoLabels, availableLabels)
+                collector.infoDesc = prometheus.NewDesc(
+                        "wnc_wlan_info",
+                        "WLAN information labels for joining with other metrics",
+                        infoLabels, nil,
+                )
+                collector.infoLabelNames = infoLabels
+        }</span>
+
+        <span class="cov8" title="1">return collector</span>
+}
+
+// Describe sends the descriptors of all metrics to the provided channel.
+func (c *WLANCollector) Describe(ch chan&lt;- *prometheus.Desc) <span class="cov8" title="1">{
+        if c.metrics.General </span><span class="cov8" title="1">{
+                ch &lt;- c.enabledDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Traffic </span><span class="cov8" title="1">{
+                ch &lt;- c.clientCountDesc
+                ch &lt;- c.bytesRxDesc
+                ch &lt;- c.bytesTxDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Config </span><span class="cov8" title="1">{
+                ch &lt;- c.authPskDesc
+                ch &lt;- c.authDot1xDesc
+                ch &lt;- c.authDot1xSha256Desc
+                ch &lt;- c.wpa2EnabledDesc
+                ch &lt;- c.wpa3EnabledDesc
+                ch &lt;- c.sessionTimeoutDesc
+                ch &lt;- c.loadBalanceDesc
+                ch &lt;- c.wlan11kNeighDesc
+                ch &lt;- c.clientSteeringDesc
+                ch &lt;- c.centralSwitchingDesc
+                ch &lt;- c.centralAuthenticationDesc
+                ch &lt;- c.centralDHCPDesc
+                ch &lt;- c.centralAssocEnableDesc
+        }</span>
+        <span class="cov8" title="1">if c.metrics.Info </span><span class="cov8" title="1">{
+                ch &lt;- c.infoDesc
+        }</span>
+}
+
+// Collect implements the prometheus.Collector interface.
+func (c *WLANCollector) Collect(ch chan&lt;- prometheus.Metric) <span class="cov8" title="1">{
+        ctx := context.Background()
+
+        if !c.isAnyMetricFlagEnabled() </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">wlanConfigEntries, err := c.src.ListConfigEntries(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Warn("Failed to retrieve WLAN configuration entries", "error", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">var wlanToPolicyMap map[string]*wlan.WlanPolicy
+        if IsEnabled(c.metrics.Config) </span><span class="cov0" title="0">{
+                wlanPolicies, err := c.src.ListPolicies(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve WLAN policies", "error", err)
+                }</span>
+
+                <span class="cov0" title="0">policyListEntries, err := c.src.ListPolicyListEntries(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to retrieve WLAN policy list entries", "error", err)
+                }</span>
+
+                <span class="cov0" title="0">wlanToPolicyMap = buildWLANToPolicyMap(policyListEntries, wlanPolicies)</span>
+        }
+
+        <span class="cov0" title="0">var wlanStatsMap map[int]wlanStats
+        if IsEnabled(c.metrics.Traffic) </span><span class="cov0" title="0">{
+                clientData, err := c.clientSrc.GetClientData(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to get client data for WLAN traffic metrics", "error", err)
+                }</span>
+
+                <span class="cov0" title="0">trafficStats, err := c.clientSrc.GetTrafficStats(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        slog.Warn("Failed to get client traffic stats for WLAN metrics", "error", err)
+                }</span>
+
+                <span class="cov0" title="0">wlanStatsMap = c.buildWLANStats(clientData, trafficStats)</span>
+        }
+
+        <span class="cov0" title="0">for _, entry := range wlanConfigEntries </span><span class="cov0" title="0">{
+                if c.metrics.General </span><span class="cov0" title="0">{
+                        c.collectGeneralMetrics(ch, entry)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Traffic </span><span class="cov0" title="0">{
+                        c.collectTrafficMetrics(ch, entry, wlanStatsMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Config </span><span class="cov0" title="0">{
+                        c.collectConfigMetrics(ch, entry, wlanToPolicyMap)
+                }</span>
+                <span class="cov0" title="0">if c.metrics.Info </span><span class="cov0" title="0">{
+                        c.collectInfoMetrics(ch, entry)
+                }</span>
+        }
+}
+
+// collectGeneralMetrics collects general WLAN metrics.
+func (c *WLANCollector) collectGeneralMetrics(
+        ch chan&lt;- prometheus.Metric,
+        entry wlan.WlanCfgEntry,
+) <span class="cov0" title="0">{
+        labels := []string{strconv.Itoa(entry.WlanID)}
+
+        metrics := []Float64Metric{
+                {c.enabledDesc, float64(determineWLANEnabledStatus(entry))},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.GaugeValue,
+                        metric.Value,
+                        labels...,
+                )
+        }</span>
+}
+
+// collectTrafficMetrics collects traffic statistics for a WLAN.
+func (c *WLANCollector) collectTrafficMetrics(
+        ch chan&lt;- prometheus.Metric,
+        entry wlan.WlanCfgEntry,
+        wlanStatsMap map[int]wlanStats,
+) <span class="cov0" title="0">{
+        labels := []string{strconv.Itoa(entry.WlanID)}
+        stats := wlanStatsMap[entry.WlanID]
+
+        ch &lt;- prometheus.MustNewConstMetric(
+                c.clientCountDesc,
+                prometheus.GaugeValue,
+                float64(stats.clientCount),
+                labels...,
+        )
+
+        metrics := []Float64Metric{
+                {c.bytesRxDesc, float64(stats.bytesRx)},
+                {c.bytesTxDesc, float64(stats.bytesTx)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.CounterValue,
+                        metric.Value,
+                        labels...,
+                )
+        }</span>
+}
+
+type wlanStats struct {
+        clientCount int
+        bytesRx     uint64
+        bytesTx     uint64
+        packetsRx   uint64
+        packetsTx   uint64
+}
+
+// collectConfigMetrics collects config metrics.
+func (c *WLANCollector) collectConfigMetrics(
+        ch chan&lt;- prometheus.Metric,
+        entry wlan.WlanCfgEntry,
+        policyMap map[string]*wlan.WlanPolicy,
+) <span class="cov0" title="0">{
+        labels := []string{strconv.Itoa(entry.WlanID)}
+        profile := policyMap[entry.ProfileName]
+
+        metrics := []Float64Metric{
+                {c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
+                {c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
+                {c.authDot1xSha256Desc, boolToFloat64(entry.AuthKeyMgmtDot1xSha256)},
+                {c.wpa2EnabledDesc, boolToFloat64(entry.WPA2Enabled)},
+                {c.wpa3EnabledDesc, boolToFloat64(entry.WPA3Enabled)},
+                {c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
+                {c.loadBalanceDesc, boolToFloat64(entry.LoadBalance)},
+                {c.wlan11kNeighDesc, boolToFloat64(entry.Wlan11kNeighList)},
+                {c.clientSteeringDesc, boolToFloat64(entry.ClientSteering)},
+                {c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
+                {c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
+                {c.centralDHCPDesc, determineCentralDHCPValue(profile)},
+                {c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
+        }
+
+        for _, metric := range metrics </span><span class="cov0" title="0">{
+                ch &lt;- prometheus.MustNewConstMetric(
+                        metric.Desc,
+                        prometheus.GaugeValue,
+                        metric.Value,
+                        labels...,
+                )
+        }</span>
+}
+
+// collectInfoMetrics collects info metrics.
+func (c *WLANCollector) collectInfoMetrics(
+        ch chan&lt;- prometheus.Metric,
+        entry wlan.WlanCfgEntry,
+) <span class="cov8" title="1">{
+        wlanIDStr := strconv.Itoa(entry.WlanID)
+
+        wlanName := determineWLANName(entry)
+
+        labelValues := c.buildWLANInfoLabelValues(wlanIDStr, wlanName)
+
+        ch &lt;- prometheus.MustNewConstMetric(
+                c.infoDesc,
+                prometheus.GaugeValue,
+                1,
+                labelValues...,
+        )
+}</span>
+
+// buildWLANStats builds client traffic statistics by WLAN ID.
+func (c *WLANCollector) buildWLANStats(
+        clientData []client.CommonOperData,
+        trafficStats []client.TrafficStats,
+) map[int]wlanStats <span class="cov8" title="1">{
+        wlanStats := make(map[int]wlanStats)
+
+        if clientData == nil || trafficStats == nil </span><span class="cov8" title="1">{
+                return wlanStats
+        }</span>
+
+        <span class="cov8" title="1">trafficMap := make(map[string]client.TrafficStats)
+        for _, traffic := range trafficStats </span><span class="cov8" title="1">{
+                if traffic.MsMACAddress != "" </span><span class="cov8" title="1">{
+                        trafficMap[traffic.MsMACAddress] = traffic
+                }</span>
+        }
+
+        <span class="cov8" title="1">for _, commonData := range clientData </span><span class="cov8" title="1">{
+                if commonData.CoState != ClientStatusRun </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">wlanID := commonData.WlanID
+
+                stats := wlanStats[wlanID]
+                stats.clientCount++
+
+                if traffic, ok := trafficMap[commonData.ClientMAC]; ok </span><span class="cov8" title="1">{
+                        stats.bytesRx += stringToUint64(traffic.BytesRx)
+                        stats.bytesTx += stringToUint64(traffic.BytesTx)
+                        stats.packetsRx += stringToUint64(traffic.PktsRx)
+                        stats.packetsTx += stringToUint64(traffic.PktsTx)
+                }</span>
+
+                <span class="cov8" title="1">wlanStats[wlanID] = stats</span>
+        }
+
+        <span class="cov8" title="1">return wlanStats</span>
+}
+
+// buildWLANInfoLabelValues constructs the label values array based on configured labels.
+func (c *WLANCollector) buildWLANInfoLabelValues(id, name string) []string <span class="cov8" title="1">{
+        labelNames := c.infoLabelNames
+        values := make([]string, len(labelNames))
+
+        valueMap := map[string]string{
+                labelID:   id,
+                labelName: name,
+        }
+
+        for i, label := range labelNames </span><span class="cov8" title="1">{
+                if value, exists := valueMap[label]; exists </span><span class="cov8" title="1">{
+                        values[i] = value
+                }</span> else<span class="cov8" title="1"> {
+                        values[i] = ""
+                }</span>
+        }
+
+        <span class="cov8" title="1">return values</span>
+}
+
+// buildWLANToPolicyMap creates a map from WLAN profile names to policies using policy-list-entries.
+func buildWLANToPolicyMap(
+        policyListEntries []wlan.PolicyListEntry,
+        wlanPolicies []wlan.WlanPolicy,
+) map[string]*wlan.WlanPolicy <span class="cov8" title="1">{
+        // Step 1: Build policy map by policy-profile-name for O(1) lookups
+        policyMap := make(map[string]*wlan.WlanPolicy)
+        for i := range wlanPolicies </span><span class="cov8" title="1">{
+                policy := &amp;wlanPolicies[i]
+                policyMap[policy.PolicyProfileName] = policy
+        }</span>
+
+        // Step 2: Build WLAN profile to policy mapping using policy-list-entries
+        <span class="cov8" title="1">wlanToPolicyMap := make(map[string]*wlan.WlanPolicy)
+        for _, entry := range policyListEntries </span><span class="cov8" title="1">{
+                if entry.WLANPolicies != nil </span><span class="cov8" title="1">{
+                        for _, mapping := range entry.WLANPolicies.WLANPolicy </span><span class="cov8" title="1">{
+                                if policy, exists := policyMap[mapping.PolicyProfileName]; exists </span><span class="cov8" title="1">{
+                                        wlanToPolicyMap[mapping.WLANProfileName] = policy
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return wlanToPolicyMap</span>
+}
+
+// determineWLANEnabledStatus extracts WLAN enabled status.
+func determineWLANEnabledStatus(wlanEntry wlan.WlanCfgEntry) int <span class="cov8" title="1">{
+        if wlanEntry.APFVapIDData != nil &amp;&amp; wlanEntry.APFVapIDData.WlanStatus </span><span class="cov8" title="1">{
+                return 1
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+// determineWLANName extracts WLAN name.
+func determineWLANName(wlanEntry wlan.WlanCfgEntry) string <span class="cov8" title="1">{
+        if wlanEntry.APFVapIDData != nil &amp;&amp; wlanEntry.APFVapIDData.SSID != "" </span><span class="cov8" title="1">{
+                return wlanEntry.APFVapIDData.SSID
+        }</span>
+        <span class="cov8" title="1">return wlanEntry.ProfileName</span>
+}
+
+// determineSessionTimeout extracts session timeout from policy.
+func determineSessionTimeout(policy *wlan.WlanPolicy) int <span class="cov8" title="1">{
+        if policy != nil &amp;&amp; policy.WlanTimeout != nil </span><span class="cov8" title="1">{
+                return policy.WlanTimeout.SessionTimeout
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func determineCentralSwitchingValue(policy *wlan.WlanPolicy) float64 <span class="cov8" title="1">{
+        if policy != nil &amp;&amp; policy.WlanSwitchingPolicy != nil </span><span class="cov8" title="1">{
+                return boolToFloat64(policy.WlanSwitchingPolicy.CentralSwitching)
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func determineCentralAuthenticationValue(policy *wlan.WlanPolicy) float64 <span class="cov8" title="1">{
+        if policy != nil &amp;&amp; policy.WlanSwitchingPolicy != nil </span><span class="cov8" title="1">{
+                return boolToFloat64(policy.WlanSwitchingPolicy.CentralAuthentication)
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func determineCentralDHCPValue(policy *wlan.WlanPolicy) float64 <span class="cov8" title="1">{
+        if policy != nil &amp;&amp; policy.WlanSwitchingPolicy != nil </span><span class="cov8" title="1">{
+                return boolToFloat64(policy.WlanSwitchingPolicy.CentralDHCP)
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func determineCentralAssocEnableValue(policy *wlan.WlanPolicy) float64 <span class="cov8" title="1">{
+        if policy != nil &amp;&amp; policy.WlanSwitchingPolicy != nil </span><span class="cov8" title="1">{
+                return boolToFloat64(policy.WlanSwitchingPolicy.CentralAssocEnable)
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func (c *WLANCollector) isAnyMetricFlagEnabled() bool <span class="cov8" title="1">{
+        return IsEnabled(c.metrics.General, c.metrics.Traffic, c.metrics.Config, c.metrics.Info)
+}</span>
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">// Package config provides configuration parsing and validation.
+package config
+
+import (
+        "errors"
+        "fmt"
+        "log/slog"
+        "slices"
+        "strings"
+        "time"
+
+        "github.com/urfave/cli/v3"
+)
+
+const (
+        DefaultListenAddress         = "0.0.0.0"
+        DefaultListenPort            = 10039
+        DefaultTelemetryPath         = "/metrics"
+        DefaultWNCTimeout            = 55 * time.Second
+        DefaultWNCCacheTTL           = 55 * time.Second
+        DefaultCollectorInfoCacheTTL = 1800 * time.Second
+        DefaultLogLevel              = "info"
+        DefaultLogFormat             = "json"
+
+        DefaultAPInfoLabels     = "name,ip"
+        DefaultClientInfoLabels = "name,ipv4"
+        DefaultWLANInfoLabels   = "name"
+
+        AvailableAPInfoLabels     = "name,ip,band,model,serial,sw_version,eth_mac"
+        AvailableClientInfoLabels = "ap,band,wlan,name,username,ipv4,ipv6"
+        AvailableWLANInfoLabels   = "name"
+
+        RequiredAPInfoLabels     = "mac,radio"
+        RequiredClientInfoLabels = "mac"
+        RequiredWLANInfoLabels   = "id"
+)
+
+// Config represents the complete configuration.
+type Config struct {
+        Web               Web               `json:"web"`
+        WNC               WNC               `json:"wnc"`
+        Collectors        Collectors        `json:"collectors"`
+        Log               Log               `json:"log"`
+        InternalCollector InternalCollector `json:"internal_collector"`
+        DryRun            bool              `json:"dry_run"`
+}
+
+// Web holds HTTP server configuration.
+type Web struct {
+        ListenAddress string `json:"listen_address"`
+        ListenPort    int    `json:"listen_port"`
+        TelemetryPath string `json:"telemetry_path"`
+}
+
+// WNC holds controller connection configuration.
+type WNC struct {
+        Controller    string        `json:"controller"`
+        AccessToken   string        `json:"-"` // Never serialize credentials
+        Timeout       time.Duration `json:"timeout"`
+        CacheTTL      time.Duration `json:"cache_ttl"`
+        TLSSkipVerify bool          `json:"tls_skip_verify"`
+}
+
+// Collectors holds collector module configuration.
+type Collectors struct {
+        AP           APCollectorModules     `json:"ap"`
+        Client       ClientCollectorModules `json:"client"`
+        WLAN         WLANCollectorModules   `json:"wlan"`
+        InfoCacheTTL time.Duration          `json:"info_cache_ttl"`
+}
+
+// APCollectorModules represents AP collector modules.
+type APCollectorModules struct {
+        // General: admin_state, oper_state, radio_state, config_state, uptime, CPU, memory
+        General bool `json:"general"`
+        // Radio: channel, power, noise, utilization
+        Radio bool `json:"radio"`
+        // Traffic: clients, bytes, packets, frames
+        Traffic bool `json:"traffic"`
+        // Errors: errors, drops, retries, failures
+        Errors bool `json:"errors"`
+        // Info: info metric with labels
+        Info       bool     `json:"info"`
+        InfoLabels []string `json:"info_labels"`
+}
+
+// ClientCollectorModules represents Client collector modules.
+type ClientCollectorModules struct {
+        // General: state, uptime, power_save_state
+        General bool `json:"general"`
+        // Radio: protocol, mcs, streams, speed, rssi, snr
+        Radio bool `json:"radio"`
+        // Traffic: bytes, packets
+        Traffic bool `json:"traffic"`
+        // Errors: retries, drops, failures
+        Errors bool `json:"errors"`
+        // Info: info metric with labels
+        Info       bool     `json:"info"`
+        InfoLabels []string `json:"info_labels"`
+}
+
+// WLANCollectorModules represents WLAN collector modules.
+type WLANCollectorModules struct {
+        // General: enabled
+        General bool `json:"general"`
+        // Traffic: clients, bytes
+        Traffic bool `json:"traffic"`
+        // Config: auth, security, networking settings
+        Config bool `json:"config"`
+        // Info: info metric with labels
+        Info       bool     `json:"info"`
+        InfoLabels []string `json:"info_labels"`
+}
+
+// Log holds logging configuration.
+type Log struct {
+        Level  string `json:"level"`
+        Format string `json:"format"`
+}
+
+// InternalCollector holds internal metrics collection configuration.
+type InternalCollector struct {
+        EnableGoCollector      bool `json:"enable_go_collector"`
+        EnableProcessCollector bool `json:"enable_process_collector"`
+}
+
+// Parse parses configuration from CLI command and environment variables.
+func Parse(cmd *cli.Command) (*Config, error) <span class="cov0" title="0">{
+        cfg := &amp;Config{
+                Web: Web{
+                        ListenAddress: cmd.String("web.listen-address"),
+                        ListenPort:    cmd.Int("web.listen-port"),
+                        TelemetryPath: cmd.String("web.telemetry-path"),
+                },
+                WNC: WNC{
+                        Controller:    cmd.String("wnc.controller"),
+                        AccessToken:   cmd.String("wnc.access-token"),
+                        Timeout:       cmd.Duration("wnc.timeout"),
+                        CacheTTL:      cmd.Duration("wnc.cache-ttl"),
+                        TLSSkipVerify: cmd.Bool("wnc.tls-skip-verify"),
+                },
+                Collectors: Collectors{
+                        AP: APCollectorModules{
+                                General:    cmd.Bool("collector.ap.general"),
+                                Radio:      cmd.Bool("collector.ap.radio"),
+                                Traffic:    cmd.Bool("collector.ap.traffic"),
+                                Errors:     cmd.Bool("collector.ap.errors"),
+                                Info:       cmd.Bool("collector.ap.info"),
+                                InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
+                        },
+                        Client: ClientCollectorModules{
+                                General:    cmd.Bool("collector.client.general"),
+                                Radio:      cmd.Bool("collector.client.radio"),
+                                Traffic:    cmd.Bool("collector.client.traffic"),
+                                Errors:     cmd.Bool("collector.client.errors"),
+                                Info:       cmd.Bool("collector.client.info"),
+                                InfoLabels: parseClientInfoLabels(cmd.String("collector.client.info-labels")),
+                        },
+                        WLAN: WLANCollectorModules{
+                                General:    cmd.Bool("collector.wlan.general"),
+                                Traffic:    cmd.Bool("collector.wlan.traffic"),
+                                Config:     cmd.Bool("collector.wlan.config"),
+                                Info:       cmd.Bool("collector.wlan.info"),
+                                InfoLabels: parseWLANInfoLabels(cmd.String("collector.wlan.info-labels")),
+                        },
+                        InfoCacheTTL: cmd.Duration("collector.info-cache-ttl"),
+                },
+                Log: Log{
+                        Level:  cmd.String("log.level"),
+                        Format: cmd.String("log.format"),
+                },
+                InternalCollector: InternalCollector{
+                        EnableGoCollector:      cmd.Bool("collector.internal.go-runtime"),
+                        EnableProcessCollector: cmd.Bool("collector.internal.process"),
+                },
+                DryRun: cmd.Bool("dry-run"),
+        }
+
+        if err := cfg.Validate(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("configuration validation failed: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return cfg, nil</span>
+}
+
+// Validate performs configuration validation.
+func (c *Config) Validate() error <span class="cov8" title="1">{
+        validationRules := []struct {
+                condition bool
+                message   string
+        }{
+                {
+                        c.WNC.Controller == "", "WNC controller is required (--wnc.controller or WNC_CONTROLLER)",
+                },
+                {
+                        c.WNC.AccessToken == "", "WNC access token is required (--wnc.access-token or WNC_ACCESS_TOKEN)",
+                },
+                {
+                        c.Web.ListenPort &lt; 1 || c.Web.ListenPort &gt; 65535,
+                        fmt.Sprintf("invalid listen port: %d (must be 1-65535)", c.Web.ListenPort),
+                },
+                {
+                        c.WNC.Timeout &lt;= 0, fmt.Sprintf("WNC timeout must be positive, got: %v", c.WNC.Timeout),
+                },
+                {
+                        c.WNC.CacheTTL &lt;= 0, fmt.Sprintf("WNC cache TTL must be positive, got: %v", c.WNC.CacheTTL),
+                },
+                {
+                        c.Collectors.InfoCacheTTL &lt;= 0, fmt.Sprintf("collector info cache TTL must be positive, got: %v", c.Collectors.InfoCacheTTL),
+                },
+                {
+                        c.Web.TelemetryPath == "", "telemetry path cannot be empty",
+                },
+                {
+                        !strings.HasPrefix(c.Web.TelemetryPath, "/"),
+                        "telemetry path must start with '/': " + c.Web.TelemetryPath,
+                },
+                {
+                        !isValidLogLevel(c.Log.Level),
+                        fmt.Sprintf("invalid log level: %s (must be one of: debug, info, warn, error)", c.Log.Level),
+                },
+                {
+                        !isValidLogFormat(c.Log.Format),
+                        fmt.Sprintf("invalid log format: %s (must be one of: json, text)", c.Log.Format),
+                },
+        }
+
+        for _, rule := range validationRules </span><span class="cov8" title="1">{
+                if rule.condition </span><span class="cov8" title="1">{
+                        return errors.New(rule.message)
+                }</span>
+        }
+
+        // Validate collector info labels
+        <span class="cov8" title="1">if err := c.validateCollectorInfoLabels(); err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("info labels validation failed: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// LogLevel returns the slog.Level for the configured log level.
+func (c *Config) LogLevel() slog.Level <span class="cov8" title="1">{
+        switch strings.ToLower(c.Log.Level) </span>{
+        case "debug":<span class="cov8" title="1">
+                return slog.LevelDebug</span>
+        case "info":<span class="cov8" title="1">
+                return slog.LevelInfo</span>
+        case "warn":<span class="cov8" title="1">
+                return slog.LevelWarn</span>
+        case "error":<span class="cov8" title="1">
+                return slog.LevelError</span>
+        default:<span class="cov8" title="1">
+                return slog.LevelInfo</span>
+        }
+}
+
+// isValidLogLevel checks if the log level is valid.
+func isValidLogLevel(level string) bool <span class="cov8" title="1">{
+        validLevels := []string{"debug", "info", "warn", "error"}
+        return slices.Contains(validLevels, strings.ToLower(level))
+}</span>
+
+// isValidLogFormat checks if the log format is valid.
+func isValidLogFormat(format string) bool <span class="cov8" title="1">{
+        validFormats := []string{"json", "text"}
+        return contains(validFormats, strings.ToLower(format))
+}</span>
+
+// contains checks if a slice contains a specific item.
+func contains(slice []string, item string) bool <span class="cov8" title="1">{
+        return slices.Contains(slice, item)
+}</span>
+
+// parseInfoLabels parses comma-separated info-labels string.
+func parseInfoLabels(labelsStr string) []string <span class="cov8" title="1">{
+        labels := strings.Split(labelsStr, ",")
+        for i, label := range labels </span><span class="cov8" title="1">{
+                labels[i] = strings.TrimSpace(label)
+        }</span>
+        <span class="cov8" title="1">return labels</span>
+}
+
+// parseAPInfoLabels parses AP info labels with required labels auto-added.
+func parseAPInfoLabels(labelsStr string) []string <span class="cov8" title="1">{
+        if labelsStr == "" </span><span class="cov8" title="1">{
+                labelsStr = DefaultAPInfoLabels
+        }</span>
+
+        <span class="cov8" title="1">labels := parseInfoLabels(labelsStr)
+
+        // Ensure required labels are always present
+        for required := range strings.SplitSeq(RequiredAPInfoLabels, ",") </span><span class="cov8" title="1">{
+                if !contains(labels, required) </span><span class="cov8" title="1">{
+                        labels = append(labels, required)
+                }</span>
+        }
+        <span class="cov8" title="1">return labels</span>
+}
+
+// parseClientInfoLabels parses Client info labels with required labels auto-added.
+func parseClientInfoLabels(labelsStr string) []string <span class="cov8" title="1">{
+        if labelsStr == "" </span><span class="cov8" title="1">{
+                labelsStr = DefaultClientInfoLabels
+        }</span>
+
+        <span class="cov8" title="1">labels := parseInfoLabels(labelsStr)
+
+        // Ensure required labels are always present
+        for required := range strings.SplitSeq(RequiredClientInfoLabels, ",") </span><span class="cov8" title="1">{
+                if !contains(labels, required) </span><span class="cov8" title="1">{
+                        labels = append(labels, required)
+                }</span>
+        }
+        <span class="cov8" title="1">return labels</span>
+}
+
+// parseWLANInfoLabels parses WLAN info labels with required labels auto-added.
+func parseWLANInfoLabels(labelsStr string) []string <span class="cov8" title="1">{
+        if labelsStr == "" </span><span class="cov8" title="1">{
+                labelsStr = DefaultWLANInfoLabels
+        }</span>
+
+        <span class="cov8" title="1">labels := parseInfoLabels(labelsStr)
+
+        // Ensure required labels are always present
+        for required := range strings.SplitSeq(RequiredWLANInfoLabels, ",") </span><span class="cov8" title="1">{
+                if !contains(labels, required) </span><span class="cov8" title="1">{
+                        labels = append(labels, required)
+                }</span>
+        }
+        <span class="cov8" title="1">return labels</span>
+}
+
+// validateCollectorInfoLabels validates info labels for all collectors.
+func (c *Config) validateCollectorInfoLabels() error <span class="cov8" title="1">{
+        // AP collector validation
+        if c.Collectors.AP.Info </span><span class="cov8" title="1">{
+                apAvailableLabels := strings.Split("mac,radio,"+AvailableAPInfoLabels, ",")
+
+                // Check required labels
+                for required := range strings.SplitSeq(RequiredAPInfoLabels, ",") </span><span class="cov8" title="1">{
+                        if !contains(c.Collectors.AP.InfoLabels, required) </span><span class="cov8" title="1">{
+                                return fmt.Errorf("AP collector requires '%s' label in info-labels", required)
+                        }</span>
+                }
+
+                // Check available labels
+                <span class="cov8" title="1">for _, label := range c.Collectors.AP.InfoLabels </span><span class="cov8" title="1">{
+                        if !contains(apAvailableLabels, label) </span><span class="cov8" title="1">{
+                                return fmt.Errorf(
+                                        "AP collector: unknown label '%s' in info-labels (available: %s)",
+                                        label,
+                                        strings.Join(apAvailableLabels, ", "),
+                                )
+                        }</span>
+                }
+        }
+
+        // Client collector validation
+        <span class="cov8" title="1">if c.Collectors.Client.Info </span><span class="cov8" title="1">{
+                clientAvailableLabels := strings.Split("mac,"+AvailableClientInfoLabels, ",")
+
+                // Check required labels
+                for required := range strings.SplitSeq(RequiredClientInfoLabels, ",") </span><span class="cov8" title="1">{
+                        if !contains(c.Collectors.Client.InfoLabels, required) </span><span class="cov8" title="1">{
+                                return fmt.Errorf("client collector requires '%s' label in info-labels", required)
+                        }</span>
+                }
+
+                // Check available labels
+                <span class="cov8" title="1">for _, label := range c.Collectors.Client.InfoLabels </span><span class="cov8" title="1">{
+                        if !contains(clientAvailableLabels, label) </span><span class="cov8" title="1">{
+                                return fmt.Errorf(
+                                        "client collector: unknown label '%s' in info-labels (available: %s)",
+                                        label,
+                                        strings.Join(clientAvailableLabels, ", "),
+                                )
+                        }</span>
+                }
+        }
+
+        // WLAN collector validation
+        <span class="cov8" title="1">if c.Collectors.WLAN.Info </span><span class="cov8" title="1">{
+                wlanAvailableLabels := strings.Split("id,"+AvailableWLANInfoLabels, ",")
+
+                // Check required labels
+                for required := range strings.SplitSeq(RequiredWLANInfoLabels, ",") </span><span class="cov8" title="1">{
+                        if !contains(c.Collectors.WLAN.InfoLabels, required) </span><span class="cov8" title="1">{
+                                return fmt.Errorf("WLAN collector requires '%s' label in info-labels", required)
+                        }</span>
+                }
+
+                // Check available labels
+                <span class="cov8" title="1">for _, label := range c.Collectors.WLAN.InfoLabels </span><span class="cov8" title="1">{
+                        if !contains(wlanAvailableLabels, label) </span><span class="cov8" title="1">{
+                                return fmt.Errorf(
+                                        "WLAN collector: unknown label '%s' in info-labels (available: %s)",
+                                        label,
+                                        strings.Join(wlanAvailableLabels, ", "),
+                                )
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">// Package log provides structured logging setup.
+package log
+
+import (
+        "log/slog"
+        "os"
+        "strings"
+
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+)
+
+// Setup configures and returns a slog.Logger based on configuration.
+func Setup(cfg config.Log) *slog.Logger <span class="cov8" title="1">{
+        var handler slog.Handler
+
+        opts := &amp;slog.HandlerOptions{
+                Level: parseLogLevel(cfg.Level),
+        }
+
+        switch strings.ToLower(cfg.Format) </span>{
+        case "json":<span class="cov8" title="1">
+                handler = slog.NewJSONHandler(os.Stdout, opts)</span>
+        case "text":<span class="cov8" title="1">
+                handler = slog.NewTextHandler(os.Stdout, opts)</span>
+        default:<span class="cov8" title="1">
+                handler = slog.NewJSONHandler(os.Stdout, opts)</span>
+        }
+
+        <span class="cov8" title="1">return slog.New(handler)</span>
+}
+
+// parseLogLevel converts string log level to slog.Level.
+func parseLogLevel(level string) slog.Level <span class="cov8" title="1">{
+        switch strings.ToLower(level) </span>{
+        case "debug":<span class="cov8" title="1">
+                return slog.LevelDebug</span>
+        case "info":<span class="cov8" title="1">
+                return slog.LevelInfo</span>
+        case "warn", "warning":<span class="cov8" title="1">
+                return slog.LevelWarn</span>
+        case "error":<span class="cov8" title="1">
+                return slog.LevelError</span>
+        default:<span class="cov8" title="1">
+                return slog.LevelInfo</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">// Package server provides HTTP server lifecycle management for Prometheus exporters.
+package server
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+        "net"
+        "net/http"
+        "os/signal"
+        "strconv"
+        "syscall"
+        "time"
+
+        "github.com/prometheus/client_golang/prometheus"
+
+        "github.com/umatare5/cisco-wnc-exporter/internal/collector"
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+)
+
+// LifecycleManager manages HTTP server startup and graceful shutdown.
+type LifecycleManager struct {
+        server *http.Server
+        cfg    *config.Config
+}
+
+// NewLifecycleManager creates a new server lifecycle manager.
+func NewLifecycleManager(registry *prometheus.Registry, cfg *config.Config) *LifecycleManager <span class="cov8" title="1">{
+        addr := net.JoinHostPort(cfg.Web.ListenAddress, strconv.Itoa(cfg.Web.ListenPort))
+        server := New(registry, addr)
+
+        return &amp;LifecycleManager{
+                server: server,
+                cfg:    cfg,
+        }
+}</span>
+
+// StartAndServe creates collectors, sets up the server, and starts serving.
+// It handles the complete server lifecycle from setup to shutdown.
+func StartAndServe(ctx context.Context, cfg *config.Config, version string) error <span class="cov0" title="0">{
+        slog.Info("Starting cisco-wnc-exporter",
+                "version", version,
+                "listen_address", cfg.Web.ListenAddress,
+                "listen_port", cfg.Web.ListenPort)
+
+        // Create and setup collector manager
+        collectorMgr := collector.NewCollector(cfg)
+        collectorMgr.Setup(version)
+
+        // Create and run server lifecycle manager
+        serverMgr := NewLifecycleManager(collectorMgr.Registry(), cfg)
+        return serverMgr.Run(ctx)
+}</span>
+
+// Run starts the HTTP server and handles graceful shutdown.
+// It blocks until the server is shut down or an error occurs.
+func (lm *LifecycleManager) Run(ctx context.Context) error <span class="cov8" title="1">{
+        // Setup graceful shutdown context
+        ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+        defer cancel()
+
+        // Start server in goroutine
+        errCh := make(chan error, 1)
+        go func() </span><span class="cov8" title="1">{
+                slog.Info("HTTP server listening", "addr", lm.server.Addr)
+                if err := lm.server.ListenAndServe(); err != nil </span><span class="cov8" title="1">{
+                        errCh &lt;- fmt.Errorf("HTTP server failed: %w", err)
+                }</span>
+        }()
+
+        // Wait for shutdown signal or server error
+        <span class="cov8" title="1">select </span>{
+        case &lt;-ctx.Done():<span class="cov8" title="1">
+                slog.Info("Shutdown signal received")</span>
+        case err := &lt;-errCh:<span class="cov0" title="0">
+                return err</span>
+        }
+
+        // Graceful shutdown with timeout
+        <span class="cov8" title="1">shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer shutdownCancel()
+
+        if err := lm.server.Shutdown(shutdownCtx); err != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to shutdown HTTP server gracefully", "error", err)
+                return err
+        }</span>
+
+        <span class="cov8" title="1">slog.Info("HTTP server shutdown complete")
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">// Package server provides HTTP server functionality.
+package server
+
+import (
+        "net/http"
+        "time"
+
+        "github.com/prometheus/client_golang/prometheus"
+        "github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+// New creates a new HTTP server with metrics and health endpoints.
+func New(reg *prometheus.Registry, addr string) *http.Server <span class="cov8" title="1">{
+        mux := http.NewServeMux()
+
+        mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+                EnableOpenMetrics:   true,
+                MaxRequestsInFlight: 10,
+        }))
+
+        mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+                w.WriteHeader(http.StatusOK)
+                _, _ = w.Write([]byte("OK\n"))
+        }</span>)
+
+        <span class="cov8" title="1">mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                w.Header().Set("Content-Type", "text/html; charset=utf-8")
+                w.WriteHeader(http.StatusOK)
+                _, _ = w.Write([]byte(`&lt;html&gt;
+&lt;head&gt;&lt;title&gt;Cisco WNC Exporter&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Cisco WNC Exporter&lt;/h1&gt;
+&lt;p&gt;&lt;a href="/metrics"&gt;Metrics&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="/healthz"&gt;Health Check&lt;/a&gt;&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;`))
+        }</span>)
+
+        <span class="cov8" title="1">return &amp;http.Server{
+                Addr:              addr,
+                Handler:           mux,
+                ReadHeaderTimeout: 30 * time.Second,
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">// Package wnc provides thin interfaces and adapters for the Cisco WNC SDK.
+// This file contains AP-related functionality.
+package wnc
+
+import (
+        "context"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+)
+
+// APSource provides access to AP data from WNC via REST API.
+type APSource interface {
+        GetCAPWAPData(ctx context.Context) ([]ap.CAPWAPData, error)
+        GetAPOperData(ctx context.Context) ([]ap.OperData, error)
+        GetRadioData(ctx context.Context) ([]ap.RadioOperData, error)
+        GetRadioOperStats(ctx context.Context) ([]ap.RadioOperStats, error)
+        GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats, error)
+        ListNameMACMaps(ctx context.Context) ([]ap.ApNameMACMap, error)
+}
+
+// apSource implements APSource using SharedDataSource for caching.
+type apSource struct {
+        sharedDataSource DataSource
+}
+
+// NewAPSource creates a new APSource implementation that uses SharedDataSource for caching.
+func NewAPSource(sharedDataSource DataSource) APSource <span class="cov8" title="1">{
+        return &amp;apSource{
+                sharedDataSource: sharedDataSource,
+        }
+}</span>
+
+// GetCAPWAPData returns CAPWAP data from WNC via SharedDataSource (cached).
+func (s *apSource) GetCAPWAPData(ctx context.Context) ([]ap.CAPWAPData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.CAPWAPData, nil</span>
+}
+
+// GetAPOperData retrieves AP operational data via SharedDataSource (cached).
+func (s *apSource) GetAPOperData(ctx context.Context) ([]ap.OperData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.ApOperData, nil</span>
+}
+
+// GetRadioData returns radio operational data from WNC via SharedDataSource (cached).
+func (s *apSource) GetRadioData(ctx context.Context) ([]ap.RadioOperData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.RadioOperData, nil</span>
+}
+
+// GetRadioOperStats returns radio operational statistics from WNC via SharedDataSource (cached).
+func (s *apSource) GetRadioOperStats(ctx context.Context) ([]ap.RadioOperStats, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.RadioOperStats, nil</span>
+}
+
+// GetRadioResetStats returns radio reset statistics from WNC via SharedDataSource (cached).
+func (s *apSource) GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.RadioResetStats, nil</span>
+}
+
+// ListNameMACMaps returns AP name to MAC mapping data from WNC via SharedDataSource (cached).
+func (s *apSource) ListNameMACMaps(ctx context.Context) ([]ap.ApNameMACMap, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.NameMACMaps, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">// Package wnc provides WNC data access and caching.
+package wnc
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+
+        wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
+        "github.com/umatare5/cisco-wnc-exporter/internal/cache"
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+)
+
+// WNCDataCache contains operational data from WNC.
+type WNCDataCache struct {
+        CAPWAPData      []ap.CAPWAPData
+        ApOperData      []ap.OperData
+        RadioOperData   []ap.RadioOperData
+        RadioOperStats  []ap.RadioOperStats
+        RadioResetStats []ap.RadioResetStats
+        NameMACMaps     []ap.ApNameMACMap
+
+        CommonOperData    []client.CommonOperData
+        DCInfo            []client.DcInfo
+        Dot11OperData     []client.Dot11OperData
+        SisfDBMac         []client.SisfDBMac
+        TrafficStats      []client.TrafficStats
+        MmIfClientHistory []client.MmIfClientHistory
+
+        // RRM data
+        RRMMeasurements  []rrm.RRMMeasurement
+        RRMCoverage      []rrm.RRMCoverage
+        ApDot11RadarData []rrm.ApDot11RadarData
+
+        // WLAN data
+        WLANConfigEntries     []wlan.WlanCfgEntry
+        WLANPolicies          []wlan.WlanPolicy
+        WLANPolicyListEntries []wlan.PolicyListEntry
+}
+
+// DataSource provides cached access to WNC operational data.
+type DataSource interface {
+        GetCachedData(ctx context.Context) (*WNCDataCache, error)
+}
+
+// dataSource implements DataSource with caching to minimize WNC requests.
+type dataSource struct {
+        client *wnc.Client
+        cache  *cache.Cache[*WNCDataCache]
+}
+
+// dataFetcher defines a WNC API call that can fail.
+type dataFetcher struct {
+        name     string
+        required bool
+        fetch    func(ctx context.Context, cache *WNCDataCache) error
+}
+
+// NewDataSource creates a new shared data source.
+func NewDataSource(cfg config.WNC) DataSource <span class="cov8" title="1">{
+        return &amp;dataSource{
+                client: createWNCClient(cfg),
+                cache:  cache.New[*WNCDataCache](cfg.CacheTTL, "WNC API data cache"),
+        }
+}</span>
+
+func (s *dataSource) GetCachedData(ctx context.Context) (*WNCDataCache, error) <span class="cov0" title="0">{
+        return s.cache.Get(func() (*WNCDataCache, error) </span><span class="cov0" title="0">{
+                data, err := s.fetchAllData(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("cache refresh failed: %w", err)
+                }</span>
+                <span class="cov0" title="0">return data, nil</span>
+        })
+}
+
+func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <span class="cov0" title="0">{
+        data := &amp;WNCDataCache{}
+
+        // Define all data fetchers with their criticality
+        fetchers := []dataFetcher{
+                {"AP CAPWAP", true, func(ctx context.Context, c *WNCDataCache) error </span><span class="cov0" title="0">{
+                        data, err := s.client.AP().ListCAPWAPData(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.CAPWAPData = data.CAPWAPData
+                        slog.Info(
+                                "AP CAPWAP data retrieved from WNC successfully",
+                                "count",
+                                len(data.CAPWAPData),
+                        )
+                        return nil</span>
+                }},
+                {"AP operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.AP().ListApOperData(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.ApOperData = data.OperData
+                        slog.Info(
+                                "AP operational data retrieved from WNC successfully",
+                                "count",
+                                len(data.OperData),
+                        )
+                        return nil</span>
+                }},
+                {"radio operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.AP().ListRadioData(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.RadioOperData = data.RadioOperData
+                        slog.Info(
+                                "radio operational data retrieved from WNC successfully",
+                                "count",
+                                len(data.RadioOperData),
+                        )
+                        return nil</span>
+                }},
+                {"AP name to MAC mapping", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.AP().ListNameMACMaps(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.NameMACMaps = data.ApNameMACMap
+                        slog.Info(
+                                "AP name to MAC mapping data retrieved from WNC successfully",
+                                "count",
+                                len(data.ApNameMACMap),
+                        )
+                        return nil</span>
+                }},
+                {"RRM measurements", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.RRM().ListRRMMeasurement(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.RRMMeasurements = data.RRMMeasurement
+                        slog.Info(
+                                "RRM measurement data retrieved from WNC successfully",
+                                "count",
+                                len(data.RRMMeasurement),
+                        )
+                        return nil</span>
+                }},
+                {"WLAN configuration entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.WLAN().ListWlanCfgEntries(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">if data != nil &amp;&amp; data.WlanCfgEntries != nil </span><span class="cov0" title="0">{
+                                c.WLANConfigEntries = data.WlanCfgEntries.WlanCfgEntry
+                        }</span> else<span class="cov0" title="0"> {
+                                c.WLANConfigEntries = []wlan.WlanCfgEntry{}
+                        }</span>
+                        <span class="cov0" title="0">slog.Info(
+                                "WLAN configuration entries retrieved from WNC successfully",
+                                "count",
+                                len(c.WLANConfigEntries),
+                        )
+                        return nil</span>
+                }},
+                {"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.WLAN().ListWlanPolicies(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">if data != nil &amp;&amp; data.WlanPolicies != nil </span><span class="cov0" title="0">{
+                                c.WLANPolicies = data.WlanPolicies.WlanPolicy
+                        }</span> else<span class="cov0" title="0"> {
+                                c.WLANPolicies = []wlan.WlanPolicy{}
+                        }</span>
+                        <span class="cov0" title="0">slog.Info("WLAN policies retrieved from WNC successfully", "count", len(c.WLANPolicies))
+                        return nil</span>
+                }},
+                {"WLAN policy list entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.WLAN().ListCfgPolicyListEntries(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">if data != nil &amp;&amp; data.PolicyListEntries != nil </span><span class="cov0" title="0">{
+                                c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
+                        }</span> else<span class="cov0" title="0"> {
+                                c.WLANPolicyListEntries = []wlan.PolicyListEntry{}
+                        }</span>
+                        <span class="cov0" title="0">slog.Info("WLAN policy list entries retrieved from WNC successfully", "count", len(c.WLANPolicyListEntries))
+                        return nil</span>
+                }},
+                {"client common", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListCommonInfo(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.CommonOperData = data.CommonOperData
+                        slog.Info(
+                                "client common data retrieved from WNC successfully",
+                                "count",
+                                len(data.CommonOperData),
+                        )
+                        return nil</span>
+                }},
+                {"client device classification", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListDCInfo(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.DCInfo = data.DcInfo
+                        slog.Info(
+                                "client device classification data retrieved from WNC successfully",
+                                "count",
+                                len(data.DcInfo),
+                        )
+                        return nil</span>
+                }},
+                {"client 802.11", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListDot11Info(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.Dot11OperData = data.Dot11OperData
+                        slog.Info("client 802.11 data retrieved from WNC successfully",
+                                "count", len(data.Dot11OperData),
+                        )
+                        return nil</span>
+                }},
+                {"SISF database", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListSISFDB(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.SisfDBMac = data.SisfDBMac
+                        slog.Info(
+                                "SISF database data retrieved from WNC successfully",
+                                "count",
+                                len(data.SisfDBMac),
+                        )
+                        return nil</span>
+                }},
+                {"client traffic stats", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListTrafficStats(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.TrafficStats = data.TrafficStats
+                        slog.Info(
+                                "client traffic stats data retrieved from WNC successfully",
+                                "count",
+                                len(data.TrafficStats),
+                        )
+                        return nil</span>
+                }},
+                {"client mobility history", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.Client().ListMMIFClientHistory(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.MmIfClientHistory = data.MmIfClientHistory
+                        slog.Info(
+                                "client mobility history data retrieved from WNC successfully",
+                                "count",
+                                len(data.MmIfClientHistory),
+                        )
+                        return nil</span>
+                }},
+                {"radio statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.AP().ListRadioOperStats(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.RadioOperStats = data.RadioOperStats
+                        slog.Info(
+                                "radio statistics data retrieved from WNC successfully",
+                                "count",
+                                len(data.RadioOperStats),
+                        )
+                        return nil</span>
+                }},
+                {"radio reset statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.AP().ListRadioResetStats(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.RadioResetStats = data.RadioResetStats
+                        slog.Info(
+                                "radio reset statistics retrieved from WNC successfully",
+                                "count",
+                                len(data.RadioResetStats),
+                        )
+                        return nil</span>
+                }},
+                {"RRM coverage", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.RRM().ListRRMCoverage(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.RRMCoverage = data.RRMCoverage
+                        slog.Info(
+                                "RRM coverage data retrieved from WNC successfully",
+                                "count",
+                                len(data.RRMCoverage),
+                        )
+                        return nil</span>
+                }},
+                {"AP radar data", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                        data, err := s.client.RRM().ListApDot11RadarData(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">c.ApDot11RadarData = data.ApDot11RadarData
+                        slog.Info(
+                                "AP radar data retrieved from WNC successfully",
+                                "count",
+                                len(data.ApDot11RadarData),
+                        )
+                        return nil</span>
+                }},
+        }
+
+        // Execute all fetchers
+        <span class="cov0" title="0">for _, f := range fetchers </span><span class="cov0" title="0">{
+                if err := f.fetch(ctx, data); err != nil </span><span class="cov0" title="0">{
+                        if f.required </span><span class="cov0" title="0">{
+                                return nil, fmt.Errorf("failed to fetch %s: %w", f.name, err)
+                        }</span>
+                        <span class="cov0" title="0">slog.Warn("optional data fetch failed", "data_type", f.name, "error", err)</span>
+                }
+        }
+
+        <span class="cov0" title="0">return data, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file16" style="display: none">// Package wnc provides thin interfaces and adapters for the Cisco WNC SDK.
+// This file contains Client-related functionality.
+package wnc
+
+import (
+        "context"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+)
+
+// ClientSource provides access to client data from WNC via REST API.
+type ClientSource interface {
+        GetClientData(ctx context.Context) ([]client.CommonOperData, error)
+        GetDeviceData(ctx context.Context) ([]client.DcInfo, error)
+        GetDot11Data(ctx context.Context) ([]client.Dot11OperData, error)
+        GetSISFDBData(ctx context.Context) ([]client.SisfDBMac, error)
+        GetTrafficStats(ctx context.Context) ([]client.TrafficStats, error)
+        GetMobilityHistory(ctx context.Context) ([]client.MmIfClientHistory, error)
+}
+
+// clientSource implements ClientSource using SharedDataSource for caching.
+type clientSource struct {
+        sharedDataSource DataSource
+}
+
+// NewClientSource creates a new ClientSource implementation that uses SharedDataSource for caching.
+func NewClientSource(sharedDataSource DataSource) ClientSource <span class="cov8" title="1">{
+        return &amp;clientSource{
+                sharedDataSource: sharedDataSource,
+        }
+}</span>
+
+// GetClientData returns client common operational data from WNC via SharedDataSource (cached).
+func (s *clientSource) GetClientData(ctx context.Context) ([]client.CommonOperData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.CommonOperData, nil</span>
+}
+
+// GetDeviceData returns device classification info from WNC via SharedDataSource (cached).
+func (s *clientSource) GetDeviceData(ctx context.Context) ([]client.DcInfo, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.DCInfo, nil</span>
+}
+
+// GetDot11Data returns 802.11 operational data from WNC via SharedDataSource (cached).
+func (s *clientSource) GetDot11Data(ctx context.Context) ([]client.Dot11OperData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.Dot11OperData, nil</span>
+}
+
+// GetSISFDBData returns SISF database information from WNC via SharedDataSource (cached).
+func (s *clientSource) GetSISFDBData(ctx context.Context) ([]client.SisfDBMac, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.SisfDBMac, nil</span>
+}
+
+// GetTrafficStats returns traffic statistics from WNC via SharedDataSource (cached).
+func (s *clientSource) GetTrafficStats(ctx context.Context) ([]client.TrafficStats, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.TrafficStats, nil</span>
+}
+
+// GetMobilityHistory returns mobility manager interface client history from WNC via SharedDataSource (cached).
+func (s *clientSource) GetMobilityHistory(ctx context.Context) ([]client.MmIfClientHistory, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.MmIfClientHistory, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file17" style="display: none">// Package wnc provides thin interfaces and adapters for the Cisco WNC SDK.
+// This file contains RRM (Radio Resource Management) related functionality.
+package wnc
+
+import (
+        "context"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
+)
+
+// RRMSource provides access to RRM data from WNC via REST API.
+type RRMSource interface {
+        GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error)
+        GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error)
+        GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error)
+}
+
+// rrmSource implements RRMSource using SharedDataSource for caching.
+type rrmSource struct {
+        sharedDataSource DataSource
+}
+
+// NewRRMSource creates a new RRMSource implementation that uses SharedDataSource for caching.
+func NewRRMSource(sharedDataSource DataSource) RRMSource <span class="cov8" title="1">{
+        return &amp;rrmSource{
+                sharedDataSource: sharedDataSource,
+        }
+}</span>
+
+// GetRRMMeasurements returns RRM measurement data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.RRMMeasurements, nil</span>
+}
+
+// GetRRMCoverage returns RRM coverage data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.RRMCoverage, nil</span>
+}
+
+// GetApDot11RadarData returns AP radar detection data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.ApDot11RadarData, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file18" style="display: none">// Package wnc provides thin interfaces and adapters for the Cisco WNC SDK.
+// This file contains WLAN-related functionality for accessing WNC via REST API.
+package wnc
+
+import (
+        "context"
+
+        "github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
+)
+
+// WLANSource provides access to WLAN data from WNC via REST API.
+type WLANSource interface {
+        ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry, error)
+        ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error)
+        ListPolicyListEntries(ctx context.Context) ([]wlan.PolicyListEntry, error)
+}
+
+// wlanSource implements WLANSource using SharedDataSource for caching.
+type wlanSource struct {
+        sharedDataSource DataSource
+}
+
+// NewWLANSource creates a new WLANSource implementation that uses SharedDataSource for caching.
+func NewWLANSource(sharedDataSource DataSource) WLANSource <span class="cov8" title="1">{
+        return &amp;wlanSource{
+                sharedDataSource: sharedDataSource,
+        }
+}</span>
+
+// ListConfigEntries retrieves WLAN configuration entries via SharedDataSource (cached).
+func (s *wlanSource) ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.WLANConfigEntries, nil</span>
+}
+
+// ListPolicies retrieves WLAN policies via SharedDataSource (cached).
+func (s *wlanSource) ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.WLANPolicies, nil</span>
+}
+
+// ListPolicyListEntries retrieves policy list entries via SharedDataSource (cached).
+func (s *wlanSource) ListPolicyListEntries(ctx context.Context) ([]wlan.PolicyListEntry, error) <span class="cov8" title="1">{
+        data, err := s.sharedDataSource.GetCachedData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data.WLANPolicyListEntries, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file19" style="display: none">// Package wnc provides WNC client creation and management functionality.
+package wnc
+
+import (
+        "fmt"
+
+        wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
+        "github.com/umatare5/cisco-wnc-exporter/internal/config"
+)
+
+// createWNCClient creates a configured WNC client for REST API access.
+func createWNCClient(cfg config.WNC) *wnc.Client <span class="cov8" title="1">{
+        options := []wnc.Option{
+                wnc.WithTimeout(cfg.Timeout),
+                wnc.WithInsecureSkipVerify(cfg.TLSSkipVerify),
+        }
+
+        // Create WNC client
+        wncClient, err := wnc.NewClient(cfg.Controller, cfg.AccessToken, options...)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(fmt.Sprintf("Failed to create WNC client: %v", err))</span>
+        }
+
+        <span class="cov8" title="1">return wncClient</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
