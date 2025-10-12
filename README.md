@@ -509,9 +509,9 @@ This section describes how to configure Prometheus to scrape metrics from the co
 ### Example Grafana Dashboard
 
 <picture>
-  <img src="docs/assets/cisco-wnc-exporter-dashboard.png">
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-exporter-dashboard_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-exporter-dashboard.png">
+  <img src="docs/assets/cisco-wnc-exporter-dashboard.png">
 </picture>
 
 ## Development
