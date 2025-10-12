@@ -1073,3 +1073,228 @@ func TestWLANCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		t.Errorf("collectInfoMetrics() emitted %d metrics, want 1", metricCount)
 	}
 }
+
+// TestWLANCollector_collectGeneralMetrics tests basic metric emission
+func TestWLANCollector_collectGeneralMetrics(t *testing.T) {
+	t.Parallel()
+
+	entry := wlan.WlanCfgEntry{
+		WlanID: 1,
+		APFVapIDData: &wlan.APFVapIDData{
+			SSID: "TestWLAN",
+		},
+	}
+
+	collector := &WLANCollector{
+		metrics:     WLANMetrics{General: true},
+		enabledDesc: prometheus.NewDesc("test_enabled", "test", []string{"id"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectGeneralMetrics(ch, entry)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectGeneralMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestWLANCollector_collectTrafficMetrics tests basic metric emission
+func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
+	t.Parallel()
+
+	entry := wlan.WlanCfgEntry{
+		WlanID: 1,
+		APFVapIDData: &wlan.APFVapIDData{
+			SSID: "TestWLAN",
+		},
+	}
+
+	statsMap := map[int]wlanStats{
+		1: {
+			clientCount: 10,
+			bytesRx:     1000000,
+			bytesTx:     2000000,
+			packetsRx:   10000,
+			packetsTx:   20000,
+		},
+	}
+
+	collector := &WLANCollector{
+		metrics:         WLANMetrics{Traffic: true},
+		clientCountDesc: prometheus.NewDesc("test_client_count", "test", []string{"id"}, nil),
+		bytesRxDesc:     prometheus.NewDesc("test_bytes_rx", "test", []string{"id"}, nil),
+		bytesTxDesc:     prometheus.NewDesc("test_bytes_tx", "test", []string{"id"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectTrafficMetrics(ch, entry, statsMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectTrafficMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestWLANCollector_collectConfigMetrics tests basic metric emission
+func TestWLANCollector_collectConfigMetrics(t *testing.T) {
+	t.Parallel()
+
+	entry := wlan.WlanCfgEntry{
+		WlanID:                 1,
+		ProfileName:            "test-profile",
+		AuthKeyMgmtPsk:         true,
+		AuthKeyMgmtDot1x:       false,
+		AuthKeyMgmtDot1xSha256: false,
+		WPA2Enabled:            true,
+		WPA3Enabled:            false,
+		LoadBalance:            true,
+		Wlan11kNeighList:       true,
+		ClientSteering:         true,
+		APFVapIDData: &wlan.APFVapIDData{
+			SSID: "TestWLAN",
+		},
+	}
+
+	policyMap := map[string]*wlan.WlanPolicy{
+		"test-profile": {},
+	}
+
+	collector := &WLANCollector{
+		metrics:                   WLANMetrics{Config: true},
+		authPskDesc:               prometheus.NewDesc("test_auth_psk", "test", []string{"id"}, nil),
+		authDot1xDesc:             prometheus.NewDesc("test_auth_dot1x", "test", []string{"id"}, nil),
+		authDot1xSha256Desc:       prometheus.NewDesc("test_auth_dot1x_sha256", "test", []string{"id"}, nil),
+		wpa2EnabledDesc:           prometheus.NewDesc("test_wpa2_enabled", "test", []string{"id"}, nil),
+		wpa3EnabledDesc:           prometheus.NewDesc("test_wpa3_enabled", "test", []string{"id"}, nil),
+		sessionTimeoutDesc:        prometheus.NewDesc("test_session_timeout", "test", []string{"id"}, nil),
+		loadBalanceDesc:           prometheus.NewDesc("test_load_balance", "test", []string{"id"}, nil),
+		wlan11kNeighDesc:          prometheus.NewDesc("test_11k_neigh", "test", []string{"id"}, nil),
+		clientSteeringDesc:        prometheus.NewDesc("test_client_steering", "test", []string{"id"}, nil),
+		centralSwitchingDesc:      prometheus.NewDesc("test_central_switching", "test", []string{"id"}, nil),
+		centralAuthenticationDesc: prometheus.NewDesc("test_central_auth", "test", []string{"id"}, nil),
+		centralDHCPDesc:           prometheus.NewDesc("test_central_dhcp", "test", []string{"id"}, nil),
+		centralAssocEnableDesc:    prometheus.NewDesc("test_central_assoc", "test", []string{"id"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 20)
+	go func() {
+		defer close(ch)
+		collector.collectConfigMetrics(ch, entry, policyMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectConfigMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestWLANCollector_collectMetrics_NilSafety tests nil safety
+func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		testFunc func(*testing.T)
+	}{
+		{
+			name: "collectGeneralMetrics with minimal entry",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &WLANCollector{
+					metrics:     WLANMetrics{General: true},
+					enabledDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectGeneralMetrics() panicked with minimal entry: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				entry := wlan.WlanCfgEntry{WlanID: 1}
+				collector.collectGeneralMetrics(ch, entry)
+			},
+		},
+		{
+			name: "collectTrafficMetrics with empty statsMap",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &WLANCollector{
+					metrics:         WLANMetrics{Traffic: true},
+					clientCountDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					bytesRxDesc:     prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					bytesTxDesc:     prometheus.NewDesc("test", "test", []string{"id"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectTrafficMetrics() panicked with empty statsMap: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				entry := wlan.WlanCfgEntry{WlanID: 1}
+				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{})
+			},
+		},
+		{
+			name: "collectConfigMetrics with empty policyMap",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &WLANCollector{
+					metrics:                   WLANMetrics{Config: true},
+					authPskDesc:               prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					authDot1xDesc:             prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					authDot1xSha256Desc:       prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					wpa2EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					wpa3EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					sessionTimeoutDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					loadBalanceDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					wlan11kNeighDesc:          prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					clientSteeringDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					centralSwitchingDesc:      prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					centralAuthenticationDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					centralDHCPDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					centralAssocEnableDesc:    prometheus.NewDesc("test", "test", []string{"id"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 20)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectConfigMetrics() panicked with empty policyMap: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				entry := wlan.WlanCfgEntry{WlanID: 1, ProfileName: "unknown"}
+				collector.collectConfigMetrics(ch, entry, map[string]*wlan.WlanPolicy{})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.testFunc)
+	}
+}

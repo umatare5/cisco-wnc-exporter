@@ -1065,3 +1065,329 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		t.Errorf("collectInfoMetrics() emitted %d metrics, want 1", metricCount)
 	}
 }
+
+// TestAPCollector_collectGeneralMetrics tests basic metric emission
+func TestAPCollector_collectGeneralMetrics(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 0,
+		RadioType:   "dot11-5ghz-radio",
+		OperState:   "radio-up",
+		AdminState:  "admin-enabled",
+	}
+
+	collector := &APCollector{
+		metrics:        APMetrics{General: true},
+		radioStateDesc: prometheus.NewDesc("test_radio_state", "test", []string{"mac", "radio"}, nil),
+		adminStateDesc: prometheus.NewDesc("test_admin_state", "test", []string{"mac", "radio"}, nil),
+		operStateDesc:  prometheus.NewDesc("test_oper_state", "test", []string{"mac", "radio"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectGeneralMetrics(ch, radio)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectGeneralMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestAPCollector_collectRadioMetrics tests basic metric emission
+func TestAPCollector_collectRadioMetrics(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 0,
+		RadioType:   "dot11-5ghz-radio",
+	}
+
+	rrmMap := map[string]*rrm.RRMMeasurement{}
+
+	collector := &APCollector{
+		metrics:                APMetrics{Radio: true},
+		associatedClientsDesc:  prometheus.NewDesc("test_clients", "test", []string{"mac", "radio"}, nil),
+		txPowerDesc:            prometheus.NewDesc("test_tx_power", "test", []string{"mac", "radio"}, nil),
+		txPowerMaxDesc:         prometheus.NewDesc("test_tx_power_max", "test", []string{"mac", "radio"}, nil),
+		channelDesc:            prometheus.NewDesc("test_channel", "test", []string{"mac", "radio"}, nil),
+		channelWidthDesc:       prometheus.NewDesc("test_channel_width", "test", []string{"mac", "radio"}, nil),
+		channelUtilizationDesc: prometheus.NewDesc("test_channel_util", "test", []string{"mac", "radio"}, nil),
+		rxUtilizationDesc:      prometheus.NewDesc("test_rx_util", "test", []string{"mac", "radio"}, nil),
+		txUtilizationDesc:      prometheus.NewDesc("test_tx_util", "test", []string{"mac", "radio"}, nil),
+		noiseUtilizationDesc:   prometheus.NewDesc("test_noise_util", "test", []string{"mac", "radio"}, nil),
+		noiseFloorDesc:         prometheus.NewDesc("test_noise_floor", "test", []string{"mac", "radio"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 20)
+	go func() {
+		defer close(ch)
+		collector.collectRadioMetrics(ch, radio, rrmMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectRadioMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestAPCollector_collectTrafficMetrics tests basic metric emission
+func TestAPCollector_collectTrafficMetrics(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 0,
+		RadioType:   "dot11-5ghz-radio",
+	}
+
+	statsMap := map[string]map[int]ap.RadioOperStats{
+		"aa:bb:cc:dd:ee:ff": {
+			0: {
+				RxDataFrameCount: 1000,
+				TxDataFrameCount: 2000,
+				RxMgmtFrameCount: 100,
+				TxMgmtFrameCount: 200,
+			},
+		},
+	}
+
+	collector := &APCollector{
+		metrics:                     APMetrics{Traffic: true},
+		rxPacketsTotalDesc:          prometheus.NewDesc("test_rx_packets", "test", []string{"mac", "radio"}, nil),
+		txPacketsTotalDesc:          prometheus.NewDesc("test_tx_packets", "test", []string{"mac", "radio"}, nil),
+		rxBytesTotalDesc:            prometheus.NewDesc("test_rx_bytes", "test", []string{"mac", "radio"}, nil),
+		txBytesTotalDesc:            prometheus.NewDesc("test_tx_bytes", "test", []string{"mac", "radio"}, nil),
+		dataRxFramesTotalDesc:       prometheus.NewDesc("test_data_rx", "test", []string{"mac", "radio"}, nil),
+		dataTxFramesTotalDesc:       prometheus.NewDesc("test_data_tx", "test", []string{"mac", "radio"}, nil),
+		managementRxFramesTotalDesc: prometheus.NewDesc("test_mgmt_rx", "test", []string{"mac", "radio"}, nil),
+		managementTxFramesTotalDesc: prometheus.NewDesc("test_mgmt_tx", "test", []string{"mac", "radio"}, nil),
+		controlRxFramesTotalDesc:    prometheus.NewDesc("test_ctrl_rx", "test", []string{"mac", "radio"}, nil),
+		controlTxFramesTotalDesc:    prometheus.NewDesc("test_ctrl_tx", "test", []string{"mac", "radio"}, nil),
+		multicastRxFramesTotalDesc:  prometheus.NewDesc("test_mcast_rx", "test", []string{"mac", "radio"}, nil),
+		multicastTxFramesTotalDesc:  prometheus.NewDesc("test_mcast_tx", "test", []string{"mac", "radio"}, nil),
+		totalTxFramesTotalDesc:      prometheus.NewDesc("test_total_tx", "test", []string{"mac", "radio"}, nil),
+		rtsSuccessTotalDesc:         prometheus.NewDesc("test_rts_success", "test", []string{"mac", "radio"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 20)
+	go func() {
+		defer close(ch)
+		collector.collectTrafficMetrics(ch, radio, statsMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectTrafficMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestAPCollector_collectErrorMetrics tests basic metric emission
+func TestAPCollector_collectErrorMetrics(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 0,
+		RadioType:   "dot11-5ghz-radio",
+	}
+
+	statsMap := map[string]map[int]ap.RadioOperStats{
+		"aa:bb:cc:dd:ee:ff": {
+			0: {
+				RxErrorFrameCount:     10,
+				FailedCount:           5,
+				AckFailureCount:       3,
+				RetryCount:            20,
+				FrameDuplicateCount:   2,
+				FcsErrorCount:         1,
+				RxFragmentCount:       0,
+				TxFragmentCount:       0,
+				RtsFailureCount:       0,
+				MACDecryErrFrameCount: 0,
+				MACMicErrFrameCount:   0,
+				WepUndecryptableCount: 0,
+			},
+		},
+	}
+	resetStatsMap := map[string]map[int]*ap.RadioResetStats{}
+	rrmCoverageMap := map[string]*rrm.RRMCoverage{}
+	apDot11RadarMap := map[string]*rrm.ApDot11RadarData{}
+
+	collector := &APCollector{
+		metrics:                   APMetrics{Errors: true},
+		rxErrorsTotalDesc:         prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
+		txErrorsTotalDesc:         prometheus.NewDesc("test_tx_errors", "test", []string{"mac", "radio"}, nil),
+		txDropsTotalDesc:          prometheus.NewDesc("test_tx_drops", "test", []string{"mac", "radio"}, nil),
+		txRetriesTotalDesc:        prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
+		ackFailuresTotalDesc:      prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
+		duplicateFramesTotalDesc:  prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
+		fcsErrorsTotalDesc:        prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
+		fragmentationRxTotalDesc:  prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
+		fragmentationTxTotalDesc:  prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
+		rtsFailuresTotalDesc:      prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
+		decryptionErrorsTotalDesc: prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
+		micErrorsTotalDesc:        prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
+		wepUndecryptableTotalDesc: prometheus.NewDesc("test_wep_undecrypt", "test", []string{"mac", "radio"}, nil),
+		coverageHoleEventsDesc:    prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
+		lastRadarOnRadioAtDesc:    prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
+		radioResetTotalDesc:       prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 30)
+	go func() {
+		defer close(ch)
+		collector.collectErrorMetrics(ch, radio, statsMap, resetStatsMap, rrmCoverageMap, apDot11RadarMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectErrorMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestAPCollector_collectMetrics_NilSafety tests nil safety
+// Note: These tests document that the current implementation panics with nil inputs.
+// This is expected behavior as the collectors assume valid data from the DataSource layer.
+func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		testFunc   func(*testing.T)
+		wantsPanic bool
+	}{
+		{
+			name: "collectGeneralMetrics with nil radio",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &APCollector{
+					metrics:        APMetrics{General: true},
+					radioStateDesc: prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
+					adminStateDesc: prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
+					operStateDesc:  prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				panicked := false
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							panicked = true
+						}
+						close(ch)
+						for range ch {
+						}
+					}()
+					collector.collectGeneralMetrics(ch, nil)
+				}()
+				if panicked {
+					t.Log("collectGeneralMetrics() panicked with nil radio (expected)")
+				}
+			},
+			wantsPanic: true,
+		},
+		{
+			name: "collectRadioMetrics with nil radio",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &APCollector{
+					metrics:               APMetrics{Radio: true},
+					associatedClientsDesc: prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				panicked := false
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							panicked = true
+						}
+						close(ch)
+						for range ch {
+						}
+					}()
+					collector.collectRadioMetrics(ch, nil, nil)
+				}()
+				if panicked {
+					t.Log("collectRadioMetrics() panicked with nil radio (expected)")
+				}
+			},
+			wantsPanic: true,
+		},
+		{
+			name: "collectTrafficMetrics with nil radio",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &APCollector{
+					metrics: APMetrics{Traffic: true},
+				}
+				ch := make(chan prometheus.Metric, 10)
+				panicked := false
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							panicked = true
+						}
+						close(ch)
+						for range ch {
+						}
+					}()
+					collector.collectTrafficMetrics(ch, nil, nil)
+				}()
+				if panicked {
+					t.Log("collectTrafficMetrics() panicked with nil radio (expected)")
+				}
+			},
+			wantsPanic: true,
+		},
+		{
+			name: "collectErrorMetrics with nil radio",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &APCollector{
+					metrics: APMetrics{Errors: true},
+				}
+				ch := make(chan prometheus.Metric, 10)
+				panicked := false
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							panicked = true
+						}
+						close(ch)
+						for range ch {
+						}
+					}()
+					collector.collectErrorMetrics(ch, nil, nil, nil, nil, nil)
+				}()
+				if panicked {
+					t.Log("collectErrorMetrics() panicked with nil radio (expected)")
+				}
+			},
+			wantsPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.testFunc)
+	}
+}

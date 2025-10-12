@@ -3,6 +3,9 @@ package wnc
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -305,4 +308,474 @@ func TestDataFetcher_Structure(t *testing.T) {
 	if err != nil {
 		t.Errorf("dataFetcher fetch() error = %v, want nil", err)
 	}
+}
+
+// Test Phase 1 & 2: fetchAllData with httptest.Server mock
+
+func TestDataSource_FetchAllData_Success(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(mockServerConfig{
+		apCAPWAPSuccess:    true,
+		apOperSuccess:      true,
+		radioOperSuccess:   true,
+		nameMACSuccess:     true,
+		rrmMeasSuccess:     true,
+		wlanCfgSuccess:     true,
+		wlanPolicySuccess:  true,
+		wlanPolicyListSucc: true,
+		clientCommonSucc:   true,
+		clientDCSuccess:    true,
+		clientDot11Succ:    true,
+		clientSISFSuccess:  true,
+		clientTrafficSucc:  true,
+		clientMobilitySucc: true,
+		radioStatsSuccess:  true,
+		radioResetSuccess:  true,
+		rrmCoverageSuccess: true,
+		apRadarSuccess:     true,
+	})
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	data, err := ds.GetCachedData(ctx)
+	if err != nil {
+		t.Fatalf("GetCachedData() error = %v, want nil", err)
+	}
+
+	if len(data.CAPWAPData) != 1 {
+		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
+	}
+	if len(data.ApOperData) != 1 {
+		t.Errorf("ApOperData length = %d, want 1", len(data.ApOperData))
+	}
+	if len(data.RadioOperData) != 1 {
+		t.Errorf("RadioOperData length = %d, want 1", len(data.RadioOperData))
+	}
+}
+
+func TestDataSource_FetchAllData_RequiredFetcherFailure(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(mockServerConfig{
+		apCAPWAPSuccess: false, // Required fetcher fails
+	})
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	_, err := ds.GetCachedData(ctx)
+	if err == nil {
+		t.Fatal("GetCachedData() error = nil, want error")
+	}
+
+	if !strings.Contains(err.Error(), "failed to fetch AP CAPWAP") {
+		t.Errorf("error message = %v, want to contain 'failed to fetch AP CAPWAP'", err)
+	}
+}
+
+func TestDataSource_FetchAllData_OptionalFetcherFailure(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(mockServerConfig{
+		apCAPWAPSuccess:    true,
+		apOperSuccess:      true,
+		radioOperSuccess:   true,
+		nameMACSuccess:     true,
+		rrmMeasSuccess:     true,
+		wlanCfgSuccess:     true,
+		wlanPolicySuccess:  true,
+		wlanPolicyListSucc: true,
+		clientCommonSucc:   true,
+		clientDCSuccess:    true,
+		clientDot11Succ:    true,
+		clientSISFSuccess:  true,
+		clientTrafficSucc:  true,
+		clientMobilitySucc: true,
+		radioStatsSuccess:  false, // Optional fetcher fails
+		radioResetSuccess:  true,
+		rrmCoverageSuccess: true,
+		apRadarSuccess:     true,
+	})
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	data, err := ds.GetCachedData(ctx)
+	if err != nil {
+		t.Fatalf("GetCachedData() error = %v, want nil (optional failure should not error)", err)
+	}
+
+	// Optional data should be empty
+	if len(data.RadioOperStats) != 0 {
+		t.Errorf(
+			"RadioOperStats length = %d, want 0 (optional fetcher failed)",
+			len(data.RadioOperStats),
+		)
+	}
+
+	// Required data should be present
+	if len(data.CAPWAPData) != 1 {
+		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
+	}
+}
+
+func TestDataSource_FetchAllData_HTTPError(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error": "internal server error"}`))
+	}))
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	_, err := ds.GetCachedData(ctx)
+	if err == nil {
+		t.Fatal("GetCachedData() error = nil, want error")
+	}
+}
+
+func TestDataSource_FetchAllData_Timeout(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       100 * time.Millisecond,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	_, err := ds.GetCachedData(ctx)
+	if err == nil {
+		t.Fatal("GetCachedData() error = nil, want timeout error")
+	}
+}
+
+func TestDataSource_FetchAllData_Unauthorized(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+	}))
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "invalid-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	_, err := ds.GetCachedData(ctx)
+	if err == nil {
+		t.Fatal("GetCachedData() error = nil, want unauthorized error")
+	}
+}
+
+func TestDataSource_FetchAllData_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yang-data+json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{invalid json}`))
+	}))
+	defer server.Close()
+
+	cfg := config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}
+
+	ds := NewDataSource(cfg)
+	ctx := context.Background()
+
+	_, err := ds.GetCachedData(ctx)
+	if err == nil {
+		t.Fatal("GetCachedData() error = nil, want JSON parse error")
+	}
+}
+
+// mockServerConfig controls which endpoints return success responses.
+type mockServerConfig struct {
+	apCAPWAPSuccess    bool
+	apOperSuccess      bool
+	radioOperSuccess   bool
+	nameMACSuccess     bool
+	rrmMeasSuccess     bool
+	wlanCfgSuccess     bool
+	wlanPolicySuccess  bool
+	wlanPolicyListSucc bool
+	clientCommonSucc   bool
+	clientDCSuccess    bool
+	clientDot11Succ    bool
+	clientSISFSuccess  bool
+	clientTrafficSucc  bool
+	clientMobilitySucc bool
+	radioStatsSuccess  bool
+	radioResetSuccess  bool
+	rrmCoverageSuccess bool
+	apRadarSuccess     bool
+}
+
+// newMockWNCServer creates an httptest.Server that simulates WNC API endpoints.
+// Uses mock data from existing test files (ap_test.go, client_test.go, etc.).
+func newMockWNCServer(cfg mockServerConfig) *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yang-data+json")
+
+		switch {
+		case strings.Contains(r.URL.Path, "capwap-data"):
+			if cfg.apCAPWAPSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:capwap-data":` +
+						`[{"wtp-mac":"aa:bb:cc:11:22:80","ip-addr":"192.168.255.11","name":"TEST-AP01"}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "oper-data") && !strings.Contains(r.URL.Path, "radio-oper-data"):
+			if cfg.apOperSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:oper-data":` +
+						`[{"wtp-mac":"aa:bb:cc:11:22:80","radio-id":0}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "radio-oper-data") && !strings.Contains(r.URL.Path, "stats"):
+			if cfg.radioOperSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-oper-data":` +
+						`[{"wtp-mac":"aa:bb:cc:11:22:80","radio-slot-id":0}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "ap-name-mac-map"):
+			if cfg.nameMACSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:ap-name-mac-map":` +
+						`[{"wtp-name":"TEST-AP01","eth-mac":"aa:bb:cc:11:22:80"}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "rrm-measurement"):
+			if cfg.rrmMeasSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-rrm-oper:rrm-measurement":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "wlan-cfg-data/wlan-cfg-entries"):
+			if cfg.wlanCfgSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-wlan-cfg:wlan-cfg-entries":{"wlan-cfg-entry":[{"wlan-id":1}]}}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "wlan-policies"):
+			if cfg.wlanPolicySuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-wlan-cfg:wlan-policies":` +
+						`{"wlan-policy":[{"policy-profile-name":"test-policy"}]}}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "policy-list-entries"):
+			if cfg.wlanPolicyListSucc {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-wlan-cfg:policy-list-entries":` +
+						`{"policy-list-entry":[{"tag-name":"test-tag"}]}}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "common-oper-data"):
+			if cfg.clientCommonSucc {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-client-oper:common-oper-data":[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "dc-info"):
+			if cfg.clientDCSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-client-oper:dc-info":[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "dot11-oper-data"):
+			if cfg.clientDot11Succ {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-client-oper:dot11-oper-data":` +
+						`[{"ms-mac-address":"aa:bb:cc:11:22:a9"}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "sisf-db-mac"):
+			if cfg.clientSISFSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-client-oper:sisf-db-mac":[{"mac-addr":"aa:bb:cc:11:22:a9"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "traffic-stats"):
+			if cfg.clientTrafficSucc {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-client-oper:traffic-stats":` +
+						`[{"ms-mac-address":"aa:bb:cc:11:22:a9"}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "mm-if-client-history"):
+			if cfg.clientMobilitySucc {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-client-oper:mm-if-client-history":` +
+						`[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "radio-oper-data/radio-oper-stats"):
+			if cfg.radioStatsSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-oper-stats":` +
+						`[{"ap-mac":"aa:bb:cc:11:22:80","slot-id":0}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "radio-reset-stats"):
+			if cfg.radioResetSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(
+					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-reset-stats":` +
+						`[{"ap-mac":"aa:bb:cc:11:22:80","radio-id":0}]}`,
+				))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "rrm-coverage"):
+			if cfg.rrmCoverageSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-rrm-oper:rrm-coverage":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		case strings.Contains(r.URL.Path, "ap-dot11-radar-data"):
+			if cfg.apRadarSuccess {
+				w.WriteHeader(http.StatusOK)
+				w.Write(
+					[]byte(
+						`{"Cisco-IOS-XE-wireless-rrm-oper:ap-dot11-radar-data":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
+					),
+				)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+// extractHostFromURL extracts host:port from httptest.Server URL (removes https://).
+func extractHostFromURL(url string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
 }

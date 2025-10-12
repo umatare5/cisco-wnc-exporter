@@ -1,4 +1,4 @@
-.PHONY: help build lint test-unit test-coverage clean
+.PHONY: help build lint test-unit test-unit-coverage clean
 
 # Binary name and paths
 BINARY_NAME := cisco-wnc-exporter
@@ -19,7 +19,7 @@ help:
 	@echo "  build              - Build the binary"
 	@echo "  lint               - Run linters (golangci-lint)"
 	@echo "  test-unit          - Run unit tests with colored output"
-	@echo "  test-coverage      - Generate HTML coverage report"
+	@echo "  test-unit-coverage      - Generate HTML coverage report"
 	@echo "  clean              - Remove build artifacts and backup files"
 	@echo "  image              - Build Docker image"
 	@echo ""
@@ -46,7 +46,7 @@ test-unit:
 	gotestsum --format testname -- -coverprofile=$(COVERAGE_DIR)/report.out ./...
 
 # Generate coverage report (HTML)
-test-coverage: test-unit
+test-unit-coverage: test-unit
 	go tool cover -html=$(COVERAGE_DIR)/report.out -o $(COVERAGE_DIR)/report.html
 	@echo "Coverage report generated: $(COVERAGE_DIR)/report.html"
 

@@ -520,15 +520,15 @@ This section describes how to configure Prometheus to scrape metrics from the co
 
 The following `make` commands are available for development and testing:
 
-| Command              | Description                                    |
-| :------------------- | :--------------------------------------------- |
-| `make help`          | Display available targets and requirements     |
-| `make build`         | Build the binary to `./tmp/cisco-wnc-exporter` |
-| `make lint`          | Run golangci-lint and tidy go.mod              |
-| `make test-unit`     | Run unit tests with coverage using gotestsum   |
-| `make test-coverage` | Generate HTML coverage report                  |
-| `make clean`         | Remove build artifacts and backup files        |
-| `make image`         | Build Docker image                             |
+| Command                   | Description                                    |
+| :------------------------ | :--------------------------------------------- |
+| `make help`               | Display available targets and requirements     |
+| `make build`              | Build the binary to `./tmp/cisco-wnc-exporter` |
+| `make lint`               | Run golangci-lint and tidy go.mod              |
+| `make test-unit`          | Run unit tests with coverage using gotestsum   |
+| `make test-unit-coverage` | Generate HTML coverage report                  |
+| `make clean`              | Remove build artifacts and backup files        |
+| `make image`              | Build Docker image                             |
 
 ### Build
 

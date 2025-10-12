@@ -1051,3 +1051,326 @@ func TestClientCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		t.Errorf("collectInfoMetrics() emitted %d metrics, want 1", metricCount)
 	}
 }
+
+// TestClientCollector_collectGeneralMetrics tests basic metric emission
+func TestClientCollector_collectGeneralMetrics(t *testing.T) {
+	t.Parallel()
+
+	data := client.CommonOperData{
+		ClientMAC:   "aa:bb:cc:dd:ee:ff",
+		ApName:      "AP-01",
+		CoState:     "associated",
+		MsRadioType: "dot11-5ghz-radio",
+	}
+
+	trafficMap := map[string]client.TrafficStats{
+		"aa:bb:cc:dd:ee:ff": {
+			PowerSaveState: 0,
+		},
+	}
+
+	dot11Map := map[string]client.Dot11OperData{
+		"aa:bb:cc:dd:ee:ff": {
+			MsMACAddress: "aa:bb:cc:dd:ee:ff",
+			MsAssocTime:  time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	mobilityMap := map[string]client.MmIfClientHistory{}
+
+	collector := &ClientCollector{
+		metrics:                    ClientMetrics{General: true},
+		stateDesc:                  prometheus.NewDesc("test_state", "test", []string{"mac"}, nil),
+		associationUptimeDesc:      prometheus.NewDesc("test_uptime", "test", []string{"mac"}, nil),
+		stateTransitionSecondsDesc: prometheus.NewDesc("test_transition", "test", []string{"mac"}, nil),
+		powerSaveStateDesc:         prometheus.NewDesc("test_power_save", "test", []string{"mac"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectGeneralMetrics(ch, data, trafficMap, dot11Map, mobilityMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectGeneralMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestClientCollector_collectRadioMetrics tests basic metric emission
+func TestClientCollector_collectRadioMetrics(t *testing.T) {
+	t.Parallel()
+
+	data := client.CommonOperData{
+		ClientMAC:   "aa:bb:cc:dd:ee:ff",
+		MsRadioType: "dot11-5ghz-radio",
+	}
+
+	trafficMap := map[string]client.TrafficStats{
+		"aa:bb:cc:dd:ee:ff": {
+			Speed:          866,
+			SpatialStream:  2,
+			CurrentRate:    "mcs9",
+			MostRecentRSSI: -45,
+			MostRecentSNR:  35,
+		},
+	}
+
+	dot11Map := map[string]client.Dot11OperData{
+		"aa:bb:cc:dd:ee:ff": {
+			MsMACAddress:  "aa:bb:cc:dd:ee:ff",
+			EwlcMsPhyType: "ax",
+			RadioType:     "dot11-5ghz-radio",
+			Is11GClient:   false,
+		},
+	}
+
+	collector := &ClientCollector{
+		metrics:            ClientMetrics{Radio: true},
+		protocolDesc:       prometheus.NewDesc("test_protocol", "test", []string{"mac"}, nil),
+		speedDesc:          prometheus.NewDesc("test_speed", "test", []string{"mac"}, nil),
+		spatialStreamsDesc: prometheus.NewDesc("test_spatial_streams", "test", []string{"mac"}, nil),
+		mcsIndexDesc:       prometheus.NewDesc("test_mcs_index", "test", []string{"mac"}, nil),
+		rssiDesc:           prometheus.NewDesc("test_rssi", "test", []string{"mac"}, nil),
+		snrDesc:            prometheus.NewDesc("test_snr", "test", []string{"mac"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectRadioMetrics(ch, data, trafficMap, dot11Map)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectRadioMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestClientCollector_collectTrafficMetrics tests basic metric emission
+func TestClientCollector_collectTrafficMetrics(t *testing.T) {
+	t.Parallel()
+
+	data := client.CommonOperData{
+		ClientMAC: "aa:bb:cc:dd:ee:ff",
+	}
+
+	trafficMap := map[string]client.TrafficStats{
+		"aa:bb:cc:dd:ee:ff": {
+			BytesRx: "1000000",
+			BytesTx: "2000000",
+			PktsRx:  "10000",
+			PktsTx:  "20000",
+		},
+	}
+
+	collector := &ClientCollector{
+		metrics:       ClientMetrics{Traffic: true},
+		bytesRxDesc:   prometheus.NewDesc("test_bytes_rx", "test", []string{"mac"}, nil),
+		bytesTxDesc:   prometheus.NewDesc("test_bytes_tx", "test", []string{"mac"}, nil),
+		packetsRxDesc: prometheus.NewDesc("test_packets_rx", "test", []string{"mac"}, nil),
+		packetsTxDesc: prometheus.NewDesc("test_packets_tx", "test", []string{"mac"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		defer close(ch)
+		collector.collectTrafficMetrics(ch, data, trafficMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectTrafficMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestClientCollector_collectErrorMetrics tests basic metric emission
+func TestClientCollector_collectErrorMetrics(t *testing.T) {
+	t.Parallel()
+
+	data := client.CommonOperData{
+		ClientMAC: "aa:bb:cc:dd:ee:ff",
+	}
+
+	trafficMap := map[string]client.TrafficStats{
+		"aa:bb:cc:dd:ee:ff": {
+			PolicyErrs:         "10",
+			DuplicateRcv:       "5",
+			DecryptFailed:      "2",
+			MicMismatch:        "1",
+			MicMissing:         "0",
+			TxExcessiveRetries: "3",
+			RxGroupCounter:     "0",
+			TxTotalDrops:       "4",
+			DataRetries:        "100",
+			RtsRetries:         "20",
+			TxRetries:          "50",
+			PktsTx:             "10000",
+		},
+	}
+
+	collector := &ClientCollector{
+		metrics:               ClientMetrics{Errors: true},
+		retryRatioDesc:        prometheus.NewDesc("test_retry_ratio", "test", []string{"mac"}, nil),
+		policyErrorsDesc:      prometheus.NewDesc("test_policy_errors", "test", []string{"mac"}, nil),
+		duplicateReceivedDesc: prometheus.NewDesc("test_duplicate_received", "test", []string{"mac"}, nil),
+		decryptionFailedDesc:  prometheus.NewDesc("test_decryption_failed", "test", []string{"mac"}, nil),
+		micMismatchDesc:       prometheus.NewDesc("test_mic_mismatch", "test", []string{"mac"}, nil),
+		micMissingDesc:        prometheus.NewDesc("test_mic_missing", "test", []string{"mac"}, nil),
+		excessiveRetriesDesc:  prometheus.NewDesc("test_excessive_retries", "test", []string{"mac"}, nil),
+		rxGroupCounterDesc:    prometheus.NewDesc("test_rx_group_counter", "test", []string{"mac"}, nil),
+		txTotalDropsDesc:      prometheus.NewDesc("test_tx_total_drops", "test", []string{"mac"}, nil),
+		dataRetriesDesc:       prometheus.NewDesc("test_data_retries", "test", []string{"mac"}, nil),
+		rtsRetriesDesc:        prometheus.NewDesc("test_rts_retries", "test", []string{"mac"}, nil),
+		txRetriesDesc:         prometheus.NewDesc("test_tx_retries", "test", []string{"mac"}, nil),
+	}
+
+	ch := make(chan prometheus.Metric, 20)
+	go func() {
+		defer close(ch)
+		collector.collectErrorMetrics(ch, data, trafficMap)
+	}()
+
+	metricCount := 0
+	for range ch {
+		metricCount++
+	}
+
+	if metricCount == 0 {
+		t.Error("collectErrorMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+// TestClientCollector_collectMetrics_NilSafety tests nil safety
+func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		testFunc func(*testing.T)
+	}{
+		{
+			name: "collectGeneralMetrics with empty maps",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &ClientCollector{
+					metrics:                    ClientMetrics{General: true},
+					stateDesc:                  prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					associationUptimeDesc:      prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					stateTransitionSecondsDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					powerSaveStateDesc:         prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectGeneralMetrics() panicked with empty maps: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
+				collector.collectGeneralMetrics(ch, data, map[string]client.TrafficStats{}, map[string]client.Dot11OperData{}, map[string]client.MmIfClientHistory{})
+			},
+		},
+		{
+			name: "collectRadioMetrics with empty maps",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &ClientCollector{
+					metrics:            ClientMetrics{Radio: true},
+					protocolDesc:       prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					speedDesc:          prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					spatialStreamsDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					mcsIndexDesc:       prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					rssiDesc:           prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					snrDesc:            prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectRadioMetrics() panicked with empty maps: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
+				collector.collectRadioMetrics(ch, data, map[string]client.TrafficStats{}, map[string]client.Dot11OperData{})
+			},
+		},
+		{
+			name: "collectTrafficMetrics with empty maps",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &ClientCollector{
+					metrics:       ClientMetrics{Traffic: true},
+					bytesRxDesc:   prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					bytesTxDesc:   prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					packetsRxDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					packetsTxDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 10)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectTrafficMetrics() panicked with empty maps: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
+				collector.collectTrafficMetrics(ch, data, map[string]client.TrafficStats{})
+			},
+		},
+		{
+			name: "collectErrorMetrics with empty maps",
+			testFunc: func(t *testing.T) {
+				t.Parallel()
+				collector := &ClientCollector{
+					metrics:               ClientMetrics{Errors: true},
+					retryRatioDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					policyErrorsDesc:      prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					duplicateReceivedDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					decryptionFailedDesc:  prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					micMismatchDesc:       prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					micMissingDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					excessiveRetriesDesc:  prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					rxGroupCounterDesc:    prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					txTotalDropsDesc:      prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					dataRetriesDesc:       prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					rtsRetriesDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+					txRetriesDesc:         prometheus.NewDesc("test", "test", []string{"mac"}, nil),
+				}
+				ch := make(chan prometheus.Metric, 20)
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("collectErrorMetrics() panicked with empty maps: %v", r)
+					}
+					close(ch)
+					for range ch {
+					}
+				}()
+				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
+				collector.collectErrorMetrics(ch, data, map[string]client.TrafficStats{})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.testFunc)
+	}
+}

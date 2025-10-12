@@ -15,9 +15,7 @@ func TestRegisterFlags(t *testing.T) {
 		expectedCount int
 	}{
 		{
-			name: "All flags registered",
-			// 3 (web) + 5 (wnc) + 1 (collector) + 2 (log) + 1 (utility) +
-			// 2 (internal) + 6 (ap) + 5 (wlan) + 6 (client) = 31 flags
+			name:          "All flags registered",
 			expectedCount: 31,
 		},
 	}
