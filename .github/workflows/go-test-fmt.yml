@@ -13,6 +13,6 @@ jobs:
   fmt:
     uses: umatare5/common/.github/workflows/go-test-fmt.yml@27d895ee9f1410471625dd66c22c0d63bb84b3b7 # v0.13.0
     with:
-      go_version: "1.25.1"
+      go_version: "1.25.2"
       golangci_lint_version: "v2.4.0"
       golangci_lint_config: ".golangci.yml"

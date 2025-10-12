@@ -17,5 +17,5 @@ jobs:
   release:
     uses: umatare5/common/.github/workflows/go-release.yml@27d895ee9f1410471625dd66c22c0d63bb84b3b7 # v0.13.0
     with:
-      go_version: "1.25.1"
+      go_version: "1.25.2"
       goreleaser_version: "v2.11.1"
