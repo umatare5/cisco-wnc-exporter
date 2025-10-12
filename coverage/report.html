@@ -63,17 +63,17 @@
 				
 				<option value="file3">github.com/umatare5/cisco-wnc-exporter/internal/cli/version.go (100.0%)</option>
 				
-				<option value="file4">github.com/umatare5/cisco-wnc-exporter/internal/collector/ap.go (73.5%)</option>
+				<option value="file4">github.com/umatare5/cisco-wnc-exporter/internal/collector/ap.go (85.0%)</option>
 				
 				<option value="file5">github.com/umatare5/cisco-wnc-exporter/internal/collector/cache.go (100.0%)</option>
 				
-				<option value="file6">github.com/umatare5/cisco-wnc-exporter/internal/collector/client.go (66.8%)</option>
+				<option value="file6">github.com/umatare5/cisco-wnc-exporter/internal/collector/client.go (79.4%)</option>
 				
 				<option value="file7">github.com/umatare5/cisco-wnc-exporter/internal/collector/collector.go (93.8%)</option>
 				
 				<option value="file8">github.com/umatare5/cisco-wnc-exporter/internal/collector/utils.go (100.0%)</option>
 				
-				<option value="file9">github.com/umatare5/cisco-wnc-exporter/internal/collector/wlan.go (74.5%)</option>
+				<option value="file9">github.com/umatare5/cisco-wnc-exporter/internal/collector/wlan.go (83.6%)</option>
 				
 				<option value="file10">github.com/umatare5/cisco-wnc-exporter/internal/config/config.go (94.4%)</option>
 				
@@ -85,7 +85,7 @@
 				
 				<option value="file14">github.com/umatare5/cisco-wnc-exporter/internal/wnc/ap.go (100.0%)</option>
 				
-				<option value="file15">github.com/umatare5/cisco-wnc-exporter/internal/wnc/cache.go (0.8%)</option>
+				<option value="file15">github.com/umatare5/cisco-wnc-exporter/internal/wnc/cache.go (83.6%)</option>
 				
 				<option value="file16">github.com/umatare5/cisco-wnc-exporter/internal/wnc/client.go (100.0%)</option>
 				
@@ -1156,7 +1156,7 @@ func (c *APCollector) collectSystemMetrics(
 func (c *APCollector) collectGeneralMetrics(
         ch chan&lt;- prometheus.Metric,
         radio *ap.RadioOperData,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 
         metrics := []Float64Metric{
@@ -1165,7 +1165,7 @@ func (c *APCollector) collectGeneralMetrics(
                 {c.operStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
         }</span>
 }
@@ -1175,7 +1175,7 @@ func (c *APCollector) collectRadioMetrics(
         ch chan&lt;- prometheus.Metric,
         radio *ap.RadioOperData,
         rrmMeasurementsMap map[string]*rrm.RRMMeasurement,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
         radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
@@ -1187,7 +1187,7 @@ func (c *APCollector) collectRadioMetrics(
                 }</span>
         }
 
-        <span class="cov0" title="0">metrics := []Float64Metric{}
+        <span class="cov8" title="1">metrics := []Float64Metric{}
 
         if len(radio.RadioBandInfo) &gt; 0 </span><span class="cov0" title="0">{
                 metrics = append(metrics,
@@ -1196,14 +1196,14 @@ func (c *APCollector) collectRadioMetrics(
                 )
         }</span>
 
-        <span class="cov0" title="0">if radio.PhyHtCfg != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if radio.PhyHtCfg != nil </span><span class="cov0" title="0">{
                 metrics = append(metrics,
                         Float64Metric{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
                         Float64Metric{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
                 )
         }</span>
 
-        <span class="cov0" title="0">if rrmData, ok := rrmMeasurementsMap[radioID]; ok </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if rrmData, ok := rrmMeasurementsMap[radioID]; ok </span><span class="cov0" title="0">{
                 metrics = append(metrics,
                         Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
                         Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
@@ -1217,11 +1217,11 @@ func (c *APCollector) collectRadioMetrics(
                 }</span>
         }
 
-        <span class="cov0" title="0">metrics = append(metrics,
+        <span class="cov8" title="1">metrics = append(metrics,
                 Float64Metric{c.associatedClientsDesc, clientCount},
         )
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
         }</span>
 }
@@ -1230,13 +1230,13 @@ func (c *APCollector) collectTrafficMetrics(
         ch chan&lt;- prometheus.Metric,
         radio *ap.RadioOperData,
         radioOperStatsMap map[string]map[int]ap.RadioOperStats,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
         if !ok </span><span class="cov0" title="0">{
                 return
         }</span>
 
-        <span class="cov0" title="0">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+        <span class="cov8" title="1">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
         const averageFrameSize = 1500
 
         trafficMetrics := []Float64Metric{
@@ -1256,7 +1256,7 @@ func (c *APCollector) collectTrafficMetrics(
                 {c.rtsSuccessTotalDesc, float64(stats.RtsSuccessCount)},
         }
 
-        for _, metric := range trafficMetrics </span><span class="cov0" title="0">{
+        for _, metric := range trafficMetrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.CounterValue, metric.Value, labels...)
         }</span>
 }
@@ -1268,13 +1268,13 @@ func (c *APCollector) collectErrorMetrics(
         radioResetStatsMap map[string]map[int]*ap.RadioResetStats,
         rrmCoverageMap map[string]*rrm.RRMCoverage,
         apDot11RadarMap map[string]*rrm.ApDot11RadarData,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
         if !ok </span><span class="cov0" title="0">{
                 return
         }</span>
 
-        <span class="cov0" title="0">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+        <span class="cov8" title="1">labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
         radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
         var radioResetCount float64
@@ -1282,19 +1282,19 @@ func (c *APCollector) collectErrorMetrics(
                 radioResetCount = float64(resetStats.Count)
         }</span>
 
-        <span class="cov0" title="0">var coverageHoleEvents float64
+        <span class="cov8" title="1">var coverageHoleEvents float64
         if coverage, exists := rrmCoverageMap[radioID]; exists </span><span class="cov0" title="0">{
                 coverageHoleEvents = float64(coverage.FailedClientCount)
         }</span>
 
-        <span class="cov0" title="0">var lastRadarOnRadioAt float64
+        <span class="cov8" title="1">var lastRadarOnRadioAt float64
         if radar, exists := apDot11RadarMap[radioID]; exists </span><span class="cov0" title="0">{
                 if !radar.LastRadarOnRadio.IsZero() &amp;&amp; radar.LastRadarOnRadio.Year() &gt; 1970 </span><span class="cov0" title="0">{
                         lastRadarOnRadioAt = float64(radar.LastRadarOnRadio.Unix())
                 }</span>
         }
 
-        <span class="cov0" title="0">errorMetrics := []Float64Metric{
+        <span class="cov8" title="1">errorMetrics := []Float64Metric{
                 {c.rxErrorsTotalDesc, float64(stats.RxErrorFrameCount)},
                 {c.txErrorsTotalDesc, float64(stats.FailedCount)},
                 {c.txDropsTotalDesc, float64(stats.AckFailureCount)},
@@ -1313,7 +1313,7 @@ func (c *APCollector) collectErrorMetrics(
                 {c.radioResetTotalDesc, radioResetCount},
         }
 
-        for _, metric := range errorMetrics </span><span class="cov0" title="0">{
+        for _, metric := range errorMetrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(metric.Desc, prometheus.CounterValue, metric.Value, labels...)
         }</span>
 }
@@ -1928,7 +1928,7 @@ func (c *ClientCollector) collectGeneralMetrics(
         trafficMap map[string]client.TrafficStats,
         dot11Map map[string]client.Dot11OperData,
         mobilityMap map[string]client.MmIfClientHistory,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{data.ClientMAC}
         traffic := trafficMap[data.ClientMAC]
         dot11 := dot11Map[data.ClientMAC]
@@ -1940,7 +1940,7 @@ func (c *ClientCollector) collectGeneralMetrics(
                 {c.powerSaveStateDesc, float64(traffic.PowerSaveState)},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.GaugeValue,
@@ -1956,7 +1956,7 @@ func (c *ClientCollector) collectRadioMetrics(
         data client.CommonOperData,
         trafficMap map[string]client.TrafficStats,
         dot11Map map[string]client.Dot11OperData,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{data.ClientMAC}
         traffic := trafficMap[data.ClientMAC]
         dot11 := dot11Map[data.ClientMAC]
@@ -1970,7 +1970,7 @@ func (c *ClientCollector) collectRadioMetrics(
                 {c.snrDesc, float64(traffic.MostRecentSNR)},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.GaugeValue,
@@ -1985,7 +1985,7 @@ func (c *ClientCollector) collectTrafficMetrics(
         ch chan&lt;- prometheus.Metric,
         data client.CommonOperData,
         trafficMap map[string]client.TrafficStats,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{data.ClientMAC}
         traffic := trafficMap[data.ClientMAC]
 
@@ -1996,7 +1996,7 @@ func (c *ClientCollector) collectTrafficMetrics(
                 {c.packetsTxDesc, traffic.PktsTx},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.CounterValue,
@@ -2011,7 +2011,7 @@ func (c *ClientCollector) collectErrorMetrics(
         ch chan&lt;- prometheus.Metric,
         data client.CommonOperData,
         trafficMap map[string]client.TrafficStats,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{data.ClientMAC}
         traffic := trafficMap[data.ClientMAC]
 
@@ -2041,7 +2041,7 @@ func (c *ClientCollector) collectErrorMetrics(
                 {c.txRetriesDesc, traffic.TxRetries},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.CounterValue,
@@ -2833,14 +2833,14 @@ func (c *WLANCollector) Collect(ch chan&lt;- prometheus.Metric) <span class="cov
 func (c *WLANCollector) collectGeneralMetrics(
         ch chan&lt;- prometheus.Metric,
         entry wlan.WlanCfgEntry,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{strconv.Itoa(entry.WlanID)}
 
         metrics := []Float64Metric{
                 {c.enabledDesc, float64(determineWLANEnabledStatus(entry))},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.GaugeValue,
@@ -2855,7 +2855,7 @@ func (c *WLANCollector) collectTrafficMetrics(
         ch chan&lt;- prometheus.Metric,
         entry wlan.WlanCfgEntry,
         wlanStatsMap map[int]wlanStats,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{strconv.Itoa(entry.WlanID)}
         stats := wlanStatsMap[entry.WlanID]
 
@@ -2871,7 +2871,7 @@ func (c *WLANCollector) collectTrafficMetrics(
                 {c.bytesTxDesc, float64(stats.bytesTx)},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.CounterValue,
@@ -2894,7 +2894,7 @@ func (c *WLANCollector) collectConfigMetrics(
         ch chan&lt;- prometheus.Metric,
         entry wlan.WlanCfgEntry,
         policyMap map[string]*wlan.WlanPolicy,
-) <span class="cov0" title="0">{
+) <span class="cov8" title="1">{
         labels := []string{strconv.Itoa(entry.WlanID)}
         profile := policyMap[entry.ProfileName]
 
@@ -2914,7 +2914,7 @@ func (c *WLANCollector) collectConfigMetrics(
                 {c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
         }
 
-        for _, metric := range metrics </span><span class="cov0" title="0">{
+        for _, metric := range metrics </span><span class="cov8" title="1">{
                 ch &lt;- prometheus.MustNewConstMetric(
                         metric.Desc,
                         prometheus.GaugeValue,
@@ -3842,27 +3842,27 @@ func NewDataSource(cfg config.WNC) DataSource <span class="cov8" title="1">{
         }
 }</span>
 
-func (s *dataSource) GetCachedData(ctx context.Context) (*WNCDataCache, error) <span class="cov0" title="0">{
-        return s.cache.Get(func() (*WNCDataCache, error) </span><span class="cov0" title="0">{
+func (s *dataSource) GetCachedData(ctx context.Context) (*WNCDataCache, error) <span class="cov8" title="1">{
+        return s.cache.Get(func() (*WNCDataCache, error) </span><span class="cov8" title="1">{
                 data, err := s.fetchAllData(ctx)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         return nil, fmt.Errorf("cache refresh failed: %w", err)
                 }</span>
-                <span class="cov0" title="0">return data, nil</span>
+                <span class="cov8" title="1">return data, nil</span>
         })
 }
 
-func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <span class="cov0" title="0">{
+func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <span class="cov8" title="1">{
         data := &amp;WNCDataCache{}
 
         // Define all data fetchers with their criticality
         fetchers := []dataFetcher{
-                {"AP CAPWAP", true, func(ctx context.Context, c *WNCDataCache) error </span><span class="cov0" title="0">{
+                {"AP CAPWAP", true, func(ctx context.Context, c *WNCDataCache) error </span><span class="cov8" title="1">{
                         data, err := s.client.AP().ListCAPWAPData(ctx)
-                        if err != nil </span><span class="cov0" title="0">{
+                        if err != nil </span><span class="cov8" title="1">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.CAPWAPData = data.CAPWAPData
+                        <span class="cov8" title="1">c.CAPWAPData = data.CAPWAPData
                         slog.Info(
                                 "AP CAPWAP data retrieved from WNC successfully",
                                 "count",
@@ -3870,12 +3870,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"AP operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"AP operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.AP().ListApOperData(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.ApOperData = data.OperData
+                        <span class="cov8" title="1">c.ApOperData = data.OperData
                         slog.Info(
                                 "AP operational data retrieved from WNC successfully",
                                 "count",
@@ -3883,12 +3883,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"radio operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"radio operational", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.AP().ListRadioData(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.RadioOperData = data.RadioOperData
+                        <span class="cov8" title="1">c.RadioOperData = data.RadioOperData
                         slog.Info(
                                 "radio operational data retrieved from WNC successfully",
                                 "count",
@@ -3896,12 +3896,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"AP name to MAC mapping", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"AP name to MAC mapping", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.AP().ListNameMACMaps(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.NameMACMaps = data.ApNameMACMap
+                        <span class="cov8" title="1">c.NameMACMaps = data.ApNameMACMap
                         slog.Info(
                                 "AP name to MAC mapping data retrieved from WNC successfully",
                                 "count",
@@ -3909,12 +3909,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"RRM measurements", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"RRM measurements", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.RRM().ListRRMMeasurement(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.RRMMeasurements = data.RRMMeasurement
+                        <span class="cov8" title="1">c.RRMMeasurements = data.RRMMeasurement
                         slog.Info(
                                 "RRM measurement data retrieved from WNC successfully",
                                 "count",
@@ -3922,55 +3922,55 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"WLAN configuration entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"WLAN configuration entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.WLAN().ListWlanCfgEntries(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">if data != nil &amp;&amp; data.WlanCfgEntries != nil </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if data != nil &amp;&amp; data.WlanCfgEntries != nil </span><span class="cov8" title="1">{
                                 c.WLANConfigEntries = data.WlanCfgEntries.WlanCfgEntry
                         }</span> else<span class="cov0" title="0"> {
                                 c.WLANConfigEntries = []wlan.WlanCfgEntry{}
                         }</span>
-                        <span class="cov0" title="0">slog.Info(
+                        <span class="cov8" title="1">slog.Info(
                                 "WLAN configuration entries retrieved from WNC successfully",
                                 "count",
                                 len(c.WLANConfigEntries),
                         )
                         return nil</span>
                 }},
-                {"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.WLAN().ListWlanPolicies(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">if data != nil &amp;&amp; data.WlanPolicies != nil </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if data != nil &amp;&amp; data.WlanPolicies != nil </span><span class="cov8" title="1">{
                                 c.WLANPolicies = data.WlanPolicies.WlanPolicy
                         }</span> else<span class="cov0" title="0"> {
                                 c.WLANPolicies = []wlan.WlanPolicy{}
                         }</span>
-                        <span class="cov0" title="0">slog.Info("WLAN policies retrieved from WNC successfully", "count", len(c.WLANPolicies))
+                        <span class="cov8" title="1">slog.Info("WLAN policies retrieved from WNC successfully", "count", len(c.WLANPolicies))
                         return nil</span>
                 }},
-                {"WLAN policy list entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"WLAN policy list entries", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.WLAN().ListCfgPolicyListEntries(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">if data != nil &amp;&amp; data.PolicyListEntries != nil </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if data != nil &amp;&amp; data.PolicyListEntries != nil </span><span class="cov8" title="1">{
                                 c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
                         }</span> else<span class="cov0" title="0"> {
                                 c.WLANPolicyListEntries = []wlan.PolicyListEntry{}
                         }</span>
-                        <span class="cov0" title="0">slog.Info("WLAN policy list entries retrieved from WNC successfully", "count", len(c.WLANPolicyListEntries))
+                        <span class="cov8" title="1">slog.Info("WLAN policy list entries retrieved from WNC successfully", "count", len(c.WLANPolicyListEntries))
                         return nil</span>
                 }},
-                {"client common", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"client common", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListCommonInfo(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.CommonOperData = data.CommonOperData
+                        <span class="cov8" title="1">c.CommonOperData = data.CommonOperData
                         slog.Info(
                                 "client common data retrieved from WNC successfully",
                                 "count",
@@ -3978,12 +3978,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"client device classification", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"client device classification", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListDCInfo(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.DCInfo = data.DcInfo
+                        <span class="cov8" title="1">c.DCInfo = data.DcInfo
                         slog.Info(
                                 "client device classification data retrieved from WNC successfully",
                                 "count",
@@ -3991,23 +3991,23 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"client 802.11", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"client 802.11", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListDot11Info(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.Dot11OperData = data.Dot11OperData
+                        <span class="cov8" title="1">c.Dot11OperData = data.Dot11OperData
                         slog.Info("client 802.11 data retrieved from WNC successfully",
                                 "count", len(data.Dot11OperData),
                         )
                         return nil</span>
                 }},
-                {"SISF database", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"SISF database", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListSISFDB(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.SisfDBMac = data.SisfDBMac
+                        <span class="cov8" title="1">c.SisfDBMac = data.SisfDBMac
                         slog.Info(
                                 "SISF database data retrieved from WNC successfully",
                                 "count",
@@ -4015,12 +4015,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"client traffic stats", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"client traffic stats", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListTrafficStats(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.TrafficStats = data.TrafficStats
+                        <span class="cov8" title="1">c.TrafficStats = data.TrafficStats
                         slog.Info(
                                 "client traffic stats data retrieved from WNC successfully",
                                 "count",
@@ -4028,12 +4028,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"client mobility history", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"client mobility history", true, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.Client().ListMMIFClientHistory(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.MmIfClientHistory = data.MmIfClientHistory
+                        <span class="cov8" title="1">c.MmIfClientHistory = data.MmIfClientHistory
                         slog.Info(
                                 "client mobility history data retrieved from WNC successfully",
                                 "count",
@@ -4041,12 +4041,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"radio statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"radio statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.AP().ListRadioOperStats(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.RadioOperStats = data.RadioOperStats
+                        <span class="cov8" title="1">c.RadioOperStats = data.RadioOperStats
                         slog.Info(
                                 "radio statistics data retrieved from WNC successfully",
                                 "count",
@@ -4054,12 +4054,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"radio reset statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"radio reset statistics", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.AP().ListRadioResetStats(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.RadioResetStats = data.RadioResetStats
+                        <span class="cov8" title="1">c.RadioResetStats = data.RadioResetStats
                         slog.Info(
                                 "radio reset statistics retrieved from WNC successfully",
                                 "count",
@@ -4067,12 +4067,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"RRM coverage", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"RRM coverage", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.RRM().ListRRMCoverage(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.RRMCoverage = data.RRMCoverage
+                        <span class="cov8" title="1">c.RRMCoverage = data.RRMCoverage
                         slog.Info(
                                 "RRM coverage data retrieved from WNC successfully",
                                 "count",
@@ -4080,12 +4080,12 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
                         )
                         return nil</span>
                 }},
-                {"AP radar data", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov0" title="0">{
+                {"AP radar data", false, func(ctx context.Context, c *WNCDataCache) error <span class="cov8" title="1">{
                         data, err := s.client.RRM().ListApDot11RadarData(ctx)
                         if err != nil </span><span class="cov0" title="0">{
                                 return err
                         }</span>
-                        <span class="cov0" title="0">c.ApDot11RadarData = data.ApDot11RadarData
+                        <span class="cov8" title="1">c.ApDot11RadarData = data.ApDot11RadarData
                         slog.Info(
                                 "AP radar data retrieved from WNC successfully",
                                 "count",
@@ -4096,16 +4096,16 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) <s
         }
 
         // Execute all fetchers
-        <span class="cov0" title="0">for _, f := range fetchers </span><span class="cov0" title="0">{
-                if err := f.fetch(ctx, data); err != nil </span><span class="cov0" title="0">{
-                        if f.required </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for _, f := range fetchers </span><span class="cov8" title="1">{
+                if err := f.fetch(ctx, data); err != nil </span><span class="cov8" title="1">{
+                        if f.required </span><span class="cov8" title="1">{
                                 return nil, fmt.Errorf("failed to fetch %s: %w", f.name, err)
                         }</span>
                         <span class="cov0" title="0">slog.Warn("optional data fetch failed", "data_type", f.name, "error", err)</span>
                 }
         }
 
-        <span class="cov0" title="0">return data, nil</span>
+        <span class="cov8" title="1">return data, nil</span>
 }
 </pre>
 		
