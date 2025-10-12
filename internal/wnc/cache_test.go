@@ -310,8 +310,6 @@ func TestDataFetcher_Structure(t *testing.T) {
 	}
 }
 
-// Test Phase 1 & 2: fetchAllData with httptest.Server mock
-
 func TestDataSource_FetchAllData_Success(t *testing.T) {
 	t.Parallel()
 
@@ -368,7 +366,7 @@ func TestDataSource_FetchAllData_RequiredFetcherFailure(t *testing.T) {
 	t.Parallel()
 
 	server := newMockWNCServer(mockServerConfig{
-		apCAPWAPSuccess: false, // Required fetcher fails
+		apCAPWAPSuccess: false,
 	})
 	defer server.Close()
 
@@ -411,7 +409,7 @@ func TestDataSource_FetchAllData_OptionalFetcherFailure(t *testing.T) {
 		clientSISFSuccess:  true,
 		clientTrafficSucc:  true,
 		clientMobilitySucc: true,
-		radioStatsSuccess:  false, // Optional fetcher fails
+		radioStatsSuccess:  false,
 		radioResetSuccess:  true,
 		rrmCoverageSuccess: true,
 		apRadarSuccess:     true,
@@ -434,7 +432,6 @@ func TestDataSource_FetchAllData_OptionalFetcherFailure(t *testing.T) {
 		t.Fatalf("GetCachedData() error = %v, want nil (optional failure should not error)", err)
 	}
 
-	// Optional data should be empty
 	if len(data.RadioOperStats) != 0 {
 		t.Errorf(
 			"RadioOperStats length = %d, want 0 (optional fetcher failed)",
@@ -442,7 +439,6 @@ func TestDataSource_FetchAllData_OptionalFetcherFailure(t *testing.T) {
 		)
 	}
 
-	// Required data should be present
 	if len(data.CAPWAPData) != 1 {
 		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
 	}
@@ -575,8 +571,6 @@ type mockServerConfig struct {
 	apRadarSuccess     bool
 }
 
-// newMockWNCServer creates an httptest.Server that simulates WNC API endpoints.
-// Uses mock data from existing test files (ap_test.go, client_test.go, etc.).
 func newMockWNCServer(cfg mockServerConfig) *httptest.Server {
 	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yang-data+json")
@@ -775,7 +769,6 @@ func newMockWNCServer(cfg mockServerConfig) *httptest.Server {
 	}))
 }
 
-// extractHostFromURL extracts host:port from httptest.Server URL (removes https://).
 func extractHostFromURL(url string) string {
 	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
 }

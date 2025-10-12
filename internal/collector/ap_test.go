@@ -1066,7 +1066,6 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 	}
 }
 
-// TestAPCollector_collectGeneralMetrics tests basic metric emission
 func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1101,7 +1100,6 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 	}
 }
 
-// TestAPCollector_collectRadioMetrics tests basic metric emission
 func TestAPCollector_collectRadioMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1143,7 +1141,6 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 	}
 }
 
-// TestAPCollector_collectTrafficMetrics tests basic metric emission
 func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1198,7 +1195,6 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 	}
 }
 
-// TestAPCollector_collectErrorMetrics tests basic metric emission
 func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1266,9 +1262,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	}
 }
 
-// TestAPCollector_collectMetrics_NilSafety tests nil safety
-// Note: These tests document that the current implementation panics with nil inputs.
-// This is expected behavior as the collectors assume valid data from the DataSource layer.
 func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 	t.Parallel()
 
@@ -1280,7 +1273,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectGeneralMetrics with nil radio",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &APCollector{
 					metrics:        APMetrics{General: true},
 					radioStateDesc: prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
@@ -1309,7 +1302,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectRadioMetrics with nil radio",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &APCollector{
 					metrics:               APMetrics{Radio: true},
 					associatedClientsDesc: prometheus.NewDesc("test", "test", []string{"mac", "radio"}, nil),
@@ -1336,7 +1329,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectTrafficMetrics with nil radio",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &APCollector{
 					metrics: APMetrics{Traffic: true},
 				}
@@ -1362,7 +1355,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectErrorMetrics with nil radio",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &APCollector{
 					metrics: APMetrics{Errors: true},
 				}
@@ -1388,6 +1381,9 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, tt.testFunc)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.testFunc(t)
+		})
 	}
 }

@@ -1052,7 +1052,6 @@ func TestClientCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 	}
 }
 
-// TestClientCollector_collectGeneralMetrics tests basic metric emission
 func TestClientCollector_collectGeneralMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1102,7 +1101,6 @@ func TestClientCollector_collectGeneralMetrics(t *testing.T) {
 	}
 }
 
-// TestClientCollector_collectRadioMetrics tests basic metric emission
 func TestClientCollector_collectRadioMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1156,7 +1154,6 @@ func TestClientCollector_collectRadioMetrics(t *testing.T) {
 	}
 }
 
-// TestClientCollector_collectTrafficMetrics tests basic metric emission
 func TestClientCollector_collectTrafficMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1197,7 +1194,6 @@ func TestClientCollector_collectTrafficMetrics(t *testing.T) {
 	}
 }
 
-// TestClientCollector_collectErrorMetrics tests basic metric emission
 func TestClientCollector_collectErrorMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1254,7 +1250,6 @@ func TestClientCollector_collectErrorMetrics(t *testing.T) {
 	}
 }
 
-// TestClientCollector_collectMetrics_NilSafety tests nil safety
 func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 	t.Parallel()
 
@@ -1265,7 +1260,7 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectGeneralMetrics with empty maps",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &ClientCollector{
 					metrics:                    ClientMetrics{General: true},
 					stateDesc:                  prometheus.NewDesc("test", "test", []string{"mac"}, nil),
@@ -1283,13 +1278,19 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
-				collector.collectGeneralMetrics(ch, data, map[string]client.TrafficStats{}, map[string]client.Dot11OperData{}, map[string]client.MmIfClientHistory{})
+				collector.collectGeneralMetrics(
+					ch,
+					data,
+					map[string]client.TrafficStats{},
+					map[string]client.Dot11OperData{},
+					map[string]client.MmIfClientHistory{},
+				)
 			},
 		},
 		{
 			name: "collectRadioMetrics with empty maps",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &ClientCollector{
 					metrics:            ClientMetrics{Radio: true},
 					protocolDesc:       prometheus.NewDesc("test", "test", []string{"mac"}, nil),
@@ -1309,13 +1310,18 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				data := client.CommonOperData{ClientMAC: "aa:bb:cc:dd:ee:ff"}
-				collector.collectRadioMetrics(ch, data, map[string]client.TrafficStats{}, map[string]client.Dot11OperData{})
+				collector.collectRadioMetrics(
+					ch,
+					data,
+					map[string]client.TrafficStats{},
+					map[string]client.Dot11OperData{},
+				)
 			},
 		},
 		{
 			name: "collectTrafficMetrics with empty maps",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &ClientCollector{
 					metrics:       ClientMetrics{Traffic: true},
 					bytesRxDesc:   prometheus.NewDesc("test", "test", []string{"mac"}, nil),
@@ -1339,7 +1345,7 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectErrorMetrics with empty maps",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &ClientCollector{
 					metrics:               ClientMetrics{Errors: true},
 					retryRatioDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
@@ -1371,6 +1377,9 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, tt.testFunc)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.testFunc(t)
+		})
 	}
 }

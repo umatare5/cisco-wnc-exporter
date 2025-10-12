@@ -1074,7 +1074,6 @@ func TestWLANCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 	}
 }
 
-// TestWLANCollector_collectGeneralMetrics tests basic metric emission
 func TestWLANCollector_collectGeneralMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1106,7 +1105,6 @@ func TestWLANCollector_collectGeneralMetrics(t *testing.T) {
 	}
 }
 
-// TestWLANCollector_collectTrafficMetrics tests basic metric emission
 func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1150,7 +1148,6 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 	}
 }
 
-// TestWLANCollector_collectConfigMetrics tests basic metric emission
 func TestWLANCollector_collectConfigMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1207,7 +1204,6 @@ func TestWLANCollector_collectConfigMetrics(t *testing.T) {
 	}
 }
 
-// TestWLANCollector_collectMetrics_NilSafety tests nil safety
 func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 	t.Parallel()
 
@@ -1218,7 +1214,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectGeneralMetrics with minimal entry",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &WLANCollector{
 					metrics:     WLANMetrics{General: true},
 					enabledDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
@@ -1239,7 +1235,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectTrafficMetrics with empty statsMap",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &WLANCollector{
 					metrics:         WLANMetrics{Traffic: true},
 					clientCountDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
@@ -1262,7 +1258,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 		{
 			name: "collectConfigMetrics with empty policyMap",
 			testFunc: func(t *testing.T) {
-				t.Parallel()
+				t.Helper()
 				collector := &WLANCollector{
 					metrics:                   WLANMetrics{Config: true},
 					authPskDesc:               prometheus.NewDesc("test", "test", []string{"id"}, nil),
@@ -1295,6 +1291,9 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, tt.testFunc)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.testFunc(t)
+		})
 	}
 }
