@@ -14,5 +14,5 @@ jobs:
   coverage:
     uses: umatare5/common/.github/workflows/go-test-coverage.yml@27d895ee9f1410471625dd66c22c0d63bb84b3b7 # v0.13.0
     with:
-      go_version: "1.25.1"
-      coverage_threshold: 70
+      go_version: "1.25.2"
+      coverage_threshold: 80
