@@ -154,7 +154,7 @@ AP collector focus on RF foundation and radio performance.
 | general | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
 | general | `wnc_ap_oper_state`                   | Gauge   | Operational state (0=down, 1=up)                 |
 | general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
-| general | `wnc_ap_config_state`                 | Gauge   | Radio state (0=valid, 1=invalid)                 |
+| general | `wnc_ap_config_state`                 | Gauge   | Tags Config state (0=valid, 1=invalid)           |
 | general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
 | general | `wnc_ap_cpu_usage_current_percent`    | Gauge   | Current CPU utilization %                        |
 | general | `wnc_ap_cpu_usage_average_percent`    | Gauge   | Average CPU utilization %                        |
