@@ -1,9 +1,9 @@
 <div align="center">
 
   <picture>
-    <img src="docs/assets/logo.png" width="180px" />
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo_dark.png" width="180px" />
     <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo.png" width="180px" />
+    <img src="docs/assets/logo.png" width="180px" />
   </picture>
 
   <h1>cisco-wnc-exporter</h1>
