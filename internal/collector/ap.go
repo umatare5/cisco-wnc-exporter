@@ -77,10 +77,8 @@ type APCollector struct {
 	coverageHoleEventsDesc      *prometheus.Desc
 	lastRadarOnRadioAtDesc      *prometheus.Desc
 	radioResetTotalDesc         *prometheus.Desc
-	cpuUsageCurrentDesc         *prometheus.Desc
-	cpuUsageAverageDesc         *prometheus.Desc
-	memoryUsageCurrentDesc      *prometheus.Desc
-	memoryUsageAverageDesc      *prometheus.Desc
+	cpuUtilizationDesc          *prometheus.Desc
+	memoryUtilizationDesc       *prometheus.Desc
 	uptimeSecondsDesc           *prometheus.Desc
 }
 
@@ -210,30 +208,15 @@ func NewAPCollector(
 	}
 
 	if metrics.General {
-		collector.cpuUsageCurrentDesc = prometheus.NewDesc(
-			"wnc_ap_cpu_usage_current_percent",
-			"Current CPU utilization percentage",
+		collector.cpuUtilizationDesc = prometheus.NewDesc(
+			"wnc_ap_cpu_utilization_percent",
+			"CPU utilization percentage",
 			baseAPLabels,
 			nil,
 		)
-		collector.cpuUsageAverageDesc = prometheus.NewDesc(
-			"wnc_ap_cpu_usage_average_percent",
-			"Average CPU utilization percentage",
-			baseAPLabels,
-			nil,
-		)
-	}
-
-	if metrics.General {
-		collector.memoryUsageCurrentDesc = prometheus.NewDesc(
-			"wnc_ap_memory_usage_current_percent",
-			"Current memory utilization percentage",
-			baseAPLabels,
-			nil,
-		)
-		collector.memoryUsageAverageDesc = prometheus.NewDesc(
-			"wnc_ap_memory_usage_average_percent",
-			"Average memory utilization percentage",
+		collector.memoryUtilizationDesc = prometheus.NewDesc(
+			"wnc_ap_memory_utilization_percent",
+			"Memory utilization percentage",
 			baseAPLabels,
 			nil,
 		)
@@ -435,10 +418,8 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.operStateDesc
 		ch <- c.configStateDesc
 		ch <- c.uptimeSecondsDesc
-		ch <- c.cpuUsageCurrentDesc
-		ch <- c.cpuUsageAverageDesc
-		ch <- c.memoryUsageCurrentDesc
-		ch <- c.memoryUsageAverageDesc
+		ch <- c.cpuUtilizationDesc
+		ch <- c.memoryUtilizationDesc
 	}
 	if c.metrics.Radio {
 		ch <- c.channelDesc
@@ -606,10 +587,8 @@ func (c *APCollector) collectSystemMetrics(
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
-		{c.cpuUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
-		{c.cpuUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgCPUUsage)},
-		{c.memoryUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
-		{c.memoryUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgMemoryUsage)},
+		{c.cpuUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
+		{c.memoryUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
 	}
 
 	for _, metric := range metrics {
