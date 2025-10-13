@@ -25,20 +25,42 @@
 
 This exporter allows a prometheus instance to scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
-It provides **pull-based model telemetry** as an alternative to traditional Streaming Telemetry, leveraging standard RESTCONF APIs to deliver real-time wireless network visibility.
-
 - 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
 - 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
 - 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
 
+It provides **pull-based model telemetry** as an alternative to standard [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-12/config-guide/b_wl_17_12_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html#gather-points), leveraging standard RESTCONF APIs to deliver real-time wireless network visibility.
+
 > [!Important]
 >
-> Please enable RESTCONF and HTTPS on the C9800 before deploy this exporter and generate an access token. See [umatare5/cisco-ios-xe-wireless-go - 🚀 Quick Start](https://github.com/umatare5/cisco-ios-xe-wireless-go?tab=readme-ov-file#-quick-start) section.
+> Please enable RESTCONF and HTTPS on the C9800 before using this exporter. Please see:
+>
+> - [Cisco IOS XE 17.12 Programmability Configuration Guide — RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1712/b_1712_programmability_cg/m_1712_prog_restconf.html#id_70432)
 
 ## Quick Start
 
+### 1. Generate a Basic Auth token
+
+Encode your controller credentials as Base64.
+
 ```bash
-docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter
+# username:password → Base64
+echo -n "admin:your-password" | base64
+# Output: YWRtaW46eW91ci1wYXNzd29yZA==
+```
+
+### 2. Set required environment variables
+
+```bash
+export WNC_CONTROLLER="wnc1.example.internal"
+export WNC_ACCESS_TOKEN="YWRtaW46eW91ci1wYXNzd29yZA=="
+```
+
+### 3. Run the exporter with Docker
+
+```bash
+docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
+  ghcr.io/umatare5/cisco-wnc-exporter
 ```
 
 - `-p`: Maps container port `10039/tcp` to host port `10039/tcp`.
@@ -201,19 +223,18 @@ AP collector focus on RF foundation and radio performance.
 | errors  | `wnc_ap_last_radar_on_radio_at`      | Gauge   | Last radar detection unix timestamp              |
 | errors  | `wnc_ap_radio_reset_total`           | Counter | Radio reset count                                |
 
-<details>
-<summary>*1 Metrics consistently returning zero values on Cisco IOS-XE 17.12.5 with FlexConnect AP</summary>
+<details><summary><b>*1</b> Metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 
 The following metrics consistently return zero values due to implementation limitations:
 
-- `wnc_ap_control_rx_frames_total` / `wnc_ap_control_tx_frames_total`
-- `wnc_ap_fragmentation_rx_total` / `wnc_ap_fragmentation_tx_total`
-- `wnc_ap_multicast_rx_frames_total` / `wnc_ap_multicast_tx_frames_total`
-- `wnc_ap_rts_success_total` / `wnc_ap_rts_failures_total`
-- `wnc_ap_tx_errors_total` / `wnc_ap_rx_errors_total`
-- `wnc_ap_transmission_failures_total`
+- `wnc_ap_(tx|rx)_errors_total`
+- `wnc_ap_control_(rx|tx)_frames_total`
 - `wnc_ap_decryption_errors_total`
+- `wnc_ap_fragmentation_(rx|tx)_total`
 - `wnc_ap_mic_errors_total`
+- `wnc_ap_multicast_(rx|tx)_frames_total`
+- `wnc_ap_rts_(success|failures)_total`
+- `wnc_ap_transmission_failures_total`
 - `wnc_ap_wep_undecryptable_total`
 
 This was verified through direct RESTCONF API access to the live WNC environment:
@@ -302,8 +323,7 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 </details>
 
-<details>
-<summary>*2 Cisco Bug CSCwn96363 - AckFailureCount vs FailedCount</summary>
+<details><summary><b>*2</b> Cisco Bug CSCwn96363 - AckFailureCount vs FailedCount</summary><br/>
 
 According to [Cisco Bug CSCwn96363](https://bst.cloudapps.cisco.com/bugsearch/bug/CSCwn96363), there are redundant counters in the wireless statistics:
 
@@ -370,8 +390,7 @@ Client collector focus on user experience quality and connection performance.
 | errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors **(\*3)**              |
 | errors  | `wnc_client_rx_group_counter_total`   | Counter | RX group counter **(\*3)**           |
 
-<details>
-<summary>*3 Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.5 with FlexConnect AP</summary>
+<details><summary><b>*3</b> Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 
 The following client error metrics consistently return zero values due to implementation limitations:
 
