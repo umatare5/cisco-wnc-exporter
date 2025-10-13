@@ -169,7 +169,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"General module only",
 			APMetrics{General: true},
-			9, // radio_state, admin_state, oper_state, config_state, uptime, cpu_current, cpu_avg, mem_current, mem_avg
+			7, // radio_state, admin_state, oper_state, config_state, uptime, cpu_utilization, memory_utilization
 		},
 		{
 			"Radio module only",
@@ -200,7 +200,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			50, // 9+10+14+16+1
+			48, // 7+10+14+16+1
 		},
 	}
 
@@ -924,7 +924,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 50
+	expectedDescs := 48
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
