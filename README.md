@@ -133,6 +133,9 @@ OPTIONS:
    --collector.internal.process     Enable process metrics collector
 ```
 
+> [!CAUTION]
+> The `--wnc.tls-skip-verify` flag disables TLS certificate verification. This should only be used in development environments or when connecting to controllers with self-signed certificates. **Never use this option in production environments** as it compromises security.
+
 ## Configuration
 
 This exporter supports following environment variables:
