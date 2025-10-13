@@ -28,7 +28,7 @@ This exporter allows a prometheus instance to scrape metrics from [Cisco Catalys
 - 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
 - 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
 - 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
-- ↩️ **Pull-Based Telemetry**: Alternative to [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-12/config-guide/b_wl_17_12_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html#gather-points) using standard RESTCONF APIs
+- ↩️ **Pull-Based Telemetry**: Alternative to the [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-12/config-guide/b_wl_17_12_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html) feature using RESTCONF APIs
 
 > [!Important]
 >
