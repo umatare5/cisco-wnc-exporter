@@ -30,13 +30,11 @@ This exporter allows a prometheus instance to scrape metrics from [Cisco Catalys
 - 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
 - ↩️ **Pull-Based Telemetry**: Alternative to the [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-12/config-guide/b_wl_17_12_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html) feature using RESTCONF APIs
 
-> [!Important]
->
-> Please enable RESTCONF and HTTPS on the C9800 before using this exporter. Please see:
->
-> - [Cisco IOS XE 17.12 Programmability Configuration Guide — RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1712/b_1712_programmability_cg/m_1712_prog_restconf.html#id_70432)
-
 ## Quick Start
+
+Please enable RESTCONF and HTTPS on the C9800 before using this exporter. Please see:
+
+- [Cisco IOS XE 17.12 Programmability Configuration Guide — RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1712/b_1712_programmability_cg/m_1712_prog_restconf.html#id_70432)
 
 ### 1. Generate a Basic Auth token
 
