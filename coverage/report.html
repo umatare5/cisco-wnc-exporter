@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/umatare5/cisco-wnc-exporter/internal/cli/version.go (100.0%)</option>
 				
-				<option value="file4">github.com/umatare5/cisco-wnc-exporter/internal/collector/ap.go (85.0%)</option>
+				<option value="file4">github.com/umatare5/cisco-wnc-exporter/internal/collector/ap.go (84.7%)</option>
 				
 				<option value="file5">github.com/umatare5/cisco-wnc-exporter/internal/collector/cache.go (100.0%)</option>
 				
@@ -612,10 +612,8 @@ type APCollector struct {
         coverageHoleEventsDesc      *prometheus.Desc
         lastRadarOnRadioAtDesc      *prometheus.Desc
         radioResetTotalDesc         *prometheus.Desc
-        cpuUsageCurrentDesc         *prometheus.Desc
-        cpuUsageAverageDesc         *prometheus.Desc
-        memoryUsageCurrentDesc      *prometheus.Desc
-        memoryUsageAverageDesc      *prometheus.Desc
+        cpuUtilizationDesc          *prometheus.Desc
+        memoryUtilizationDesc       *prometheus.Desc
         uptimeSecondsDesc           *prometheus.Desc
 }
 
@@ -745,30 +743,15 @@ func NewAPCollector(
         }</span>
 
         <span class="cov8" title="1">if metrics.General </span><span class="cov8" title="1">{
-                collector.cpuUsageCurrentDesc = prometheus.NewDesc(
-                        "wnc_ap_cpu_usage_current_percent",
-                        "Current CPU utilization percentage",
+                collector.cpuUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_cpu_utilization_percent",
+                        "CPU utilization percentage",
                         baseAPLabels,
                         nil,
                 )
-                collector.cpuUsageAverageDesc = prometheus.NewDesc(
-                        "wnc_ap_cpu_usage_average_percent",
-                        "Average CPU utilization percentage",
-                        baseAPLabels,
-                        nil,
-                )
-        }</span>
-
-        <span class="cov8" title="1">if metrics.General </span><span class="cov8" title="1">{
-                collector.memoryUsageCurrentDesc = prometheus.NewDesc(
-                        "wnc_ap_memory_usage_current_percent",
-                        "Current memory utilization percentage",
-                        baseAPLabels,
-                        nil,
-                )
-                collector.memoryUsageAverageDesc = prometheus.NewDesc(
-                        "wnc_ap_memory_usage_average_percent",
-                        "Average memory utilization percentage",
+                collector.memoryUtilizationDesc = prometheus.NewDesc(
+                        "wnc_ap_memory_utilization_percent",
+                        "Memory utilization percentage",
                         baseAPLabels,
                         nil,
                 )
@@ -970,10 +953,8 @@ func (c *APCollector) Describe(ch chan&lt;- *prometheus.Desc) <span class="cov8"
                 ch &lt;- c.operStateDesc
                 ch &lt;- c.configStateDesc
                 ch &lt;- c.uptimeSecondsDesc
-                ch &lt;- c.cpuUsageCurrentDesc
-                ch &lt;- c.cpuUsageAverageDesc
-                ch &lt;- c.memoryUsageCurrentDesc
-                ch &lt;- c.memoryUsageAverageDesc
+                ch &lt;- c.cpuUtilizationDesc
+                ch &lt;- c.memoryUtilizationDesc
         }</span>
         <span class="cov8" title="1">if c.metrics.Radio </span><span class="cov8" title="1">{
                 ch &lt;- c.channelDesc
@@ -1141,10 +1122,8 @@ func (c *APCollector) collectSystemMetrics(
         metrics := []Float64Metric{
                 {c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
                 {c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
-                {c.cpuUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
-                {c.cpuUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgCPUUsage)},
-                {c.memoryUsageCurrentDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
-                {c.memoryUsageAverageDesc, float64(apOperDataMap[wtpMAC].ApSysStats.AvgMemoryUsage)},
+                {c.cpuUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
+                {c.memoryUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
         }
 
         for _, metric := range metrics </span><span class="cov0" title="0">{
