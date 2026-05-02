@@ -206,7 +206,8 @@ func (c *Config) Validate() error {
 			c.WNC.CacheTTL <= 0, fmt.Sprintf("WNC cache TTL must be positive, got: %v", c.WNC.CacheTTL),
 		},
 		{
-			c.Collectors.InfoCacheTTL <= 0, fmt.Sprintf("collector info cache TTL must be positive, got: %v", c.Collectors.InfoCacheTTL),
+			c.Collectors.InfoCacheTTL <= 0,
+			fmt.Sprintf("collector info cache TTL must be positive, got: %v", c.Collectors.InfoCacheTTL),
 		},
 		{
 			c.Web.TelemetryPath == "", "telemetry path cannot be empty",
