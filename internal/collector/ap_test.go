@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 )
 
@@ -688,6 +689,80 @@ func TestBuildApDot11RadarMap(t *testing.T) {
 	}
 }
 
+func TestBuildRadioClientCountsMap(t *testing.T) {
+	t.Parallel()
+
+	nameMACMaps := []ap.ApNameMACMap{
+		{WtpName: "AP01", WtpMAC: "aa:bb:cc:dd:ee:ff"},
+		{WtpName: "AP02", WtpMAC: "11:22:33:44:55:66"},
+	}
+
+	tests := []struct {
+		name       string
+		clientData []client.CommonOperData
+		expected   map[string]map[int]int
+	}{
+		{
+			name: "Counts clients per AP and radio slot",
+			clientData: []client.CommonOperData{
+				{ApName: "AP01", MsApSlotID: 0, CoState: ClientStatusRun},
+				{ApName: "AP01", MsApSlotID: 0, CoState: ClientStatusRun},
+				{ApName: "AP01", MsApSlotID: 1, CoState: ClientStatusRun},
+				{ApName: "AP02", MsApSlotID: 1, CoState: ClientStatusRun},
+			},
+			expected: map[string]map[int]int{
+				"aa:bb:cc:dd:ee:ff": {0: 2, 1: 1},
+				"11:22:33:44:55:66": {1: 1},
+			},
+		},
+		{
+			name: "Skips clients outside run state",
+			clientData: []client.CommonOperData{
+				{ApName: "AP01", MsApSlotID: 0, CoState: ClientStatusRun},
+				{ApName: "AP01", MsApSlotID: 0, CoState: "client-status-associating"},
+			},
+			expected: map[string]map[int]int{
+				"aa:bb:cc:dd:ee:ff": {0: 1},
+			},
+		},
+		{
+			name: "Skips clients on unresolvable AP names",
+			clientData: []client.CommonOperData{
+				{ApName: "AP99", MsApSlotID: 0, CoState: ClientStatusRun},
+			},
+			expected: map[string]map[int]int{},
+		},
+		{
+			name:       "Returns empty map without client data",
+			clientData: nil,
+			expected:   map[string]map[int]int{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := buildRadioClientCountsMap(tt.clientData, nameMACMaps)
+
+			if len(got) != len(tt.expected) {
+				t.Fatalf("buildRadioClientCountsMap() returned %d APs, want %d", len(got), len(tt.expected))
+			}
+
+			for wtpMAC, slots := range tt.expected {
+				if len(got[wtpMAC]) != len(slots) {
+					t.Errorf("AP %s has %d slots, want %d", wtpMAC, len(got[wtpMAC]), len(slots))
+				}
+				for slotID, want := range slots {
+					if got[wtpMAC][slotID] != want {
+						t.Errorf("AP %s slot %d = %d, want %d", wtpMAC, slotID, got[wtpMAC][slotID], want)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestDetermineUptimeFromBootTime(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
@@ -1188,7 +1263,7 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 	ch := make(chan prometheus.Metric, 20)
 	go func() {
 		defer close(ch)
-		collector.collectRadioMetrics(ch, radio, rrmMap)
+		collector.collectRadioMetrics(ch, radio, rrmMap, nil)
 	}()
 
 	metricCount := 0
@@ -1244,7 +1319,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 			ch := make(chan prometheus.Metric, 20)
 			go func() {
 				defer close(ch)
-				collector.collectRadioMetrics(ch, radio, rrmMap)
+				collector.collectRadioMetrics(ch, radio, rrmMap, nil)
 			}()
 
 			metricCount := 0
@@ -1256,6 +1331,67 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 				t.Errorf("collectRadioMetrics() emitted %d metrics, want %d", metricCount, tt.expected)
 			}
 		})
+	}
+}
+
+// radioMetricsOnly adapts collectRadioMetrics to prometheus.Collector for value assertions.
+type radioMetricsOnly struct {
+	collector       *APCollector
+	radio           *ap.RadioOperData
+	clientCountsMap map[string]map[int]int
+}
+
+func (r radioMetricsOnly) Describe(_ chan<- *prometheus.Desc) {}
+
+func (r radioMetricsOnly) Collect(ch chan<- prometheus.Metric) {
+	r.collector.collectRadioMetrics(ch, r.radio, nil, r.clientCountsMap)
+}
+
+func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
+	t.Parallel()
+
+	clientsDesc := prometheus.NewDesc(
+		"wnc_ap_clients_total", "Number of associated clients", []string{"mac", "radio"}, nil,
+	)
+
+	source := radioMetricsOnly{
+		collector: &APCollector{
+			metrics:               APMetrics{Radio: true},
+			associatedClientsDesc: clientsDesc,
+		},
+		radio: &ap.RadioOperData{
+			WtpMAC:      "aa:bb:cc:dd:ee:ff",
+			RadioSlotID: 1,
+			RadioType:   "dot11-5ghz-radio",
+		},
+		clientCountsMap: map[string]map[int]int{
+			"aa:bb:cc:dd:ee:ff": {0: 7, 1: 3},
+		},
+	}
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(source)
+
+	metricFamilies, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() returned error: %v", err)
+	}
+
+	const wantClientCount = 3
+
+	found := false
+	for _, mf := range metricFamilies {
+		if mf.GetName() != "wnc_ap_clients_total" {
+			continue
+		}
+		found = true
+		if got := mf.GetMetric()[0].GetGauge().GetValue(); got != wantClientCount {
+			t.Errorf("wnc_ap_clients_total = %v, want %v", got, wantClientCount)
+		}
+	}
+
+	if !found {
+		t.Error("wnc_ap_clients_total was not emitted")
 	}
 }
 
@@ -1436,7 +1572,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 						for range ch {
 						}
 					}()
-					collector.collectRadioMetrics(ch, nil, nil)
+					collector.collectRadioMetrics(ch, nil, nil, nil)
 				}()
 				if panicked {
 					t.Log("collectRadioMetrics() panicked with nil radio (expected)")

@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
@@ -515,12 +516,25 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	var rrmMeasurementsMap map[string]*rrm.RRMMeasurement
 	var rrmCoverageMap map[string]*rrm.RRMCoverage
 	var apDot11RadarMap map[string]*rrm.ApDot11RadarData
+	var clientCountsMap map[string]map[int]int
 	if IsEnabled(c.metrics.Radio) {
 		rrmMeasurements, err := c.rrmSrc.GetRRMMeasurements(ctx)
 		if err != nil {
 			slog.Warn("Failed to get RRM data for radio metrics", "error", err)
 		}
 		rrmMeasurementsMap = buildRRMMeasurementsMap(rrmMeasurements)
+
+		clientData, err := c.clientSrc.GetClientData(ctx)
+		if err != nil {
+			slog.Warn("Failed to get client data for radio client counts", "error", err)
+		}
+
+		nameMACMaps, err := c.src.ListNameMACMaps(ctx)
+		if err != nil {
+			slog.Warn("Failed to get AP name to MAC mapping for radio client counts", "error", err)
+		}
+
+		clientCountsMap = buildRadioClientCountsMap(clientData, nameMACMaps)
 	}
 
 	var radioResetStatsMap map[string]map[int]*ap.RadioResetStats
@@ -558,7 +572,7 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 			c.collectGeneralMetrics(ch, radio)
 		}
 		if c.metrics.Radio {
-			c.collectRadioMetrics(ch, radio, rrmMeasurementsMap)
+			c.collectRadioMetrics(ch, radio, rrmMeasurementsMap, clientCountsMap)
 		}
 		if c.metrics.Traffic {
 			c.collectTrafficMetrics(ch, radio, radioOperStatsMap)
@@ -624,17 +638,12 @@ func (c *APCollector) collectRadioMetrics(
 	ch chan<- prometheus.Metric,
 	radio *ap.RadioOperData,
 	rrmMeasurementsMap map[string]*rrm.RRMMeasurement,
+	clientCountsMap map[string]map[int]int,
 ) {
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
-	var clientCount float64
-	clientCountsMap := make(map[string]map[int]int)
-	if apCounts, ok := clientCountsMap[radio.WtpMAC]; ok {
-		if count, ok := apCounts[radio.RadioSlotID]; ok {
-			clientCount = float64(count)
-		}
-	}
+	clientCount := float64(clientCountsMap[radio.WtpMAC][radio.RadioSlotID])
 
 	metrics := []Float64Metric{}
 
@@ -892,6 +901,38 @@ func buildApDot11RadarMap(apDot11Radar []rrm.ApDot11RadarData) map[string]*rrm.A
 		radarMap[key] = &apDot11Radar[i]
 	}
 	return radarMap
+}
+
+// buildRadioClientCountsMap counts associated clients per AP radio slot.
+// Client data carries the AP name only, so it is resolved to the WTP MAC used by radio metrics.
+func buildRadioClientCountsMap(
+	clientData []client.CommonOperData,
+	nameMACMaps []ap.ApNameMACMap,
+) map[string]map[int]int {
+	countsMap := make(map[string]map[int]int)
+
+	nameToMAC := make(map[string]string, len(nameMACMaps))
+	for _, entry := range nameMACMaps {
+		nameToMAC[entry.WtpName] = entry.WtpMAC
+	}
+
+	for _, data := range clientData {
+		if data.CoState != ClientStatusRun {
+			continue
+		}
+
+		wtpMAC, ok := nameToMAC[data.ApName]
+		if !ok {
+			continue
+		}
+
+		if countsMap[wtpMAC] == nil {
+			countsMap[wtpMAC] = make(map[int]int)
+		}
+		countsMap[wtpMAC][data.MsApSlotID]++
+	}
+
+	return countsMap
 }
 
 // determineUptimeFromBootTime determines uptime from boot time timestamp.
