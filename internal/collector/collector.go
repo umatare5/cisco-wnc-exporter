@@ -136,10 +136,12 @@ func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRM
 		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
 	})
 
+	// Recover panics next to the base collector so the goroutine InfoCacheCollector spawns is covered.
+	var collector prometheus.Collector = NewSafeCollector(baseCollector, "AP")
+
 	// Apply caching for info metrics only when info metrics are enabled.
-	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.AP.Info {
-		collector = NewInfoCacheCollector(baseCollector, "AP", c.cfg.Collectors.InfoCacheTTL)
+		collector = NewInfoCacheCollector(collector, "AP", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -156,10 +158,12 @@ func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSourc
 		InfoLabels: c.cfg.Collectors.WLAN.InfoLabels,
 	})
 
+	// Recover panics next to the base collector so the goroutine InfoCacheCollector spawns is covered.
+	var collector prometheus.Collector = NewSafeCollector(baseCollector, "WLAN")
+
 	// Apply caching for info metrics only when info metrics are enabled.
-	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.WLAN.Info {
-		collector = NewInfoCacheCollector(baseCollector, "WLAN", c.cfg.Collectors.InfoCacheTTL)
+		collector = NewInfoCacheCollector(collector, "WLAN", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
@@ -177,10 +181,12 @@ func (c *Collector) registerClientCollector(clientSource wnc.ClientSource) {
 		InfoLabels: c.cfg.Collectors.Client.InfoLabels,
 	})
 
+	// Recover panics next to the base collector so the goroutine InfoCacheCollector spawns is covered.
+	var collector prometheus.Collector = NewSafeCollector(baseCollector, "Client")
+
 	// Apply caching for info metrics only when info metrics are enabled.
-	var collector prometheus.Collector = baseCollector
 	if c.cfg.Collectors.Client.Info {
-		collector = NewInfoCacheCollector(baseCollector, "Client", c.cfg.Collectors.InfoCacheTTL)
+		collector = NewInfoCacheCollector(collector, "Client", c.cfg.Collectors.InfoCacheTTL)
 	}
 
 	c.registry.MustRegister(collector)
