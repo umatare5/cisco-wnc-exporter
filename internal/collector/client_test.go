@@ -711,6 +711,14 @@ func TestDetermineLastRunLatency(t *testing.T) {
 			0.0,
 		},
 		{
+			"Found in map without mobility history entries",
+			map[string]client.MmIfClientHistory{
+				"aa:bb:cc:dd:ee:ff": {ClientMAC: "aa:bb:cc:dd:ee:ff"},
+			},
+			"aa:bb:cc:dd:ee:ff",
+			0.0,
+		},
+		{
 			"Zero latency",
 			func() map[string]client.MmIfClientHistory {
 				var hist client.MmIfClientHistory

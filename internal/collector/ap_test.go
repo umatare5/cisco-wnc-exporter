@@ -1066,6 +1066,66 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 	}
 }
 
+func TestAPCollector_collectSystemMetrics(t *testing.T) {
+	t.Parallel()
+
+	const wtpMAC = "aa:bb:cc:dd:ee:ff"
+
+	collector := &APCollector{
+		metrics:               APMetrics{General: true},
+		configStateDesc:       prometheus.NewDesc("test_config_state", "test", []string{"mac"}, nil),
+		uptimeSecondsDesc:     prometheus.NewDesc("test_uptime", "test", []string{"mac"}, nil),
+		cpuUtilizationDesc:    prometheus.NewDesc("test_cpu", "test", []string{"mac"}, nil),
+		memoryUtilizationDesc: prometheus.NewDesc("test_memory", "test", []string{"mac"}, nil),
+	}
+
+	capwapMap := map[string]ap.CAPWAPData{wtpMAC: {WtpMAC: wtpMAC}}
+	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
+
+	tests := []struct {
+		name          string
+		apOperDataMap map[string]ap.OperData
+		expected      int // Config state and uptime are always emitted, CPU and memory only with ApSysStats.
+	}{
+		{
+			"ApSysStats present",
+			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC, ApSysStats: sysStats}},
+			4,
+		},
+		{
+			"ApSysStats absent",
+			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC}},
+			2,
+		},
+		{
+			"AP missing from oper data map",
+			map[string]ap.OperData{},
+			2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ch := make(chan prometheus.Metric, 10)
+			go func() {
+				defer close(ch)
+				collector.collectSystemMetrics(ch, wtpMAC, capwapMap, tt.apOperDataMap)
+			}()
+
+			metricCount := 0
+			for range ch {
+				metricCount++
+			}
+
+			if metricCount != tt.expected {
+				t.Errorf("collectSystemMetrics() emitted %d metrics, want %d", metricCount, tt.expected)
+			}
+		})
+	}
+}
+
 func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -1138,6 +1198,64 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 
 	if metricCount == 0 {
 		t.Error("collectRadioMetrics() emitted 0 metrics, want > 0")
+	}
+}
+
+func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 0,
+		RadioType:   "dot11-5ghz-radio",
+	}
+
+	collector := &APCollector{
+		metrics:                APMetrics{Radio: true},
+		associatedClientsDesc:  prometheus.NewDesc("test_clients", "test", []string{"mac", "radio"}, nil),
+		channelUtilizationDesc: prometheus.NewDesc("test_channel_util", "test", []string{"mac", "radio"}, nil),
+		rxUtilizationDesc:      prometheus.NewDesc("test_rx_util", "test", []string{"mac", "radio"}, nil),
+		txUtilizationDesc:      prometheus.NewDesc("test_tx_util", "test", []string{"mac", "radio"}, nil),
+		noiseUtilizationDesc:   prometheus.NewDesc("test_noise_util", "test", []string{"mac", "radio"}, nil),
+		noiseFloorDesc:         prometheus.NewDesc("test_noise_floor", "test", []string{"mac", "radio"}, nil),
+	}
+
+	load := &rrm.Load{CcaUtilPercentage: 30, RxUtilPercentage: 10, TxUtilPercentage: 5}
+	noise := &rrm.Noise{Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{{Chan: 36, Noise: -95}}}}
+
+	tests := []struct {
+		name        string
+		measurement *rrm.RRMMeasurement
+		expected    int // Load yields 4 metrics, noise floor 1, associated clients is always emitted.
+	}{
+		{"Load and Noise present", &rrm.RRMMeasurement{Load: load, Noise: noise}, 6},
+		{"Noise absent", &rrm.RRMMeasurement{Load: load}, 5},
+		{"Load absent", &rrm.RRMMeasurement{Noise: noise}, 2},
+		{"Load and Noise absent", &rrm.RRMMeasurement{}, 1},
+		{"Noise present without noise data", &rrm.RRMMeasurement{Load: load, Noise: &rrm.Noise{}}, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rrmMap := map[string]*rrm.RRMMeasurement{"aa:bb:cc:dd:ee:ff:0": tt.measurement}
+
+			ch := make(chan prometheus.Metric, 20)
+			go func() {
+				defer close(ch)
+				collector.collectRadioMetrics(ch, radio, rrmMap)
+			}()
+
+			metricCount := 0
+			for range ch {
+				metricCount++
+			}
+
+			if metricCount != tt.expected {
+				t.Errorf("collectRadioMetrics() emitted %d metrics, want %d", metricCount, tt.expected)
+			}
+		})
 	}
 }
 

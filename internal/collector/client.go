@@ -613,7 +613,7 @@ func determineIPv6FromSISF(sisf client.SisfDBMac) string {
 func determineLastRunLatency(mobilityMap map[string]client.MmIfClientHistory, clientMAC string) float64 {
 	const millisecondsToSeconds = 1000.0
 
-	if mobility, ok := mobilityMap[clientMAC]; ok {
+	if mobility, ok := mobilityMap[clientMAC]; ok && len(mobility.MobilityHistory.Entry) > 0 {
 		latencyMs := mobility.MobilityHistory.Entry[0].RunLatency
 
 		return float64(latencyMs) / millisecondsToSeconds

@@ -587,8 +587,13 @@ func (c *APCollector) collectSystemMetrics(
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
-		{c.cpuUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.CPUUsage)},
-		{c.memoryUtilizationDesc, float64(apOperDataMap[wtpMAC].ApSysStats.MemoryUsage)},
+	}
+
+	if sysStats := apOperDataMap[wtpMAC].ApSysStats; sysStats != nil {
+		metrics = append(metrics,
+			Float64Metric{c.cpuUtilizationDesc, float64(sysStats.CPUUsage)},
+			Float64Metric{c.memoryUtilizationDesc, float64(sysStats.MemoryUsage)},
+		)
 	}
 
 	for _, metric := range metrics {
@@ -648,13 +653,15 @@ func (c *APCollector) collectRadioMetrics(
 	}
 
 	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {
-		metrics = append(metrics,
-			Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
-			Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
-			Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
-			Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
-		)
-		if len(rrmData.Noise.Noise.NoiseData) > 0 {
+		if rrmData.Load != nil {
+			metrics = append(metrics,
+				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
+				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
+				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
+				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
+			)
+		}
+		if rrmData.Noise != nil && len(rrmData.Noise.Noise.NoiseData) > 0 {
 			metrics = append(metrics,
 				Float64Metric{c.noiseFloorDesc, float64(rrmData.Noise.Noise.NoiseData[0].Noise)},
 			)
