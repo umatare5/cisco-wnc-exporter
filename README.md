@@ -206,11 +206,11 @@ AP collector focuses on RF foundation and radio performance.
 | general | `wnc_ap_uptime_seconds`              | Gauge   | AP uptime in seconds                             |
 | general | `wnc_ap_cpu_utilization_percent`     | Gauge   | CPU utilization percentage                       |
 | general | `wnc_ap_memory_utilization_percent`  | Gauge   | Memory utilization percentage                    |
-| radio   | `wnc_ap_channel_number`              | Gauge   | Operating channel number                         |
+| radio   | `wnc_ap_channel_number`              | Gauge   | Operating channel number **(\*4)**               |
 | radio   | `wnc_ap_channel_width_mhz`           | Gauge   | Channel bandwidth (MHz)                          |
 | radio   | `wnc_ap_tx_power_dbm`                | Gauge   | Current transmit power (dBm)                     |
 | radio   | `wnc_ap_tx_power_max_dbm`            | Gauge   | Maximum TX power capability (dBm)                |
-| radio   | `wnc_ap_noise_floor_dbm`             | Gauge   | Channel noise floor (dBm)                        |
+| radio   | `wnc_ap_noise_floor_dbm`             | Gauge   | Noise on the operating channel (dBm)             |
 | radio   | `wnc_ap_channel_utilization_percent` | Gauge   | Channel utilization percentage (CCA)             |
 | radio   | `wnc_ap_rx_utilization_percent`      | Gauge   | RX utilization percentage                        |
 | radio   | `wnc_ap_tx_utilization_percent`      | Gauge   | TX utilization percentage                        |
@@ -359,27 +359,62 @@ This exporter implements the recommended workaround by using `failed-count` from
 
 </details>
 
+<details><summary><b>*4</b> Channel numbers do not identify the band on their own</summary><br/>
+
+6 GHz channel numbering restarts at 1, so a 6 GHz channel number collides with a 2.4 GHz one and overlaps the 5 GHz range as well. `wnc_ap_channel_number` reports the number the controller gives, without a band.
+
+Join `wnc_ap_info` to disambiguate, which requires `band` in `--collector.ap.info-labels` because it is not enabled by default:
+
+```bash
+wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
+```
+
+The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
+
+`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel; the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
+
+</details>
+
 > [!Tip]
 >
 > `info` module provides `wnc_ap_info` contains following labels to join with other metrics:
 >
-> | Labels       | Description             | Example Value       | Default | Required |
-> | :----------- | :---------------------- | :------------------ | :-----: | :------: |
-> | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0` | **Yes** | **Yes**  |
-> | `name`       | AP hostname             | `TEST-AP01`         | **Yes** |    No    |
-> | `ip`         | AP IP address           | `192.168.1.10`      | **Yes** |    No    |
-> | `radio`      | Radio identifier        | `0`, `1`, `2`       | **Yes** | **Yes**  |
-> | `band`       | Radio band              | `2.4`, `5`, `6`     |   No    |    No    |
-> | `model`      | AP model                | `AIR-AP1815I-Q-K9`  |   No    |    No    |
-> | `serial`     | AP serial number        | `FGL1234ABCD`       |   No    |    No    |
-> | `sw_version` | Software version        | `17.12.5.41`        |   No    |    No    |
-> | `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22` |   No    |    No    |
+> | Labels       | Description             | Example Value              | Default | Required |
+> | :----------- | :---------------------- | :------------------------- | :-----: | :------: |
+> | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0`        | **Yes** | **Yes**  |
+> | `name`       | AP hostname             | `TEST-AP01`                | **Yes** |    No    |
+> | `ip`         | AP IP address           | `192.168.1.10`             | **Yes** |    No    |
+> | `radio`      | Radio identifier        | `0`, `1`, `2`              | **Yes** | **Yes**  |
+> | `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` |   No    |    No    |
+> | `model`      | AP model                | `AIR-AP1815I-Q-K9`         |   No    |    No    |
+> | `serial`     | AP serial number        | `FGL1234ABCD`              |   No    |    No    |
+> | `sw_version` | Software version        | `17.12.5.41`               |   No    |    No    |
+> | `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        |   No    |    No    |
 >
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
 > ```bash
 > wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
 > ```
+
+> [!Note]
+>
+> **The `band` label**
+>
+> - AP band comes from the radio's operating band, not from the `radio` slot
+> - A dual band radio changes band without changing slot, so the slot is not a band
+> - Client band comes from the PHY generation the client associated with
+> - `unknown` means the controller reported a value this exporter does not map
+> - `unknown` is a label value, not a missing series: the other labels stay joinable
+> - A band change takes up to `--collector.info-cache-ttl` to appear
+
+> [!Warning]
+>
+> **Multi-link clients**
+>
+> - An 802.11be client may hold links on more than one band at once
+> - The controller reports one PHY generation per client, so `band` names one link
+> - Aggregations such as `count by (band)` therefore undercount the other links
 
 ### Client Collector
 
@@ -390,7 +425,7 @@ Client collector focuses on user experience quality and connection performance.
 | general | `wnc_client_state`                    | Gauge   | Client state (0-2)                   |
 | general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
 | general | `wnc_client_power_save_state`         | Gauge   | Power save state (0=active, 1=save)  |
-| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (5=ac, 6=ax)         |
+| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
 | general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
 | radio   | `wnc_client_mcs_index`                | Gauge   | MCS index (-1=legacy, 0-11)          |
 | radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
@@ -457,7 +492,7 @@ This was verified through direct RESTCONF API access to the live WNC environment
 > | :--------- | :-------------------------- | :---------------------------- | :-----: | :------: |
 > | `mac`      | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
 > | `ap`       | Access point identifier     | `TEST-AP01`                   |   No    |    No    |
-> | `band`     | Radio band                  | `2.4`, `5`, `6`               |   No    |    No    |
+> | `band`     | Radio band                  | `2.4`, `5`, `6`, `unknown`    |   No    |    No    |
 > | `wlan`     | WLAN ESSID name             | `labo-wifi`                   |   No    |    No    |
 > | `name`     | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** |    No    |
 > | `username` | EAP authentication identity | `john.doe@example.com`        |   No    |    No    |
