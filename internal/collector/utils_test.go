@@ -173,29 +173,36 @@ func TestStringToUint64(t *testing.T) {
 
 // TestMapWirelessProtocol covers every value of ms-phy-radio-type, the typedef of
 // the phyType argument, so that the table can be diffed against the model.
+//
+// confirmed records whether the spelling was seen coming back from a controller. The
+// rest are taken from the model alone, and the model is not always right about them,
+// so their mapping is a best effort: a spelling that turns out to be wrong falls
+// through to the unknown protocol rather than producing a wrong one. A value that has
+// been confirmed must always map to something, which the subtest below enforces.
 func TestMapWirelessProtocol(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		phyType string
-		want    WirelessProtocol
+		phyType   string
+		want      WirelessProtocol
+		confirmed bool
 	}{
-		{"client-unknown-prot", ProtocolUnknown},
-		{"client-dot11b", Protocol11B},
-		{"client-dot11g", Protocol11G},
-		{"client-dot11a", Protocol11A},
-		{"client-dot11n-24-ghz-prot", ProtocolN},
-		{"client-dot11n-5-ghz-prot", ProtocolN},
-		{"client-dot11ac", ProtocolAC},
-		{"client-phy-type-notappl", ProtocolUnknown},
-		{"client-ethernet", ProtocolUnknown},
-		{"client-dot11ax-5ghz-prot", ProtocolAX},
-		{"client-dot11ax-24ghz-prot", ProtocolAX},
-		{"client-802-3", ProtocolUnknown},
-		{"client-dot11ax-6ghz-prot", ProtocolAX},
-		{"client-dot11be-24ghz-prot", ProtocolBE},
-		{"client-dot11be-5ghz-prot", ProtocolBE},
-		{"client-dot11be-6ghz-prot", ProtocolBE},
+		{"client-unknown-prot", ProtocolUnknown, false},
+		{"client-dot11b", Protocol11B, false},
+		{"client-dot11g", Protocol11G, false},
+		{"client-dot11a", Protocol11A, false},
+		{"client-dot11n-24-ghz-prot", ProtocolN, true},
+		{"client-dot11n-5-ghz-prot", ProtocolN, true},
+		{"client-dot11ac", ProtocolAC, true},
+		{"client-phy-type-notappl", ProtocolUnknown, false},
+		{"client-ethernet", ProtocolUnknown, false},
+		{"client-dot11ax-5ghz-prot", ProtocolAX, true},
+		{"client-dot11ax-24ghz-prot", ProtocolAX, true},
+		{"client-802-3", ProtocolUnknown, false},
+		{"client-dot11ax-6ghz-prot", ProtocolAX, true},
+		{"client-dot11be-24ghz-prot", ProtocolBE, false},
+		{"client-dot11be-5ghz-prot", ProtocolBE, false},
+		{"client-dot11be-6ghz-prot", ProtocolBE, false},
 	}
 
 	if len(tests) != 16 {
@@ -205,8 +212,14 @@ func TestMapWirelessProtocol(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.phyType, func(t *testing.T) {
 			t.Parallel()
-			if got := MapWirelessProtocol(tt.phyType, ""); got != tt.want {
+
+			got := MapWirelessProtocol(tt.phyType, "")
+			if got != tt.want {
 				t.Errorf("MapWirelessProtocol(%q, \"\") = %v, want %v", tt.phyType, got, tt.want)
+			}
+			if tt.confirmed && got == ProtocolUnknown {
+				t.Errorf("MapWirelessProtocol(%q, \"\") = %v, but a controller does send this value",
+					tt.phyType, got)
 			}
 		})
 	}
@@ -217,6 +230,7 @@ func TestMapWirelessProtocol(t *testing.T) {
 func TestMapWirelessProtocol_RadioTypeFallback(t *testing.T) {
 	t.Parallel()
 
+	// Only dot11-radio-type-none was never seen coming back from a controller.
 	tests := []struct {
 		radioType string
 		want      WirelessProtocol

@@ -8,7 +8,8 @@ import (
 )
 
 // enmRadioTypes is every value of enm-radio-type, the typedef of
-// radio-oper-data/radio-type. None of them may influence the band.
+// radio-oper-data/radio-type. None of them may influence the band, so whether a given
+// spelling was ever seen coming back from a controller does not matter here.
 var enmRadioTypes = []string{
 	"radio-invalid",
 	"radio-80211bg",
@@ -23,6 +24,9 @@ var enmRadioTypes = []string{
 func TestAPRadioBand(t *testing.T) {
 	t.Parallel()
 
+	// The three band spellings were seen coming back from a controller, and each one
+	// agreed with which per-band RRM list the radio appeared in. dot11-invalid-band
+	// comes from the model alone.
 	tests := []struct {
 		name string
 		band string
@@ -120,26 +124,33 @@ func TestClientBand(t *testing.T) {
 
 	// Every value of ms-phy-radio-type. The 802.11be entries were added after the
 	// others, so a release that predates them simply never sends them.
+	//
+	// confirmed records whether the spelling was seen coming back from a controller.
+	// The rest come from the model alone, and the model is not always right about
+	// them, so a wrong spelling there falls through to the unknown band rather than
+	// naming the wrong one. A confirmed value that carries a band must resolve to it,
+	// which the subtest below enforces.
 	tests := []struct {
-		phyType string
-		want    string
+		phyType   string
+		want      string
+		confirmed bool
 	}{
-		{"client-unknown-prot", BandUnknown},
-		{"client-dot11b", Band24GHz},
-		{"client-dot11g", Band24GHz},
-		{"client-dot11a", Band5GHz},
-		{"client-dot11n-24-ghz-prot", Band24GHz},
-		{"client-dot11n-5-ghz-prot", Band5GHz},
-		{"client-dot11ac", Band5GHz},
-		{"client-phy-type-notappl", BandUnknown},
-		{"client-ethernet", BandUnknown},
-		{"client-dot11ax-5ghz-prot", Band5GHz},
-		{"client-dot11ax-24ghz-prot", Band24GHz},
-		{"client-802-3", BandUnknown},
-		{"client-dot11ax-6ghz-prot", Band6GHz},
-		{"client-dot11be-24ghz-prot", Band24GHz},
-		{"client-dot11be-5ghz-prot", Band5GHz},
-		{"client-dot11be-6ghz-prot", Band6GHz},
+		{"client-unknown-prot", BandUnknown, false},
+		{"client-dot11b", Band24GHz, false},
+		{"client-dot11g", Band24GHz, false},
+		{"client-dot11a", Band5GHz, false},
+		{"client-dot11n-24-ghz-prot", Band24GHz, true},
+		{"client-dot11n-5-ghz-prot", Band5GHz, true},
+		{"client-dot11ac", Band5GHz, true},
+		{"client-phy-type-notappl", BandUnknown, false},
+		{"client-ethernet", BandUnknown, false},
+		{"client-dot11ax-5ghz-prot", Band5GHz, true},
+		{"client-dot11ax-24ghz-prot", Band24GHz, true},
+		{"client-802-3", BandUnknown, false},
+		{"client-dot11ax-6ghz-prot", Band6GHz, true},
+		{"client-dot11be-24ghz-prot", Band24GHz, false},
+		{"client-dot11be-5ghz-prot", Band5GHz, false},
+		{"client-dot11be-6ghz-prot", Band6GHz, false},
 	}
 
 	if len(tests) != 16 {
@@ -149,9 +160,13 @@ func TestClientBand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.phyType, func(t *testing.T) {
 			t.Parallel()
+
 			got := ClientBand(client.CommonOperData{MsRadioType: tt.phyType})
 			if got != tt.want {
 				t.Errorf("ClientBand(%q) = %q, want %q", tt.phyType, got, tt.want)
+			}
+			if tt.confirmed && got == BandUnknown {
+				t.Errorf("ClientBand(%q) = %q, but a controller does send this value", tt.phyType, got)
 			}
 		})
 	}

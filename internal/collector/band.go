@@ -59,6 +59,11 @@ func APRadioBand(radio *ap.RadioOperData) string {
 // The channel number cannot be used instead: 6 GHz channel numbering restarts at 1
 // and collides with 2.4 GHz. is-11g-client cannot be used either, as the controller
 // sets it on clients whose PHY type is not 802.11g.
+//
+// Not every spelling below has been seen coming back from a controller; the rest come
+// from the model, which is not always right about them. That is safe here only because
+// a wrong spelling falls through to the unknown band instead of naming another one.
+// The test records which values are confirmed.
 func ClientBand(data client.CommonOperData) string {
 	switch data.MsRadioType {
 	case "client-dot11b", "client-dot11g",
