@@ -208,38 +208,50 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 
 	wlanConfigEntries, err := c.src.ListConfigEntries(ctx)
 	if err != nil {
-		slog.Warn("Failed to retrieve WLAN configuration entries", "error", err)
+		slog.Debug("Failed to retrieve WLAN configuration entries", "error", err)
 		return
 	}
 
 	var wlanToPolicyMap map[string]*wlan.WlanPolicy
 	if IsEnabled(c.metrics.Config) {
-		wlanPolicies, err := c.src.ListPolicies(ctx)
-		if err != nil {
-			slog.Warn("Failed to retrieve WLAN policies", "error", err)
+		wlanPolicies, policyErr := c.src.ListPolicies(ctx)
+		if policyErr != nil {
+			slog.Debug("Failed to retrieve WLAN policies", "error", policyErr)
 		}
 
-		policyListEntries, err := c.src.ListPolicyListEntries(ctx)
-		if err != nil {
-			slog.Warn("Failed to retrieve WLAN policy list entries", "error", err)
+		policyListEntries, listErr := c.src.ListPolicyListEntries(ctx)
+		if listErr != nil {
+			slog.Debug("Failed to retrieve WLAN policy list entries", "error", listErr)
 		}
 
-		wlanToPolicyMap = buildWLANToPolicyMap(policyListEntries, wlanPolicies)
+		// The mapping needs both: without the policy list entries no WLAN resolves
+		// to a policy, and the config series would report every WLAN as having
+		// central switching disabled and no session timeout.
+		if policyErr == nil && listErr == nil {
+			wlanToPolicyMap = buildWLANToPolicyMap(policyListEntries, wlanPolicies)
+		}
 	}
 
 	var wlanStatsMap map[int]wlanStats
+	trafficKnown := false
 	if IsEnabled(c.metrics.Traffic) {
-		clientData, err := c.clientSrc.GetClientData(ctx)
-		if err != nil {
-			slog.Warn("Failed to get client data for WLAN traffic metrics", "error", err)
+		clientData, clientErr := c.clientSrc.GetClientData(ctx)
+		if clientErr != nil {
+			slog.Debug("Failed to get client data for WLAN traffic metrics", "error", clientErr)
 		}
 
-		trafficStats, err := c.clientSrc.GetTrafficStats(ctx)
-		if err != nil {
-			slog.Warn("Failed to get client traffic stats for WLAN metrics", "error", err)
+		trafficStats, trafficErr := c.clientSrc.GetTrafficStats(ctx)
+		if trafficErr != nil {
+			slog.Debug("Failed to get client traffic stats for WLAN metrics", "error", trafficErr)
 		}
 
-		wlanStatsMap = c.buildWLANStats(clientData, trafficStats)
+		// The two series have different dependencies. A nil map omits both; a WLAN
+		// with zero clients legitimately reports zero clients and zero bytes, so
+		// availability cannot be inferred from the map being empty.
+		if clientErr == nil {
+			wlanStatsMap = c.buildWLANStats(clientData, trafficStats)
+			trafficKnown = trafficErr == nil
+		}
 	}
 
 	for _, entry := range wlanConfigEntries {
@@ -247,7 +259,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 			c.collectGeneralMetrics(ch, entry)
 		}
 		if c.metrics.Traffic {
-			c.collectTrafficMetrics(ch, entry, wlanStatsMap)
+			c.collectTrafficMetrics(ch, entry, wlanStatsMap, trafficKnown)
 		}
 		if c.metrics.Config {
 			c.collectConfigMetrics(ch, entry, wlanToPolicyMap)
@@ -284,7 +296,14 @@ func (c *WLANCollector) collectTrafficMetrics(
 	ch chan<- prometheus.Metric,
 	entry wlan.WlanCfgEntry,
 	wlanStatsMap map[int]wlanStats,
+	trafficKnown bool,
 ) {
+	// A nil map means client data was unavailable. Indexing it would publish a
+	// zero client count, which reads as "no clients on this SSID".
+	if wlanStatsMap == nil {
+		return
+	}
+
 	labels := []string{strconv.Itoa(entry.WlanID)}
 	stats := wlanStatsMap[entry.WlanID]
 
@@ -294,6 +313,12 @@ func (c *WLANCollector) collectTrafficMetrics(
 		float64(stats.clientCount),
 		labels...,
 	)
+
+	// Zero byte counters would make the next successful scrape look like a counter
+	// reset, so rate() would report a spike of the full counter value.
+	if !trafficKnown {
+		return
+	}
 
 	metrics := []Float64Metric{
 		{c.bytesRxDesc, float64(stats.bytesRx)},
@@ -325,22 +350,30 @@ func (c *WLANCollector) collectConfigMetrics(
 	policyMap map[string]*wlan.WlanPolicy,
 ) {
 	labels := []string{strconv.Itoa(entry.WlanID)}
-	profile := policyMap[entry.ProfileName]
 
+	// Everything derived from the WLAN config entry itself is always available.
 	metrics := []Float64Metric{
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
 		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
 		{c.authDot1xSha256Desc, boolToFloat64(entry.AuthKeyMgmtDot1xSha256)},
 		{c.wpa2EnabledDesc, boolToFloat64(entry.WPA2Enabled)},
 		{c.wpa3EnabledDesc, boolToFloat64(entry.WPA3Enabled)},
-		{c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
 		{c.loadBalanceDesc, boolToFloat64(entry.LoadBalance)},
 		{c.wlan11kNeighDesc, boolToFloat64(entry.Wlan11kNeighList)},
 		{c.clientSteeringDesc, boolToFloat64(entry.ClientSteering)},
-		{c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
-		{c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
-		{c.centralDHCPDesc, determineCentralDHCPValue(profile)},
-		{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
+	}
+
+	// The policy-derived series need a resolved policy profile. A WLAN not bound
+	// to a policy tag has no policy, and reporting zero would assert that central
+	// switching is deliberately disabled and that no session timeout is set.
+	if profile, ok := policyMap[entry.ProfileName]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
+			Float64Metric{c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
+			Float64Metric{c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
+			Float64Metric{c.centralDHCPDesc, determineCentralDHCPValue(profile)},
+			Float64Metric{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
+		)
 	}
 
 	for _, metric := range metrics {

@@ -282,7 +282,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 
 	clientData, err := c.src.GetClientData(ctx)
 	if err != nil {
-		slog.Warn("Failed to retrieve client data", "error", err)
+		slog.Debug("Failed to retrieve client data", "error", err)
 		return
 	}
 
@@ -290,7 +290,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.Info) {
 		deviceData, err := c.src.GetDeviceData(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve device data", "error", err)
+			slog.Debug("Failed to retrieve device data", "error", err)
 		}
 		deviceMap = buildDeviceMap(deviceData)
 	}
@@ -299,7 +299,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Info) {
 		dot11Data, err := c.src.GetDot11Data(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve dot11 data", "error", err)
+			slog.Debug("Failed to retrieve dot11 data", "error", err)
 		}
 		dot11Map = buildDot11Map(dot11Data)
 	}
@@ -308,7 +308,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.Info) {
 		sisfdbData, err := c.src.GetSISFDBData(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve SISF database data", "error", err)
+			slog.Debug("Failed to retrieve SISF database data", "error", err)
 		}
 		sisfMap = buildSISFMap(sisfdbData)
 	}
@@ -317,7 +317,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors) {
 		trafficStats, err := c.src.GetTrafficStats(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve traffic stats", "error", err)
+			slog.Debug("Failed to retrieve traffic stats", "error", err)
 		}
 		trafficMap = buildTrafficMap(trafficStats)
 	}
@@ -326,7 +326,7 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.General) {
 		mobilityData, err := c.src.GetMobilityHistory(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve mobility history data", "error", err)
+			slog.Debug("Failed to retrieve mobility history data", "error", err)
 		}
 		mobilityMap = buildMobilityMap(mobilityData)
 	}
@@ -362,14 +362,25 @@ func (c *ClientCollector) collectGeneralMetrics(
 	mobilityMap map[string]client.MmIfClientHistory,
 ) {
 	labels := []string{data.ClientMAC}
-	traffic := trafficMap[data.ClientMAC]
-	dot11 := dot11Map[data.ClientMAC]
 
+	// An absent key means either the fetch failed or the controller has not
+	// reported this client in that data set yet. Emitting the zero value would
+	// read as a measurement: an association uptime of roughly two millennia from
+	// a zero timestamp, or a power save state the client never reported.
 	metrics := []Float64Metric{
 		{c.stateDesc, float64(MapClientState(data.CoState))},
-		{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()},
-		{c.stateTransitionSecondsDesc, determineLastRunLatency(mobilityMap, data.ClientMAC)},
-		{c.powerSaveStateDesc, float64(traffic.PowerSaveState)},
+	}
+	if dot11, ok := dot11Map[data.ClientMAC]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()})
+	}
+	if _, ok := mobilityMap[data.ClientMAC]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.stateTransitionSecondsDesc, determineLastRunLatency(mobilityMap, data.ClientMAC)})
+	}
+	if traffic, ok := trafficMap[data.ClientMAC]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.powerSaveStateDesc, float64(traffic.PowerSaveState)})
 	}
 
 	for _, metric := range metrics {
@@ -390,16 +401,25 @@ func (c *ClientCollector) collectRadioMetrics(
 	dot11Map map[string]client.Dot11OperData,
 ) {
 	labels := []string{data.ClientMAC}
-	traffic := trafficMap[data.ClientMAC]
-	dot11 := dot11Map[data.ClientMAC]
 
-	metrics := []Float64Metric{
-		{c.protocolDesc, float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient))},
-		{c.speedDesc, float64(traffic.Speed)},
-		{c.spatialStreamsDesc, float64(traffic.SpatialStream)},
-		{c.mcsIndexDesc, float64(parseMCSIndex(traffic.CurrentRate))},
-		{c.rssiDesc, float64(traffic.MostRecentRSSI)},
-		{c.snrDesc, float64(traffic.MostRecentSNR)},
+	// Zero is a plausible reading for every one of these, which is why they must
+	// be absent rather than zero when their source is missing: 0 dBm RSSI reads as
+	// a perfect signal, and a zero protocol reads as a valid enum.
+	var metrics []Float64Metric
+	if dot11, ok := dot11Map[data.ClientMAC]; ok {
+		metrics = append(metrics, Float64Metric{
+			c.protocolDesc,
+			float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient)),
+		})
+	}
+	if traffic, ok := trafficMap[data.ClientMAC]; ok {
+		metrics = append(metrics,
+			Float64Metric{c.speedDesc, float64(traffic.Speed)},
+			Float64Metric{c.spatialStreamsDesc, float64(traffic.SpatialStream)},
+			Float64Metric{c.mcsIndexDesc, float64(parseMCSIndex(traffic.CurrentRate))},
+			Float64Metric{c.rssiDesc, float64(traffic.MostRecentRSSI)},
+			Float64Metric{c.snrDesc, float64(traffic.MostRecentSNR)},
+		)
 	}
 
 	for _, metric := range metrics {
@@ -418,8 +438,15 @@ func (c *ClientCollector) collectTrafficMetrics(
 	data client.CommonOperData,
 	trafficMap map[string]client.TrafficStats,
 ) {
+	// Emitting zero counters for a client whose traffic stats are missing makes
+	// the next successful scrape look like a counter reset, which rate() reports
+	// as a spike of the full counter value.
+	traffic, ok := trafficMap[data.ClientMAC]
+	if !ok {
+		return
+	}
+
 	labels := []string{data.ClientMAC}
-	traffic := trafficMap[data.ClientMAC]
 
 	metrics := []StringMetric{
 		{c.bytesRxDesc, traffic.BytesRx},
@@ -444,20 +471,27 @@ func (c *ClientCollector) collectErrorMetrics(
 	data client.CommonOperData,
 	trafficMap map[string]client.TrafficStats,
 ) {
+	traffic, ok := trafficMap[data.ClientMAC]
+	if !ok {
+		return
+	}
+
 	labels := []string{data.ClientMAC}
-	traffic := trafficMap[data.ClientMAC]
 
 	dataRetries := stringToUint64(traffic.DataRetries)
 	txRetries := stringToUint64(traffic.TxRetries)
 	packetsTx := stringToUint64(traffic.PktsTx)
-	retryRatio := (float64(dataRetries+txRetries) / float64(packetsTx)) * 100.0
 
-	ch <- prometheus.MustNewConstMetric(
-		c.retryRatioDesc,
-		prometheus.GaugeValue,
-		retryRatio,
-		labels...,
-	)
+	// A client that has transmitted nothing yields 0/0. NaN propagates through
+	// avg() and max(), so it would poison those aggregations across the whole job.
+	if packetsTx > 0 {
+		ch <- prometheus.MustNewConstMetric(
+			c.retryRatioDesc,
+			prometheus.GaugeValue,
+			float64(dataRetries+txRetries)/float64(packetsTx)*percentScale,
+			labels...,
+		)
+	}
 
 	metrics := []StringMetric{
 		{c.policyErrorsDesc, traffic.PolicyErrs},
