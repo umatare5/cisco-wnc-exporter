@@ -152,9 +152,12 @@ This exporter collects wireless network metrics from Cisco C9800 WNC using follo
 - **Client Collector** - For user experience quality and connection performance
 - **WLAN Collector** - For logical SSID performance and parameter checks
 
-Alongside them it always exposes the [Exporter Health](#exporter-health) series, which describe the exporter's own data refresh rather than the wireless network.
+The `Module` column names the flag suffix that enables a metric, as in `--collector.ap.radio`.
 
-All collectors have multiple modules to allow fine-grained control over which metrics to collect.
+The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metrics)** series.
+
+- These describe the exporter's own data refresh rather than the wireless network
+- These are exposed whenever at least one of the collectors above is enabled
 
 > [!Important]
 >
@@ -175,17 +178,24 @@ All collectors have multiple modules to allow fine-grained control over which me
 > - A newly associated client is missing from the info metric for up to that long, so `group_left` joins on it return nothing
 > - Caching does not reduce cardinality: every `ap` label value a client has held remains its own series
 
-> [!Warning]
+> [!Note]
 >
-> The controller updates AP and client counters, RSSI and SNR on its own schedule rather than on scrape. The AP profile `stats-timer` governs that schedule and defaults to 180 seconds. RRM noise and coverage update every 180 seconds, and RRM load every 60 seconds.
+> **WNC-side metrics management**
 >
-> Use a range of **15 minutes or more** for `rate()` and `increase()` over those series. A shorter range spans too few distinct controller updates to produce a meaningful result.
+> - The controller updates AP and client counters, RSSI and SNR on its own schedule rather than on scrape
+> - The AP profile `stats-timer` governs that schedule and defaults to 180 seconds
+> - RRM noise and coverage update every 180 seconds, and RRM load every 60 seconds
+> - Use a range of **15 minutes or more** for `rate()` and `increase()`
+> - A shorter range spans too few controller updates to be meaningful
 >
-> Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics for the new session. Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`.
+> **Counter reset timing**
+>
+> - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
+> - Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`
 
 ### AP Collector
 
-AP collector focus on RF foundation and radio performance.
+AP collector focuses on RF foundation and radio performance.
 
 | Module  | Metric                               | Type    | Description                                      |
 | :------ | :----------------------------------- | :------ | :----------------------------------------------- |
@@ -205,7 +215,7 @@ AP collector focus on RF foundation and radio performance.
 | radio   | `wnc_ap_rx_utilization_percent`      | Gauge   | RX utilization percentage                        |
 | radio   | `wnc_ap_tx_utilization_percent`      | Gauge   | TX utilization percentage                        |
 | radio   | `wnc_ap_noise_utilization_percent`   | Gauge   | Noise channel utilization percentage             |
-| radio   | `wnc_ap_clients_total`               | Gauge   | Associated clients count (calclulated)           |
+| radio   | `wnc_ap_clients_total`               | Gauge   | Associated clients count (calculated)            |
 | traffic | `wnc_ap_rx_bytes_total`              | Counter | Total received bytes (calculated)                |
 | traffic | `wnc_ap_tx_bytes_total`              | Counter | Total transmitted bytes (calculated)             |
 | traffic | `wnc_ap_rx_packets_total`            | Counter | Total received packets                           |
@@ -373,7 +383,7 @@ This exporter implements the recommended workaround by using `failed-count` from
 
 ### Client Collector
 
-Client collector focus on user experience quality and connection performance.
+Client collector focuses on user experience quality and connection performance.
 
 | Module  | Metric                                | Type    | Description                          |
 | :------ | :------------------------------------ | :------ | :----------------------------------- |
@@ -462,27 +472,27 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 ### WLAN Collector
 
-WLAN collector focus on logical SSID performance and parameter checks.
+WLAN collector focuses on logical SSID performance and parameter checks.
 
-| Module  | Metric                                    | Type    | Description                           |
-| :------ | :---------------------------------------- | :------ | :------------------------------------ |
-| general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                           |
-| traffic | `wnc_wlan_clients_total`                  | Gauge   | Connected clients count (calclulated) |
-| traffic | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes (calclulated)     |
-| traffic | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes (calclulated)  |
-| config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled            |
-| config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled         |
-| config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled            |
-| config  | `wnc_wlan_wpa2_enabled`                   | Gauge   | WPA2 support enabled                  |
-| config  | `wnc_wlan_wpa3_enabled`                   | Gauge   | WPA3 support enabled                  |
-| config  | `wnc_wlan_session_timeout_seconds`        | Gauge   | Session timeout duration              |
-| config  | `wnc_wlan_load_balance_enabled`           | Gauge   | Load balancing enabled                |
-| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge   | 802.11k neighbor list enabled         |
-| config  | `wnc_wlan_client_steering_enabled`        | Gauge   | 6GHz client steering enabled          |
-| config  | `wnc_wlan_central_switching_enabled`      | Gauge   | Central switching enabled             |
-| config  | `wnc_wlan_central_authentication_enabled` | Gauge   | Central authentication enabled        |
-| config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                  |
-| config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled           |
+| Module  | Metric                                    | Type    | Description                          |
+| :------ | :---------------------------------------- | :------ | :----------------------------------- |
+| general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                          |
+| traffic | `wnc_wlan_clients_total`                  | Gauge   | Connected clients count (calculated) |
+| traffic | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes (calculated)     |
+| traffic | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes (calculated)  |
+| config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled           |
+| config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled        |
+| config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled           |
+| config  | `wnc_wlan_wpa2_enabled`                   | Gauge   | WPA2 support enabled                 |
+| config  | `wnc_wlan_wpa3_enabled`                   | Gauge   | WPA3 support enabled                 |
+| config  | `wnc_wlan_session_timeout_seconds`        | Gauge   | Session timeout duration             |
+| config  | `wnc_wlan_load_balance_enabled`           | Gauge   | Load balancing enabled               |
+| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge   | 802.11k neighbor list enabled        |
+| config  | `wnc_wlan_client_steering_enabled`        | Gauge   | 6GHz client steering enabled         |
+| config  | `wnc_wlan_central_switching_enabled`      | Gauge   | Central switching enabled            |
+| config  | `wnc_wlan_central_authentication_enabled` | Gauge   | Central authentication enabled       |
+| config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                 |
+| config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled          |
 
 > [!Tip]
 >
@@ -499,17 +509,17 @@ WLAN collector focus on logical SSID performance and parameter checks.
 > wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info
 > ```
 
-### Exporter Health
+### Exporter Health Metrics
 
-These series describe the exporter's own WNC data refresh. They have no module and no collector flag: they are always registered, because a failed refresh otherwise produces a successful scrape carrying no series at all.
+These series describe the exporter's own WNC data refresh. They have no module and no collector flag: enabling any collector above exposes them all. Without them a failed refresh produces a successful scrape carrying no series, which no alert can detect.
 
-| Metric                                  | Type    | Description                                             |
-| :-------------------------------------- | :------ | :------------------------------------------------------ |
-| `wnc_up`                                | Gauge   | Whether the last **completed** refresh reached the WNC  |
-| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**                |
-| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot    |
-| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up           |
-| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type         |
+| Metric                                  | Type    | Description                                            |
+| :-------------------------------------- | :------ | :----------------------------------------------------- |
+| `wnc_up`                                | Gauge   | Whether the last **completed** refresh reached the WNC |
+| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**               |
+| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot   |
+| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up          |
+| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type        |
 
 > [!Important]
 >
@@ -519,7 +529,7 @@ These series describe the exporter's own WNC data refresh. They have no module a
 >
 > `wnc_refresh_items` is recorded on success only, so an absent series means that fetch failed while a zero series means the controller returned nothing. `wnc_refresh_errors_total` is seeded to zero for every `data` type at start-up, which makes it the authoritative list of `data` label values.
 
-## Usecase
+## Use Cases
 
 There are multiple ways to run the exporter, including direct binary execution and Docker containerization.
 
@@ -531,7 +541,9 @@ The exporter serves three endpoints:
 - `/metrics` - Metrics endpoint
 - `/healthz` - Liveness probe. Returns a static 200 and deliberately ignores WNC reachability
 
-`/healthz` stays liveness-only on purpose. Reflecting the WNC state there would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health](#exporter-health) series down with it — exactly when they are needed.
+> [!Note]
+>
+> `/healthz` stays liveness-only on purpose. Reflecting the WNC state there would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it — exactly when they are needed.
 
 #### Basic Usage - No Collectors
 
@@ -561,79 +573,26 @@ For complete monitoring, see [`.air.toml`](./.air.toml) which enables all collec
 
 ### Prometheus Configuration
 
-This section describes how to configure Prometheus to scrape metrics from the controld-exporter.
+This section describes how to configure Prometheus to scrape metrics from the cisco-wnc-exporter.
 
-1. Add the job config to your Prometheus YAML file using [examples/prometheus.yml](./examples/prometheus.yml) as a reference.
+#### Job Configuration Example
 
-A refresh starts on the first scrape that arrives after `--wnc.cache-ttl` has elapsed since the previous refresh finished, so the effective refresh period is:
+Add the job config to your Prometheus YAML file using [examples/prometheus.yml](./examples/prometheus.yml) as a reference.
 
-```text
-P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
-```
+> [!Note]
+>
+> A refresh starts on the first scrape that arrives after `--wnc.cache-ttl` has elapsed since the previous refresh finished, so the effective refresh period is:
+>
+> ```text
+> P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
+> ```
+>
+> - `R`: The refresh duration, which `wnc_refresh_duration_seconds` reports.
+> - `P`: 120 seconds for `R` of 5 to 65 seconds at a 60s `scrape_interval`.
 
-`R` is the refresh duration, which `wnc_refresh_duration_seconds` reports. With the shipped defaults and a 60 second `scrape_interval`, `P` is 120 seconds for any `R` under 65 seconds. Lowering `scrape_interval` strictly improves freshness; raising it only saves storage. `scrape_timeout` can stay at its default, because a scrape never waits for the controller.
+#### Alerting Rules Configuration Example
 
-#### Alerting Rules
-
-The four states this design can be in map one-to-one onto these four rules. Dropping any of them leaves one state undetected.
-
-```yaml
-groups:
-  - name: cisco-wnc-exporter
-    rules:
-      - alert: WNCRefreshFailing
-        expr: wnc_up == 0
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "cisco-wnc-exporter cannot reach the WNC"
-          description: >-
-            Scrapes keep returning 200 from the cached snapshot, so the target
-            up stays 1 and cannot detect this. Also fires briefly after a
-            restart, before the first refresh completes.
-
-      - alert: WNCDataStale
-        expr: time() - wnc_refresh_success_timestamp_seconds > 300
-        keep_firing_for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: "cisco-wnc-exporter is serving a stale snapshot"
-          description: >-
-            Pick the threshold above P + scrape_interval * ceil(R /
-            scrape_interval), which is the largest freshness a healthy exporter
-            reports, and below 3 * P + scrape_interval, which is when the
-            snapshot stops being served. With the shipped defaults and a 60
-            second scrape_interval that range is 180 to 420 seconds.
-
-      - alert: WNCDataTypeFailing
-        expr: increase(wnc_refresh_errors_total[15m]) > 0
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "cisco-wnc-exporter cannot fetch {{ $labels.data }}"
-          description: >-
-            Keep for shorter than the range minus scrape_interval, otherwise the
-            rule never fires for an isolated failure. If the failing data type
-            is late in the fetch order and wnc_refresh_duration_seconds sits
-            near twice --wnc.cache-ttl, the deadline is the cause rather than the
-            controller. Exclude data types your controller legitimately leaves
-            empty with a data!= matcher.
-
-      - alert: WNCAPInventoryEmpty
-        expr: wnc_up == 1 unless on(job, instance) wnc_refresh_items{data="ap_capwap_data"} > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: "cisco-wnc-exporter reached the WNC but sees no APs"
-          description: >-
-            Every AP series is labeled from the AP inventory, so an empty
-            inventory silently empties the AP and radio series while wnc_up
-            stays 1.
-```
+Add the alerting rules to your Prometheus YAML file using [examples/prometheus_alert_rules.yml](./examples/prometheus_alert_rules.yml) as a reference.
 
 ### Example Grafana Dashboard
 

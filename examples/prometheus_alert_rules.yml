@@ -1,0 +1,58 @@
+---
+# Alerting rules for cisco-wnc-exporter.
+# P and R below are defined in the README, under Prometheus Configuration.
+groups:
+  - name: cisco-wnc-exporter
+    rules:
+      - alert: WNCRefreshFailing
+        expr: wnc_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cisco-wnc-exporter cannot reach the WNC"
+          description: >-
+            Scrapes keep returning 200 from the cached snapshot, so the target
+            up stays 1 and cannot detect this. Also fires briefly after a
+            restart, before the first refresh completes.
+
+      - alert: WNCDataStale
+        expr: time() - wnc_refresh_success_timestamp_seconds > 300
+        keep_firing_for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter is serving a stale snapshot"
+          description: >-
+            Pick the threshold above P + scrape_interval * ceil(R /
+            scrape_interval), which is the largest freshness a healthy exporter
+            reports, and below 3 * P + scrape_interval, which is when the
+            snapshot stops being served. With the shipped defaults and a 60
+            second scrape_interval that range is 180 to 420 seconds.
+
+      - alert: WNCDataTypeFailing
+        expr: increase(wnc_refresh_errors_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter cannot fetch {{ $labels.data }}"
+          description: >-
+            Set for shorter than the range minus scrape_interval, otherwise the
+            rule never fires for an isolated failure. If the failing data type
+            is late in the fetch order and wnc_refresh_duration_seconds sits
+            near twice --wnc.cache-ttl, the deadline is the cause rather than
+            the controller. Exclude data types your controller legitimately
+            leaves empty with a data!= matcher.
+
+      - alert: WNCAPInventoryEmpty
+        expr: wnc_up == 1 unless on(job, instance) wnc_refresh_items{data="ap_capwap_data"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter reached the WNC but sees no APs"
+          description: >-
+            Every AP series is labeled from the AP inventory, so an empty
+            inventory silently empties the AP and radio series while wnc_up
+            stays 1.
