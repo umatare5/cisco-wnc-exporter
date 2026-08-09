@@ -32,7 +32,7 @@ func NewAPSource(sharedDataSource DataSource) APSource {
 
 // GetCAPWAPData returns CAPWAP data from WNC via SharedDataSource (cached).
 func (s *apSource) GetCAPWAPData(ctx context.Context) ([]ap.CAPWAPData, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPCAPWAPData)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *apSource) GetCAPWAPData(ctx context.Context) ([]ap.CAPWAPData, error) {
 
 // GetAPOperData retrieves AP operational data via SharedDataSource (cached).
 func (s *apSource) GetAPOperData(ctx context.Context) ([]ap.OperData, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPOperData)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *apSource) GetAPOperData(ctx context.Context) ([]ap.OperData, error) {
 
 // GetRadioData returns radio operational data from WNC via SharedDataSource (cached).
 func (s *apSource) GetRadioData(ctx context.Context) ([]ap.RadioOperData, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPRadioOperData)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (s *apSource) GetRadioData(ctx context.Context) ([]ap.RadioOperData, error)
 
 // GetRadioOperStats returns radio operational statistics from WNC via SharedDataSource (cached).
 func (s *apSource) GetRadioOperStats(ctx context.Context) ([]ap.RadioOperStats, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPRadioOperStats)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (s *apSource) GetRadioOperStats(ctx context.Context) ([]ap.RadioOperStats, 
 
 // GetRadioResetStats returns radio reset statistics from WNC via SharedDataSource (cached).
 func (s *apSource) GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPRadioResetStats)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (s *apSource) GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats
 
 // ListNameMACMaps returns AP name to MAC mapping data from WNC via SharedDataSource (cached).
 func (s *apSource) ListNameMACMaps(ctx context.Context) ([]ap.ApNameMACMap, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPNameMACMap)
 	if err != nil {
 		return nil, err
 	}

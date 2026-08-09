@@ -31,11 +31,12 @@ scrape_configs:
         labels:
           app: "prometheus"
 
+  # A scrape is served from the exporter's cached snapshot and never waits for
+  # the controller, so scrape_timeout stays at the global default.
   - job_name: "cisco_wnc"
     scrape_interval: 60s
-    scrape_timeout: 50s
     static_configs:
-      - targets: [localhost:3000]
+      - targets: [localhost:10039]
 
 # If you send metrics to Grafana Cloud, use the following configuration:
 #

@@ -519,35 +519,43 @@ func TestBuildRadioResetStatsMap(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []ap.RadioResetStats
-		expected map[string]map[int]*ap.RadioResetStats
+		expected map[string]map[int]int
 	}{
 		{
 			"Empty slice",
 			[]ap.RadioResetStats{},
-			map[string]map[int]*ap.RadioResetStats{},
+			map[string]map[int]int{},
 		},
 		{
 			"Single reset stat",
 			[]ap.RadioResetStats{
 				{ApMAC: "aa:bb:cc:dd:ee:ff", RadioID: 0, Count: 5},
 			},
-			map[string]map[int]*ap.RadioResetStats{
-				"aa:bb:cc:dd:ee:ff": {
-					0: {},
-				},
+			map[string]map[int]int{
+				"aa:bb:cc:dd:ee:ff": {0: 5},
 			},
 		},
 		{
-			"Multiple reset stats",
+			"One entry per radio",
 			[]ap.RadioResetStats{
 				{ApMAC: "aa:bb:cc:dd:ee:ff", RadioID: 0, Count: 5},
 				{ApMAC: "aa:bb:cc:dd:ee:ff", RadioID: 1, Count: 3},
 			},
-			map[string]map[int]*ap.RadioResetStats{
-				"aa:bb:cc:dd:ee:ff": {
-					0: {},
-					1: {},
-				},
+			map[string]map[int]int{
+				"aa:bb:cc:dd:ee:ff": {0: 5, 1: 3},
+			},
+		},
+		{
+			// The YANG list is keyed by ap-mac, radio-id, cause and detail-cause, so
+			// one radio has one entry per cause. Keeping only the last one made the
+			// counter drop whenever a cause appeared or disappeared.
+			"Every cause on a radio is summed",
+			[]ap.RadioResetStats{
+				{ApMAC: "aa:bb:cc:dd:ee:ff", RadioID: 0, Cause: "reset-cause-1", Count: 5},
+				{ApMAC: "aa:bb:cc:dd:ee:ff", RadioID: 0, Cause: "reset-cause-2", Count: 3},
+			},
+			map[string]map[int]int{
+				"aa:bb:cc:dd:ee:ff": {0: 8},
 			},
 		},
 	}
@@ -566,15 +574,29 @@ func TestBuildRadioResetStatsMap(t *testing.T) {
 			}
 
 			for apMAC, expectedRadios := range tt.expected {
-				if gotRadios, exists := got[apMAC]; !exists {
+				gotRadios, exists := got[apMAC]
+				if !exists {
 					t.Errorf("buildRadioResetStatsMap() missing AP MAC %q", apMAC)
-				} else if len(gotRadios) != len(expectedRadios) {
+					continue
+				}
+				if len(gotRadios) != len(expectedRadios) {
 					t.Errorf(
 						"buildRadioResetStatsMap()[%q] has %d radios, want %d",
 						apMAC,
 						len(gotRadios),
 						len(expectedRadios),
 					)
+				}
+				for radioID, wantCount := range expectedRadios {
+					if gotRadios[radioID] != wantCount {
+						t.Errorf(
+							"buildRadioResetStatsMap()[%q][%d] = %d, want %d",
+							apMAC,
+							radioID,
+							gotRadios[radioID],
+							wantCount,
+						)
+					}
 				}
 			}
 		})
@@ -1260,19 +1282,46 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 		noiseFloorDesc:         prometheus.NewDesc("test_noise_floor", "test", []string{"mac", "radio"}, nil),
 	}
 
-	ch := make(chan prometheus.Metric, 20)
-	go func() {
-		defer close(ch)
-		collector.collectRadioMetrics(ch, radio, rrmMap, nil)
-	}()
-
-	metricCount := 0
-	for range ch {
-		metricCount++
+	tests := []struct {
+		name            string
+		clientCountsMap map[string]map[int]int
+		want            int
+		reason          string
+	}{
+		{
+			name:            "Client counts available",
+			clientCountsMap: map[string]map[int]int{},
+			want:            1,
+			reason:          "an empty map is a radio with nobody on it, which is a real zero",
+		},
+		{
+			name:            "Client counts unavailable",
+			clientCountsMap: nil,
+			want:            0,
+			reason:          "a zero client count would read as an idle radio",
+		},
 	}
 
-	if metricCount == 0 {
-		t.Error("collectRadioMetrics() emitted 0 metrics, want > 0")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ch := make(chan prometheus.Metric, 20)
+			go func() {
+				defer close(ch)
+				collector.collectRadioMetrics(ch, radio, rrmMap, tt.clientCountsMap)
+			}()
+
+			metricCount := 0
+			for range ch {
+				metricCount++
+			}
+
+			if metricCount != tt.want {
+				t.Errorf("collectRadioMetrics() emitted %d metrics, want %d: %s",
+					metricCount, tt.want, tt.reason)
+			}
+		})
 	}
 }
 
@@ -1301,7 +1350,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 	tests := []struct {
 		name        string
 		measurement *rrm.RRMMeasurement
-		expected    int // Load yields 4 metrics, noise floor 1, associated clients is always emitted.
+		expected    int // Load yields 4 metrics, noise floor 1, associated clients 1.
 	}{
 		{"Load and Noise present", &rrm.RRMMeasurement{Load: load, Noise: noise}, 6},
 		{"Noise absent", &rrm.RRMMeasurement{Load: load}, 5},
@@ -1319,7 +1368,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 			ch := make(chan prometheus.Metric, 20)
 			go func() {
 				defer close(ch)
-				collector.collectRadioMetrics(ch, radio, rrmMap, nil)
+				collector.collectRadioMetrics(ch, radio, rrmMap, map[string]map[int]int{})
 			}()
 
 			metricCount := 0
@@ -1476,7 +1525,7 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 			},
 		},
 	}
-	resetStatsMap := map[string]map[int]*ap.RadioResetStats{}
+	resetStatsMap := map[string]map[int]int{}
 	rrmCoverageMap := map[string]*rrm.RRMCoverage{}
 	apDot11RadarMap := map[string]*rrm.ApDot11RadarData{}
 

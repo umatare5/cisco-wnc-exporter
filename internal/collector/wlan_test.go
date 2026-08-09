@@ -1132,19 +1132,56 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 		bytesTxDesc:     prometheus.NewDesc("test_bytes_tx", "test", []string{"id"}, nil),
 	}
 
-	ch := make(chan prometheus.Metric, 10)
-	go func() {
-		defer close(ch)
-		collector.collectTrafficMetrics(ch, entry, statsMap)
-	}()
-
-	metricCount := 0
-	for range ch {
-		metricCount++
+	tests := []struct {
+		name         string
+		statsMap     map[int]wlanStats
+		trafficKnown bool
+		want         int
+		reason       string
+	}{
+		{
+			name:         "Client and traffic data available",
+			statsMap:     statsMap,
+			trafficKnown: true,
+			want:         3,
+			reason:       "client count plus both byte counters",
+		},
+		{
+			name:         "Traffic statistics unavailable",
+			statsMap:     statsMap,
+			trafficKnown: false,
+			want:         1,
+			reason:       "zero byte counters would look like a counter reset to rate()",
+		},
+		{
+			name:         "Client data unavailable",
+			statsMap:     nil,
+			trafficKnown: false,
+			want:         0,
+			reason:       "a zero client count reads as an SSID with nobody on it",
+		},
 	}
 
-	if metricCount == 0 {
-		t.Error("collectTrafficMetrics() emitted 0 metrics, want > 0")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ch := make(chan prometheus.Metric, 10)
+			go func() {
+				defer close(ch)
+				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.trafficKnown)
+			}()
+
+			metricCount := 0
+			for range ch {
+				metricCount++
+			}
+
+			if metricCount != tt.want {
+				t.Errorf("collectTrafficMetrics() emitted %d metrics, want %d: %s",
+					metricCount, tt.want, tt.reason)
+			}
+		})
 	}
 }
 
@@ -1252,7 +1289,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				entry := wlan.WlanCfgEntry{WlanID: 1}
-				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{})
+				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{}, true)
 			},
 		},
 		{

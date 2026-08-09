@@ -18,8 +18,8 @@
 - `internal/config/` — flag/env parsing, defaults (`0.0.0.0:10039`), and validation
 - `internal/server/` — HTTP server (`/metrics`, `/healthz`, `/`), graceful shutdown
 - `internal/collector/` — AP, Client, WLAN collectors; `prometheus.Collector` implementations
-- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK
-- `internal/cache/` — Shared API response cache with configurable TTL
+- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK; `refresher.go` holds the stale-while-revalidate snapshot the collectors read
+- `internal/cache/` — Generic TTL cache, used only for `*_info` metrics (`--collector.info-cache-ttl`)
 - `internal/log/` — `log/slog` setup; structured logging helpers
 
 ## Setup and Commands

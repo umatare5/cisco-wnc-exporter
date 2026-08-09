@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// percentScale converts a ratio to a percentage.
+const percentScale = 100.0
+
 // Client state constants.
 const (
 	ClientStatusRun       = "client-status-run"

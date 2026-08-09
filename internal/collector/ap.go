@@ -484,14 +484,14 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	var capwapMap map[string]ap.CAPWAPData
 	capwapData, err := c.src.GetCAPWAPData(ctx)
 	if err != nil {
-		slog.Error("Failed to get CAPWAP data", "error", err)
+		slog.Debug("Failed to get CAPWAP data", "error", err)
 	}
 	capwapMap = buildCAPWAPMap(capwapData)
 
 	var radioDataMap map[string]*ap.RadioOperData
 	radioDataSlice, err := c.src.GetRadioData(ctx)
 	if err != nil {
-		slog.Error("Failed to get radio data", "error", err)
+		slog.Debug("Failed to get radio data", "error", err)
 	}
 	radioDataMap = buildRadioDataMap(radioDataSlice)
 
@@ -499,7 +499,7 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.Traffic, c.metrics.Errors) {
 		radioOperStats, err := c.src.GetRadioOperStats(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve radio operational stats", "error", err)
+			slog.Debug("Failed to retrieve radio operational stats", "error", err)
 		}
 		radioOperStatsMap = buildRadioOperStatsMap(radioOperStats)
 	}
@@ -508,7 +508,7 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.General) {
 		apOperData, err := c.src.GetAPOperData(ctx)
 		if err != nil {
-			slog.Warn("Failed to retrieve AP operational data", "error", err)
+			slog.Debug("Failed to retrieve AP operational data", "error", err)
 		}
 		apOperDataMap = buildAPOperDataMap(apOperData)
 	}
@@ -520,42 +520,47 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	if IsEnabled(c.metrics.Radio) {
 		rrmMeasurements, err := c.rrmSrc.GetRRMMeasurements(ctx)
 		if err != nil {
-			slog.Warn("Failed to get RRM data for radio metrics", "error", err)
+			slog.Debug("Failed to get RRM data for radio metrics", "error", err)
 		}
 		rrmMeasurementsMap = buildRRMMeasurementsMap(rrmMeasurements)
 
-		clientData, err := c.clientSrc.GetClientData(ctx)
-		if err != nil {
-			slog.Warn("Failed to get client data for radio client counts", "error", err)
+		clientData, clientErr := c.clientSrc.GetClientData(ctx)
+		if clientErr != nil {
+			slog.Debug("Failed to get client data for radio client counts", "error", clientErr)
 		}
 
-		nameMACMaps, err := c.src.ListNameMACMaps(ctx)
-		if err != nil {
-			slog.Warn("Failed to get AP name to MAC mapping for radio client counts", "error", err)
+		nameMACMaps, mapErr := c.src.ListNameMACMaps(ctx)
+		if mapErr != nil {
+			slog.Debug("Failed to get AP name to MAC mapping for radio client counts", "error", mapErr)
 		}
 
-		clientCountsMap = buildRadioClientCountsMap(clientData, nameMACMaps)
+		// The count needs both sources: an empty name-to-MAC map makes every client
+		// unattributable, which would silently report zero associated clients on
+		// every radio. Leave the map nil so the series is omitted instead.
+		if clientErr == nil && mapErr == nil {
+			clientCountsMap = buildRadioClientCountsMap(clientData, nameMACMaps)
+		}
 	}
 
-	var radioResetStatsMap map[string]map[int]*ap.RadioResetStats
+	var radioResetStatsMap map[string]map[int]int
 	if IsEnabled(c.metrics.Errors) {
 		radioResetStats, err := c.src.GetRadioResetStats(ctx)
 		if err != nil {
-			slog.Warn("Failed to get radio reset stats for error metrics", "error", err)
+			slog.Debug("Failed to get radio reset stats for error metrics", "error", err)
 		} else {
 			radioResetStatsMap = buildRadioResetStatsMap(radioResetStats)
 		}
 
 		rrmCoverage, err := c.rrmSrc.GetRRMCoverage(ctx)
 		if err != nil {
-			slog.Warn("Failed to get RRM coverage for error metrics", "error", err)
+			slog.Debug("Failed to get RRM coverage for error metrics", "error", err)
 		} else {
 			rrmCoverageMap = buildRRMCoverageMap(rrmCoverage)
 		}
 
 		apDot11Radar, err := c.rrmSrc.GetApDot11RadarData(ctx)
 		if err != nil {
-			slog.Warn("Failed to get radar data for error metrics", "error", err)
+			slog.Debug("Failed to get radar data for error metrics", "error", err)
 		} else {
 			apDot11RadarMap = buildApDot11RadarMap(apDot11Radar)
 		}
@@ -643,8 +648,6 @@ func (c *APCollector) collectRadioMetrics(
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
-	clientCount := float64(clientCountsMap[radio.WtpMAC][radio.RadioSlotID])
-
 	metrics := []Float64Metric{}
 
 	if len(radio.RadioBandInfo) > 0 {
@@ -677,9 +680,14 @@ func (c *APCollector) collectRadioMetrics(
 		}
 	}
 
-	metrics = append(metrics,
-		Float64Metric{c.associatedClientsDesc, clientCount},
-	)
+	// A nil map means client data or the name-to-MAC mapping was unavailable.
+	// Indexing it would yield zero, which reads as "no clients on this radio".
+	if clientCountsMap != nil {
+		metrics = append(metrics, Float64Metric{
+			c.associatedClientsDesc,
+			float64(clientCountsMap[radio.WtpMAC][radio.RadioSlotID]),
+		})
+	}
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
@@ -725,33 +733,36 @@ func (c *APCollector) collectErrorMetrics(
 	ch chan<- prometheus.Metric,
 	radio *ap.RadioOperData,
 	radioOperStatsMap map[string]map[int]ap.RadioOperStats,
-	radioResetStatsMap map[string]map[int]*ap.RadioResetStats,
+	radioResetStatsMap map[string]map[int]int,
 	rrmCoverageMap map[string]*rrm.RRMCoverage,
 	apDot11RadarMap map[string]*rrm.ApDot11RadarData,
 ) {
-	stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
-	if !ok {
-		return
-	}
-
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
-	var radioResetCount float64
-	if resetStats, exists := radioResetStatsMap[radio.WtpMAC][radio.RadioSlotID]; exists {
-		radioResetCount = float64(resetStats.Count)
+	// These three come from data types other than radio-oper-stats, so they must
+	// not share its early return below. Each is omitted when its own source has no
+	// entry for this radio: a zero reset count reads as a healthy radio, and a zero
+	// radar timestamp reads as a DFS detection at the Unix epoch.
+	if resetCount, exists := radioResetStatsMap[radio.WtpMAC][radio.RadioSlotID]; exists {
+		ch <- prometheus.MustNewConstMetric(
+			c.radioResetTotalDesc, prometheus.CounterValue, float64(resetCount), labels...)
 	}
-
-	var coverageHoleEvents float64
 	if coverage, exists := rrmCoverageMap[radioID]; exists {
-		coverageHoleEvents = float64(coverage.FailedClientCount)
+		ch <- prometheus.MustNewConstMetric(
+			c.coverageHoleEventsDesc, prometheus.CounterValue,
+			float64(coverage.FailedClientCount), labels...)
+	}
+	if radar, exists := apDot11RadarMap[radioID]; exists &&
+		!radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
+		ch <- prometheus.MustNewConstMetric(
+			c.lastRadarOnRadioAtDesc, prometheus.CounterValue,
+			float64(radar.LastRadarOnRadio.Unix()), labels...)
 	}
 
-	var lastRadarOnRadioAt float64
-	if radar, exists := apDot11RadarMap[radioID]; exists {
-		if !radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
-			lastRadarOnRadioAt = float64(radar.LastRadarOnRadio.Unix())
-		}
+	stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
+	if !ok {
+		return
 	}
 
 	errorMetrics := []Float64Metric{
@@ -768,9 +779,6 @@ func (c *APCollector) collectErrorMetrics(
 		{c.decryptionErrorsTotalDesc, float64(stats.MACDecryErrFrameCount)},
 		{c.micErrorsTotalDesc, float64(stats.MACMicErrFrameCount)},
 		{c.wepUndecryptableTotalDesc, float64(stats.WepUndecryptableCount)},
-		{c.coverageHoleEventsDesc, coverageHoleEvents},
-		{c.lastRadarOnRadioAtDesc, lastRadarOnRadioAt},
-		{c.radioResetTotalDesc, radioResetCount},
 	}
 
 	for _, metric := range errorMetrics {
@@ -874,13 +882,18 @@ func buildRRMMeasurementsMap(measurements []rrm.RRMMeasurement) map[string]*rrm.
 	return measurementMap
 }
 
-func buildRadioResetStatsMap(radioResetStats []ap.RadioResetStats) map[string]map[int]*ap.RadioResetStats {
-	statsMap := make(map[string]map[int]*ap.RadioResetStats)
-	for i, stats := range radioResetStats {
+// buildRadioResetStatsMap totals the reset count per radio. The YANG list is
+// keyed by ap-mac, radio-id, cause and detail-cause, so one radio legitimately
+// has several entries; keying only on the first two and overwriting would report
+// one arbitrary cause's count and would decrease whenever the entry set changes,
+// which Prometheus reads as a counter reset.
+func buildRadioResetStatsMap(radioResetStats []ap.RadioResetStats) map[string]map[int]int {
+	statsMap := make(map[string]map[int]int)
+	for _, stats := range radioResetStats {
 		if statsMap[stats.ApMAC] == nil {
-			statsMap[stats.ApMAC] = make(map[int]*ap.RadioResetStats)
+			statsMap[stats.ApMAC] = make(map[int]int)
 		}
-		statsMap[stats.ApMAC][stats.RadioID] = &radioResetStats[i]
+		statsMap[stats.ApMAC][stats.RadioID] += stats.Count
 	}
 	return statsMap
 }

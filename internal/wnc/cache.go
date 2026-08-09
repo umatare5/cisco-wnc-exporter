@@ -3,19 +3,60 @@ package wnc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
-	"github.com/umatare5/cisco-wnc-exporter/internal/cache"
 	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 )
 
+// Data type identifiers. The values mirror the RESTCONF container names with
+// hyphens replaced by underscores, prefixed by their subject when the container
+// name does not already start with it. They are the `data` label values, the
+// RefreshStats map keys and the FetchErrors keys, so they must not drift.
+const (
+	// gosec G101 matches the "pw" inside CAPWAP, not a credential.
+	dataAPCAPWAPData          = "ap_capwap_data" //nolint:gosec
+	dataAPOperData            = "ap_oper_data"
+	dataAPRadioOperData       = "ap_radio_oper_data"
+	dataAPNameMACMap          = "ap_name_mac_map"
+	dataAPRadioOperStats      = "ap_radio_oper_stats"
+	dataAPRadioResetStats     = "ap_radio_reset_stats"
+	dataClientCommonOperData  = "client_common_oper_data"
+	dataClientDCInfo          = "client_dc_info"
+	dataClientDot11OperData   = "client_dot11_oper_data"
+	dataClientSISFDBMac       = "client_sisf_db_mac"
+	dataClientTrafficStats    = "client_traffic_stats"
+	dataClientMMIFHistory     = "client_mm_if_client_history"
+	dataRRMMeasurement        = "rrm_measurement"
+	dataRRMCoverage           = "rrm_coverage"
+	dataRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
+	dataWLANCfgEntries        = "wlan_cfg_entries"
+	dataWLANPolicies          = "wlan_policies"
+	dataWLANPolicyListEntries = "wlan_policy_list_entries"
+)
+
+// refreshDeadlineFactor bounds a whole refresh at this multiple of the cache TTL.
+// One times the TTL is not enough: the per-request timeout defaults to the same
+// value as the TTL, so a single slow request would consume the entire budget.
+const refreshDeadlineFactor = 2
+
+// maxConsecutiveRefreshFailures is how many refreshes may fail in a row before
+// data series are withheld. Serving a frozen snapshot indefinitely defeats
+// Prometheus staleness marking and makes rate() report a false zero.
+const maxConsecutiveRefreshFailures = 3
+
 // WNCDataCache contains operational data from WNC.
+// All fields are read-only once the snapshot is published.
 type WNCDataCache struct {
 	CAPWAPData      []ap.CAPWAPData
 	ApOperData      []ap.OperData
@@ -40,6 +81,13 @@ type WNCDataCache struct {
 	WLANConfigEntries     []wlan.WlanCfgEntry
 	WLANPolicies          []wlan.WlanPolicy
 	WLANPolicyListEntries []wlan.PolicyListEntry
+
+	// FetchErrors records the failure per data type so callers skip derived
+	// metrics instead of publishing a fabricated zero.
+	FetchErrors map[string]error
+	// RefreshedAt is when the refresh that produced this snapshot started, which
+	// bounds the age of every datum it carries.
+	RefreshedAt time.Time
 }
 
 // DataSource provides cached access to WNC operational data.
@@ -47,288 +95,205 @@ type DataSource interface {
 	GetCachedData(ctx context.Context) (*WNCDataCache, error)
 }
 
-// dataSource implements DataSource with caching to minimize WNC requests.
-type dataSource struct {
-	client *wnc.Client
-	cache  *cache.Cache[*WNCDataCache]
+// RefreshStats reports the outcome of WNC data refreshes.
+type RefreshStats struct {
+	// Up reports whether the last completed refresh reached the controller.
+	// It is not a claim about data completeness or about the current scrape.
+	Up bool
+	// Attempted is false until the first refresh completes.
+	Attempted bool
+	// RefreshedAt is the start time of the refresh that produced the snapshot.
+	RefreshedAt time.Time
+	// Duration is how long the last refresh attempt took.
+	Duration time.Duration
+	// Errors counts failures per data type since process start.
+	Errors map[string]int
+	// Items counts what each data type returned, recorded on success only.
+	Items map[string]int
 }
 
-// dataFetcher defines a WNC API call that can fail.
+// StatsProvider is implemented by data sources that report refresh statistics.
+type StatsProvider interface {
+	Stats() RefreshStats
+}
+
+// dataSource implements DataSource with caching to minimize WNC requests.
+type dataSource struct {
+	client    *wnc.Client
+	refresher *refresher
+	cacheTTL  time.Duration
+
+	// failures counts consecutive failed refreshes. It must stay atomic rather
+	// than mu-protected: Stats holds mu and calls serving, and sync.Mutex is not
+	// reentrant.
+	failures atomic.Int64
+
+	mu        sync.Mutex
+	errors    map[string]int
+	items     map[string]int
+	duration  time.Duration
+	up        bool
+	attempted bool
+}
+
+// dataFetcher defines a WNC API call that can fail. It reports the item count on success.
 type dataFetcher struct {
-	name     string
-	required bool
-	fetch    func(ctx context.Context, cache *WNCDataCache) error
+	name  string
+	fetch func(ctx context.Context, c *WNCDataCache) (int, error)
 }
 
 // NewDataSource creates a new shared data source.
 func NewDataSource(cfg config.WNC) DataSource {
-	return &dataSource{
-		client: createWNCClient(cfg),
-		cache:  cache.New[*WNCDataCache](cfg.CacheTTL, "WNC API data cache"),
+	s := &dataSource{
+		client:   createWNCClient(cfg),
+		cacheTTL: cfg.CacheTTL,
+		errors:   make(map[string]int, len(dataTypeNames)),
+	}
+
+	// Seed every data type so the error series exist on the first scrape, which
+	// is the scrape most likely to be reporting a failure.
+	for _, name := range dataTypeNames {
+		s.errors[name] = 0
+	}
+
+	s.refresher = newRefresher(cfg.CacheTTL, s.fetchAllData, s.onRefreshDone)
+	return s
+}
+
+// snapshot returns the cached data unless the given data type failed to fetch.
+// Reading FetchErrors from a nil map yields nil, so snapshots built in tests
+// need no guard.
+func snapshot(ctx context.Context, src DataSource, id string) (*WNCDataCache, error) {
+	data, err := src.GetCachedData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := data.FetchErrors[id]; err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// GetCachedData returns the current snapshot. It never blocks on the controller:
+// the refresh runs in the background and ctx is not used for it.
+func (s *dataSource) GetCachedData(_ context.Context) (*WNCDataCache, error) {
+	data, withheld := s.serving()
+	if data == nil {
+		return nil, errNoSnapshot
+	}
+	if withheld {
+		return nil, fmt.Errorf("%w after %d consecutive failed refreshes",
+			errSnapshotWithheld, maxConsecutiveRefreshFailures)
+	}
+	return data, nil
+}
+
+// serving returns the current snapshot and whether it must be withheld from data
+// collectors. Stats deliberately ignores withheld: freshness has to stay
+// observable exactly while data is being withheld.
+func (s *dataSource) serving() (snap *WNCDataCache, withheld bool) {
+	snap = s.refresher.get()
+	return snap, s.failures.Load() >= maxConsecutiveRefreshFailures
+}
+
+// Stats returns a snapshot of the refresh statistics.
+func (s *dataSource) Stats() RefreshStats {
+	snap, _ := s.serving()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	st := RefreshStats{
+		Up:        s.up,
+		Attempted: s.attempted,
+		Duration:  s.duration,
+		Errors:    maps.Clone(s.errors),
+		Items:     maps.Clone(s.items),
+	}
+	if snap != nil {
+		st.RefreshedAt = snap.RefreshedAt
+	}
+	return st
+}
+
+// onRefreshDone tracks the consecutive failure count and, for a recovered panic,
+// publishes the statistics that fetchAllData never got to record.
+func (s *dataSource) onRefreshDone(err error, elapsed time.Duration) {
+	if err == nil {
+		s.failures.Store(0)
+		return
+	}
+
+	s.failures.Add(1)
+	if errors.Is(err, errRefreshPanicked) {
+		s.recordRefresh(nil, dataTypeNames, elapsed)
 	}
 }
 
-func (s *dataSource) GetCachedData(ctx context.Context) (*WNCDataCache, error) {
-	return s.cache.Get(func() (*WNCDataCache, error) {
-		data, err := s.fetchAllData(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("cache refresh failed: %w", err)
-		}
-		return data, nil
-	})
+// recordRefresh publishes the outcome of a refresh attempt for the collector.
+func (s *dataSource) recordRefresh(items map[string]int, failures []string, duration time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, name := range failures {
+		s.errors[name]++
+	}
+
+	s.items = items
+	s.duration = duration
+	s.attempted = true
+	s.up = len(failures) < len(dataTypeNames)
 }
 
 func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
-	data := &WNCDataCache{}
+	ctx, cancel := context.WithTimeout(ctx, refreshDeadlineFactor*s.cacheTTL)
+	defer cancel()
 
-	// Define all data fetchers with their criticality
-	fetchers := []dataFetcher{
-		{"AP CAPWAP", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListCAPWAPData(ctx)
-			if err != nil {
-				return err
-			}
-			c.CAPWAPData = data.CAPWAPData
-			slog.Info(
-				"AP CAPWAP data retrieved from WNC successfully",
-				"count",
-				len(data.CAPWAPData),
-			)
-			return nil
-		}},
-		{"AP operational", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListApOperData(ctx)
-			if err != nil {
-				return err
-			}
-			c.ApOperData = data.OperData
-			slog.Info(
-				"AP operational data retrieved from WNC successfully",
-				"count",
-				len(data.OperData),
-			)
-			return nil
-		}},
-		{"radio operational", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListRadioData(ctx)
-			if err != nil {
-				return err
-			}
-			c.RadioOperData = data.RadioOperData
-			slog.Info(
-				"radio operational data retrieved from WNC successfully",
-				"count",
-				len(data.RadioOperData),
-			)
-			return nil
-		}},
-		{"AP name to MAC mapping", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListNameMACMaps(ctx)
-			if err != nil {
-				return err
-			}
-			c.NameMACMaps = data.ApNameMACMap
-			slog.Info(
-				"AP name to MAC mapping data retrieved from WNC successfully",
-				"count",
-				len(data.ApNameMACMap),
-			)
-			return nil
-		}},
-		{"RRM measurements", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.RRM().ListRRMMeasurement(ctx)
-			if err != nil {
-				return err
-			}
-			c.RRMMeasurements = data.RRMMeasurement
-			slog.Info(
-				"RRM measurement data retrieved from WNC successfully",
-				"count",
-				len(data.RRMMeasurement),
-			)
-			return nil
-		}},
-		{"WLAN configuration entries", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.WLAN().ListWlanCfgEntries(ctx)
-			if err != nil {
-				return err
-			}
-			if data != nil && data.WlanCfgEntries != nil {
-				c.WLANConfigEntries = data.WlanCfgEntries.WlanCfgEntry
-			} else {
-				c.WLANConfigEntries = []wlan.WlanCfgEntry{}
-			}
-			slog.Info(
-				"WLAN configuration entries retrieved from WNC successfully",
-				"count",
-				len(c.WLANConfigEntries),
-			)
-			return nil
-		}},
-		{"WLAN policies", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.WLAN().ListWlanPolicies(ctx)
-			if err != nil {
-				return err
-			}
-			if data != nil && data.WlanPolicies != nil {
-				c.WLANPolicies = data.WlanPolicies.WlanPolicy
-			} else {
-				c.WLANPolicies = []wlan.WlanPolicy{}
-			}
-			slog.Info("WLAN policies retrieved from WNC successfully", "count", len(c.WLANPolicies))
-			return nil
-		}},
-		{"WLAN policy list entries", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.WLAN().ListCfgPolicyListEntries(ctx)
-			if err != nil {
-				return err
-			}
-			if data != nil && data.PolicyListEntries != nil {
-				c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
-			} else {
-				c.WLANPolicyListEntries = []wlan.PolicyListEntry{}
-			}
-			slog.Info("WLAN policy list entries retrieved from WNC successfully", "count", len(c.WLANPolicyListEntries))
-			return nil
-		}},
-		{"client common", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListCommonInfo(ctx)
-			if err != nil {
-				return err
-			}
-			c.CommonOperData = data.CommonOperData
-			slog.Info(
-				"client common data retrieved from WNC successfully",
-				"count",
-				len(data.CommonOperData),
-			)
-			return nil
-		}},
-		{"client device classification", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListDCInfo(ctx)
-			if err != nil {
-				return err
-			}
-			c.DCInfo = data.DcInfo
-			slog.Info(
-				"client device classification data retrieved from WNC successfully",
-				"count",
-				len(data.DcInfo),
-			)
-			return nil
-		}},
-		{"client 802.11", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListDot11Info(ctx)
-			if err != nil {
-				return err
-			}
-			c.Dot11OperData = data.Dot11OperData
-			slog.Info("client 802.11 data retrieved from WNC successfully",
-				"count", len(data.Dot11OperData),
-			)
-			return nil
-		}},
-		{"SISF database", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListSISFDB(ctx)
-			if err != nil {
-				return err
-			}
-			c.SisfDBMac = data.SisfDBMac
-			slog.Info(
-				"SISF database data retrieved from WNC successfully",
-				"count",
-				len(data.SisfDBMac),
-			)
-			return nil
-		}},
-		{"client traffic stats", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListTrafficStats(ctx)
-			if err != nil {
-				return err
-			}
-			c.TrafficStats = data.TrafficStats
-			slog.Info(
-				"client traffic stats data retrieved from WNC successfully",
-				"count",
-				len(data.TrafficStats),
-			)
-			return nil
-		}},
-		{"client mobility history", true, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.Client().ListMMIFClientHistory(ctx)
-			if err != nil {
-				return err
-			}
-			c.MmIfClientHistory = data.MmIfClientHistory
-			slog.Info(
-				"client mobility history data retrieved from WNC successfully",
-				"count",
-				len(data.MmIfClientHistory),
-			)
-			return nil
-		}},
-		{"radio statistics", false, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListRadioOperStats(ctx)
-			if err != nil {
-				return err
-			}
-			c.RadioOperStats = data.RadioOperStats
-			slog.Info(
-				"radio statistics data retrieved from WNC successfully",
-				"count",
-				len(data.RadioOperStats),
-			)
-			return nil
-		}},
-		{"radio reset statistics", false, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.AP().ListRadioResetStats(ctx)
-			if err != nil {
-				return err
-			}
-			c.RadioResetStats = data.RadioResetStats
-			slog.Info(
-				"radio reset statistics retrieved from WNC successfully",
-				"count",
-				len(data.RadioResetStats),
-			)
-			return nil
-		}},
-		{"RRM coverage", false, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.RRM().ListRRMCoverage(ctx)
-			if err != nil {
-				return err
-			}
-			c.RRMCoverage = data.RRMCoverage
-			slog.Info(
-				"RRM coverage data retrieved from WNC successfully",
-				"count",
-				len(data.RRMCoverage),
-			)
-			return nil
-		}},
-		{"AP radar data", false, func(ctx context.Context, c *WNCDataCache) error {
-			data, err := s.client.RRM().ListApDot11RadarData(ctx)
-			if err != nil {
-				return err
-			}
-			c.ApDot11RadarData = data.ApDot11RadarData
-			slog.Info(
-				"AP radar data retrieved from WNC successfully",
-				"count",
-				len(data.ApDot11RadarData),
-			)
-			return nil
-		}},
+	start := time.Now()
+	data := &WNCDataCache{
+		FetchErrors: make(map[string]error),
+		RefreshedAt: start,
 	}
 
-	// Execute all fetchers
-	for _, f := range fetchers {
-		if err := f.fetch(ctx, data); err != nil {
-			if f.required {
-				return nil, fmt.Errorf("failed to fetch %s: %w", f.name, err)
-			}
-			slog.Warn("optional data fetch failed", "data_type", f.name, "error", err)
+	items := make(map[string]int, len(dataTypeNames))
+	failures := make([]string, 0, len(dataTypeNames))
+	var lastErr error
+
+	for _, f := range s.fetchers() {
+		// A data type the deadline never reached must be recorded as failed.
+		// Leaving it out would make FetchErrors report it as a successful empty
+		// fetch, and the collectors would publish fabricated zeros for it.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			err := fmt.Errorf("%s: %w", f.name, ctxErr)
+			failures = append(failures, f.name)
+			data.FetchErrors[f.name] = err
+			lastErr = err
+			continue
 		}
+
+		fetchStart := time.Now()
+		count, err := f.fetch(ctx, data)
+		if err != nil {
+			failures = append(failures, f.name)
+			data.FetchErrors[f.name] = err
+			lastErr = err
+		} else {
+			items[f.name] = count
+		}
+		slog.Debug("data fetch completed", "data", f.name,
+			"count", count, "duration", time.Since(fetchStart))
+	}
+
+	s.recordRefresh(items, failures, time.Since(start))
+
+	if len(failures) > 0 {
+		slog.Info("WNC data refreshed with failures",
+			"failed_data", failures, "total", len(dataTypeNames),
+			"duration", time.Since(start))
+	}
+
+	if len(failures) == len(dataTypeNames) {
+		return nil, fmt.Errorf("all %d WNC data fetches failed: %w", len(dataTypeNames), lastErr)
 	}
 
 	return data, nil

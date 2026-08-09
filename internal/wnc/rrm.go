@@ -29,7 +29,7 @@ func NewRRMSource(sharedDataSource DataSource) RRMSource {
 
 // GetRRMMeasurements returns RRM measurement data from WNC via SharedDataSource (cached).
 func (s *rrmSource) GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMMeasurement)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *rrmSource) GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasuremen
 
 // GetRRMCoverage returns RRM coverage data from WNC via SharedDataSource (cached).
 func (s *rrmSource) GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMCoverage)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (s *rrmSource) GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, erro
 
 // GetApDot11RadarData returns AP radar detection data from WNC via SharedDataSource (cached).
 func (s *rrmSource) GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMAPDot11RadarData)
 	if err != nil {
 		return nil, err
 	}

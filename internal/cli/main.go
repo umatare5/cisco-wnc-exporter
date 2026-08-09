@@ -106,7 +106,7 @@ func registerWNCFlags() []cli.Flag {
 		},
 		&cli.DurationFlag{
 			Name:  "wnc.cache-ttl",
-			Usage: "WNC API response cache TTL in seconds",
+			Usage: "Minimum interval between WNC data refreshes",
 			Value: config.DefaultWNCCacheTTL,
 		},
 		&cli.BoolFlag{
