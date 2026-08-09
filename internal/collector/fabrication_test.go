@@ -55,6 +55,12 @@ const (
 	fixtureClientMAC = "11:22:33:44:55:66"
 	fixtureProfile   = "test-profile"
 	fixturePolicy    = "test-policy"
+
+	// fixtureChannel is the channel the AP radio operates on. The RRM noise list
+	// must carry an entry for it, and the exporter must not read another entry.
+	fixtureChannel = 6
+	// fixtureBandID ties radio-band-info to current-band-id.
+	fixtureBandID = 0
 )
 
 // fixtureSource serves one snapshot to every adapter in internal/wnc.
@@ -238,15 +244,18 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			ApSysStats: &ap.ApSystemStats{CPUUsage: 12, MemoryUsage: 34},
 		}},
 		RadioOperData: []ap.RadioOperData{{
-			WtpMAC:      fixtureAPMAC,
-			RadioSlotID: 0,
-			RadioType:   "radio-80211bg",
-			AdminState:  APAdminStateEnabled,
-			OperState:   APRadioStateUp,
-			PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6, ChanWidth: 20}},
+			WtpMAC:            fixtureAPMAC,
+			RadioSlotID:       0,
+			RadioType:         "radio-80211bg",
+			CurrentBandID:     fixtureBandID,
+			CurrentActiveBand: "dot11-2-dot-4-ghz-band",
+			AdminState:        APAdminStateEnabled,
+			OperState:         APRadioStateUp,
+			PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: fixtureChannel, ChanWidth: 20}},
 			RadioBandInfo: []ap.RadioBandInfo{{
+				BandID: fixtureBandID,
 				PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{
-					CfgData: ap.PhyTxPwrLvlCfgData{TxPowerLevel1: 20},
+					CfgData: ap.PhyTxPwrLvlCfgData{CurrTxPowerInDbm: 14, TxPowerLevel1: 20},
 				},
 			}},
 		}},
@@ -261,19 +270,20 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		NameMACMaps:     []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 
 		CommonOperData: []client.CommonOperData{{
-			ClientMAC:  fixtureClientMAC,
-			ApName:     fixtureAPName,
-			MsApSlotID: 0,
-			WlanID:     1,
-			CoState:    ClientStatusRun,
+			ClientMAC:   fixtureClientMAC,
+			ApName:      fixtureAPName,
+			MsApSlotID:  0,
+			WlanID:      1,
+			CoState:     ClientStatusRun,
+			MsRadioType: "client-dot11ax-24ghz-prot",
 		}},
 		DCInfo: []client.DcInfo{{ClientMAC: fixtureClientMAC, DeviceType: "Un-Classified Device"}},
 		Dot11OperData: []client.Dot11OperData{{
 			MsMACAddress:  fixtureClientMAC,
 			Dot11State:    "associated",
 			VapSsid:       "TestWLAN",
-			RadioType:     "radio-80211bg",
-			EwlcMsPhyType: "dot11ax",
+			RadioType:     "dot11-radio-type-bg",
+			EwlcMsPhyType: "client-dot11ax-24ghz-prot",
 			MsAssocTime:   time.Now().Add(-time.Hour),
 		}},
 		SisfDBMac: []client.SisfDBMac{{MACAddr: fixtureClientMAC}},
@@ -299,7 +309,10 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			RadioSlotID: 0,
 			Load:        &rrm.Load{CcaUtilPercentage: 30, RxUtilPercentage: 10, TxUtilPercentage: 5},
 			Noise: &rrm.Noise{
-				Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{{Chan: 1, Noise: -95}}},
+				Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{
+					{Chan: 1, Noise: -95},
+					{Chan: fixtureChannel, Noise: -90},
+				}},
 			},
 		}},
 		RRMCoverage: []rrm.RRMCoverage{{

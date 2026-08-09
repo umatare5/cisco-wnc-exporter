@@ -22,13 +22,6 @@ const (
 	APAdminStateEnabled = "enabled"
 )
 
-// Radio slot constants for band mapping.
-const (
-	RadioSlot24GHz = 0
-	RadioSlot5GHz  = 1
-	RadioSlot6GHz  = 2
-)
-
 type WirelessProtocol int
 
 const (
@@ -108,49 +101,6 @@ func buildInfoLabels(requiredLabels, configuredLabels, availableLabels []string)
 	}
 
 	return labels
-}
-
-// DetermineBandFromRadioInfo determines radio band from slot ID and radio type.
-func DetermineBandFromRadioInfo(radioSlotID int, radioType string) string {
-	band := MapRadioSlotToBand(radioSlotID)
-
-	if band == BandUnknown || radioType != "" {
-		if typeBasedSlot := MapRadioTypeToSlot(radioType); typeBasedSlot != -1 {
-			band = MapRadioSlotToBand(typeBasedSlot)
-		}
-	}
-
-	return band
-}
-
-// MapRadioTypeToSlot maps radio type string to radio slot ID.
-func MapRadioTypeToSlot(radioType string) int {
-	switch radioType {
-	case "dot11bg",
-		"client-dot11ax-24ghz-prot", "client-dot11n-24-ghz-prot", "client-dot11bg-24-ghz-prot":
-		return RadioSlot24GHz
-	case "dot11a",
-		"client-dot11ax-5ghz-prot", "client-dot11ac-5-ghz-prot", "client-dot11n-5-ghz-prot", "client-dot11a-5-ghz-prot":
-		return RadioSlot5GHz
-	case "client-dot11ax-6ghz-prot":
-		return RadioSlot6GHz
-	default:
-		return 0 // unknown state
-	}
-}
-
-// MapRadioSlotToBand maps radio slot ID to band string.
-func MapRadioSlotToBand(radioSlotID int) string {
-	switch radioSlotID {
-	case RadioSlot24GHz:
-		return Band24GHz
-	case RadioSlot5GHz:
-		return Band5GHz
-	case RadioSlot6GHz:
-		return Band6GHz
-	default:
-		return BandUnknown
-	}
 }
 
 // IsEnabled returns true if any of the provided boolean values is true.

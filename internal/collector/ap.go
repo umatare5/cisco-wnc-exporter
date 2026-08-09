@@ -800,7 +800,7 @@ func (c *APCollector) collectInfoMetrics(
 		return
 	}
 
-	band := DetermineBandFromRadioInfo(radio.RadioSlotID, radio.RadioType)
+	band := APRadioBand(radio)
 	radioSlot := strconv.Itoa(radio.RadioSlotID)
 
 	model := capwap.DeviceDetail.StaticInfo.ApModels.Model

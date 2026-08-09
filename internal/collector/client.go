@@ -527,7 +527,7 @@ func (c *ClientCollector) collectInfoMetrics(
 ) {
 	dot11 := dot11Map[data.ClientMAC]
 
-	band := DetermineBandFromRadioInfo(-1, data.MsRadioType)
+	band := ClientBand(data)
 	name := determineDeviceNameFromDeviceMap(deviceMap, data.ClientMAC)
 	wlan := dot11.VapSsid
 	ipv4 := determineIPv4FromSISF(sisfMap[data.ClientMAC])
