@@ -91,7 +91,7 @@ OPTIONS:
    --web.listen-port int        Port number to bind the HTTP server to (default: 10039)
    --web.telemetry-path string  Path for the metrics endpoint (default: "/metrics")
    --wnc.access-token string    WNC API access token [$WNC_ACCESS_TOKEN]
-   --wnc.cache-ttl duration     WNC API response cache TTL in seconds (default: 55s)
+   --wnc.cache-ttl duration     Minimum interval between WNC data refreshes (default: 55s)
    --wnc.controller string      WNC controller hostname or IP address [$WNC_CONTROLLER]
    --wnc.timeout duration       WNC API request timeout (default: 55s)
    --wnc.tls-skip-verify        Skip TLS certificate verification (default: false)
@@ -152,23 +152,36 @@ This exporter collects wireless network metrics from Cisco C9800 WNC using follo
 - **Client Collector** - For user experience quality and connection performance
 - **WLAN Collector** - For logical SSID performance and parameter checks
 
+Alongside them it always exposes the [Exporter Health](#exporter-health) series, which describe the exporter's own data refresh rather than the wireless network.
+
 All collectors have multiple modules to allow fine-grained control over which metrics to collect.
 
 > [!Important]
 >
 > All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
 >
-> **Cisco C9800 WNC caching (55 seconds)**
+> **WNC data refresh (`--wnc.cache-ttl`)**
 >
-> - API responses are cached for 55 seconds
-> - This TTL is tuned for both Prometheus scrape intervals and AP metric reporting intervals
-> - You can adjust it with the `--wnc.cache-ttl` flag
+> - A scrape is served from the last snapshot and never waits for the controller
+> - The flag sets the minimum idle time between refresh completions, not a snapshot expiry
+> - The first scrape after start-up therefore reports `wnc_up 0` and carries no data series
+> - A refresh is bounded at twice the flag value; data types the deadline never reached count as failures
+> - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
 >
-> **Prometheus info metrics caching (1800 seconds)**
+> **Prometheus info metrics caching (`--collector.info-cache-ttl`)**
 >
-> - Info metrics are cached for 1800 seconds (30 minutes)
-> - Wireless clients often roam between APs, causing the `ap` label to change frequently
-> - You can adjust it with the `--collector.info-cache-ttl` flag
+> - Info metrics are reused for 1800 seconds (30 minutes) to keep request volume down
+> - A client that roamed keeps its previous `ap` label until the cache expires
+> - A newly associated client is missing from the info metric for up to that long, so `group_left` joins on it return nothing
+> - Caching does not reduce cardinality: every `ap` label value a client has held remains its own series
+
+> [!Warning]
+>
+> The controller updates AP and client counters, RSSI and SNR on its own schedule rather than on scrape. The AP profile `stats-timer` governs that schedule and defaults to 180 seconds. RRM noise and coverage update every 180 seconds, and RRM load every 60 seconds.
+>
+> Use a range of **15 minutes or more** for `rate()` and `increase()` over those series. A shorter range spans too few distinct controller updates to produce a meaningful result.
+>
+> Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics for the new session. Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`.
 
 ### AP Collector
 
@@ -226,7 +239,7 @@ AP collector focus on RF foundation and radio performance.
 
 <details><summary><b>*1</b> Metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 
-The following metrics consistently return zero values due to implementation limitations:
+The following metrics consistently return zero values due to implementation limitations. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
 
 - `wnc_ap_(tx|rx)_errors_total`
 - `wnc_ap_control_(rx|tx)_frames_total`
@@ -355,7 +368,7 @@ This exporter implements the recommended workaround by using `failed-count` from
 > Use this info metric to add contextual labels to other metrics in PromQL queries:
 >
 > ```bash
-> wnc_ap_radio_admin_state * on(mac,radio) group_left(name,ip) wnc_ap_info
+> wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
 > ```
 
 ### Client Collector
@@ -393,7 +406,7 @@ Client collector focus on user experience quality and connection performance.
 
 <details><summary><b>*3</b> Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 
-The following client error metrics consistently return zero values due to implementation limitations:
+The following client error metrics consistently return zero values due to implementation limitations. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
 
 - `wnc_client_duplicate_received_total`
 - `wnc_client_excessive_retries_total`
@@ -486,13 +499,39 @@ WLAN collector focus on logical SSID performance and parameter checks.
 > wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info
 > ```
 
+### Exporter Health
+
+These series describe the exporter's own WNC data refresh. They have no module and no collector flag: they are always registered, because a failed refresh otherwise produces a successful scrape carrying no series at all.
+
+| Metric                                  | Type    | Description                                             |
+| :-------------------------------------- | :------ | :------------------------------------------------------ |
+| `wnc_up`                                | Gauge   | Whether the last **completed** refresh reached the WNC  |
+| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**                |
+| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot    |
+| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up           |
+| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type         |
+
+> [!Important]
+>
+> `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot, so the target's `up` reports only that the exporter's HTTP server answered.
+
+> [!Note]
+>
+> `wnc_refresh_items` is recorded on success only, so an absent series means that fetch failed while a zero series means the controller returned nothing. `wnc_refresh_errors_total` is seeded to zero for every `data` type at start-up, which makes it the authoritative list of `data` label values.
+
 ## Usecase
 
 There are multiple ways to run the exporter, including direct binary execution and Docker containerization.
 
 ### Exporter Configuration
 
-Visit http://localhost:10039/ to verify the exporter is running.
+The exporter serves three endpoints:
+
+- `/` - Landing page. Visit http://localhost:10039/ to verify the exporter is running
+- `/metrics` - Metrics endpoint
+- `/healthz` - Liveness probe. Returns a static 200 and deliberately ignores WNC reachability
+
+`/healthz` stays liveness-only on purpose. Reflecting the WNC state there would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health](#exporter-health) series down with it — exactly when they are needed.
 
 #### Basic Usage - No Collectors
 
@@ -525,6 +564,76 @@ For complete monitoring, see [`.air.toml`](./.air.toml) which enables all collec
 This section describes how to configure Prometheus to scrape metrics from the controld-exporter.
 
 1. Add the job config to your Prometheus YAML file using [examples/prometheus.yml](./examples/prometheus.yml) as a reference.
+
+A refresh starts on the first scrape that arrives after `--wnc.cache-ttl` has elapsed since the previous refresh finished, so the effective refresh period is:
+
+```text
+P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
+```
+
+`R` is the refresh duration, which `wnc_refresh_duration_seconds` reports. With the shipped defaults and a 60 second `scrape_interval`, `P` is 120 seconds for any `R` under 65 seconds. Lowering `scrape_interval` strictly improves freshness; raising it only saves storage. `scrape_timeout` can stay at its default, because a scrape never waits for the controller.
+
+#### Alerting Rules
+
+The four states this design can be in map one-to-one onto these four rules. Dropping any of them leaves one state undetected.
+
+```yaml
+groups:
+  - name: cisco-wnc-exporter
+    rules:
+      - alert: WNCRefreshFailing
+        expr: wnc_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cisco-wnc-exporter cannot reach the WNC"
+          description: >-
+            Scrapes keep returning 200 from the cached snapshot, so the target
+            up stays 1 and cannot detect this. Also fires briefly after a
+            restart, before the first refresh completes.
+
+      - alert: WNCDataStale
+        expr: time() - wnc_refresh_success_timestamp_seconds > 300
+        keep_firing_for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter is serving a stale snapshot"
+          description: >-
+            Pick the threshold above P + scrape_interval * ceil(R /
+            scrape_interval), which is the largest freshness a healthy exporter
+            reports, and below 3 * P + scrape_interval, which is when the
+            snapshot stops being served. With the shipped defaults and a 60
+            second scrape_interval that range is 180 to 420 seconds.
+
+      - alert: WNCDataTypeFailing
+        expr: increase(wnc_refresh_errors_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter cannot fetch {{ $labels.data }}"
+          description: >-
+            Keep for shorter than the range minus scrape_interval, otherwise the
+            rule never fires for an isolated failure. If the failing data type
+            is late in the fetch order and wnc_refresh_duration_seconds sits
+            near twice --wnc.cache-ttl, the deadline is the cause rather than the
+            controller. Exclude data types your controller legitimately leaves
+            empty with a data!= matcher.
+
+      - alert: WNCAPInventoryEmpty
+        expr: wnc_up == 1 unless on(job, instance) wnc_refresh_items{data="ap_capwap_data"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter reached the WNC but sees no APs"
+          description: >-
+            Every AP series is labeled from the AP inventory, so an empty
+            inventory silently empties the AP and radio series while wnc_up
+            stays 1.
+```
 
 ### Example Grafana Dashboard
 
