@@ -1328,15 +1328,20 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 	t.Parallel()
 
+	const operatingChannel = 36
+
 	radio := &ap.RadioOperData{
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
-		RadioType:   "dot11-5ghz-radio",
+		RadioType:   "radio-80211a",
+		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
 	}
 
 	collector := &APCollector{
 		metrics:                APMetrics{Radio: true},
 		associatedClientsDesc:  prometheus.NewDesc("test_clients", "test", []string{"mac", "radio"}, nil),
+		channelDesc:            prometheus.NewDesc("test_channel", "test", []string{"mac", "radio"}, nil),
+		channelWidthDesc:       prometheus.NewDesc("test_channel_width", "test", []string{"mac", "radio"}, nil),
 		channelUtilizationDesc: prometheus.NewDesc("test_channel_util", "test", []string{"mac", "radio"}, nil),
 		rxUtilizationDesc:      prometheus.NewDesc("test_rx_util", "test", []string{"mac", "radio"}, nil),
 		txUtilizationDesc:      prometheus.NewDesc("test_tx_util", "test", []string{"mac", "radio"}, nil),
@@ -1345,18 +1350,28 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 	}
 
 	load := &rrm.Load{CcaUtilPercentage: 30, RxUtilPercentage: 10, TxUtilPercentage: 5}
-	noise := &rrm.Noise{Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{{Chan: 36, Noise: -95}}}}
+	// The operating channel is deliberately not the first entry: reading a fixed
+	// index reports a channel the radio is not on.
+	noise := &rrm.Noise{Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{
+		{Chan: 40, Noise: -100},
+		{Chan: operatingChannel, Noise: -95},
+	}}}
+	offChannel := &rrm.Noise{Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{
+		{Chan: 40, Noise: -100},
+	}}}
 
 	tests := []struct {
 		name        string
 		measurement *rrm.RRMMeasurement
-		expected    int // Load yields 4 metrics, noise floor 1, associated clients 1.
+		// PhyHtCfg yields channel and width, Load 4, noise 1, associated clients 1.
+		expected int
 	}{
-		{"Load and Noise present", &rrm.RRMMeasurement{Load: load, Noise: noise}, 6},
-		{"Noise absent", &rrm.RRMMeasurement{Load: load}, 5},
-		{"Load absent", &rrm.RRMMeasurement{Noise: noise}, 2},
-		{"Load and Noise absent", &rrm.RRMMeasurement{}, 1},
-		{"Noise present without noise data", &rrm.RRMMeasurement{Load: load, Noise: &rrm.Noise{}}, 5},
+		{"Load and Noise present", &rrm.RRMMeasurement{Load: load, Noise: noise}, 8},
+		{"Noise absent", &rrm.RRMMeasurement{Load: load}, 7},
+		{"Load absent", &rrm.RRMMeasurement{Noise: noise}, 4},
+		{"Load and Noise absent", &rrm.RRMMeasurement{}, 3},
+		{"Noise present without noise data", &rrm.RRMMeasurement{Load: load, Noise: &rrm.Noise{}}, 7},
+		{"Noise present for another channel only", &rrm.RRMMeasurement{Load: load, Noise: offChannel}, 7},
 	}
 
 	for _, tt := range tests {
@@ -1387,13 +1402,125 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 type radioMetricsOnly struct {
 	collector       *APCollector
 	radio           *ap.RadioOperData
+	rrmMap          map[string]*rrm.RRMMeasurement
 	clientCountsMap map[string]map[int]int
 }
 
 func (r radioMetricsOnly) Describe(_ chan<- *prometheus.Desc) {}
 
 func (r radioMetricsOnly) Collect(ch chan<- prometheus.Metric) {
-	r.collector.collectRadioMetrics(ch, r.radio, nil, r.clientCountsMap)
+	r.collector.collectRadioMetrics(ch, r.radio, r.rrmMap, r.clientCountsMap)
+}
+
+// gatherRadioValues indexes the samples collectRadioMetrics produced by metric name.
+func gatherRadioValues(t *testing.T, source radioMetricsOnly) map[string]float64 {
+	t.Helper()
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(source)
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]float64, len(families))
+	for _, family := range families {
+		values[family.GetName()] = family.GetMetric()[0].GetGauge().GetValue()
+	}
+	return values
+}
+
+// TestAPCollector_collectRadioMetrics_SelectsOperatingBand asserts the values rather
+// than the count. A dual band radio carries a radio-band-info record for the band it
+// is not using, and reading a fixed index reported that record instead.
+func TestAPCollector_collectRadioMetrics_SelectsOperatingBand(t *testing.T) {
+	t.Parallel()
+
+	const (
+		idleBandID      = 1
+		operatingBandID = 2
+		idleBandPower   = 22
+		activePower     = 7
+		activeMaxPower  = 19
+	)
+
+	source := radioMetricsOnly{
+		collector: &APCollector{
+			metrics:        APMetrics{Radio: true},
+			txPowerDesc:    prometheus.NewDesc("wnc_ap_tx_power_dbm", "t", []string{"mac", "radio"}, nil),
+			txPowerMaxDesc: prometheus.NewDesc("wnc_ap_tx_power_max_dbm", "t", []string{"mac", "radio"}, nil),
+		},
+		radio: &ap.RadioOperData{
+			WtpMAC:            "aa:bb:cc:dd:ee:ff",
+			RadioSlotID:       2,
+			RadioType:         "radio-80211-xor-5-6ghz",
+			CurrentBandID:     operatingBandID,
+			CurrentActiveBand: "dot11-6-ghz-band",
+			RadioBandInfo: []ap.RadioBandInfo{
+				{
+					BandID: idleBandID,
+					PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{CfgData: ap.PhyTxPwrLvlCfgData{
+						CurrTxPowerInDbm: idleBandPower, TxPowerLevel1: idleBandPower,
+					}},
+				},
+				{
+					BandID: operatingBandID,
+					PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{CfgData: ap.PhyTxPwrLvlCfgData{
+						CurrTxPowerInDbm: activePower, TxPowerLevel1: activeMaxPower,
+					}},
+				},
+			},
+		},
+	}
+
+	values := gatherRadioValues(t, source)
+
+	if got := values["wnc_ap_tx_power_dbm"]; got != activePower {
+		t.Errorf("wnc_ap_tx_power_dbm = %v, want %v from the operating band's record", got, activePower)
+	}
+	if got := values["wnc_ap_tx_power_max_dbm"]; got != activeMaxPower {
+		t.Errorf("wnc_ap_tx_power_max_dbm = %v, want %v from the operating band's record",
+			got, activeMaxPower)
+	}
+}
+
+// TestAPCollector_collectRadioMetrics_SelectsOperatingChannel asserts the noise value
+// comes from the channel in use rather than from a fixed index of the per-channel list.
+func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
+	t.Parallel()
+
+	const (
+		operatingChannel = 69
+		operatingNoise   = -84
+		otherNoise       = -103
+	)
+
+	radio := &ap.RadioOperData{
+		WtpMAC:      "aa:bb:cc:dd:ee:ff",
+		RadioSlotID: 2,
+		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
+	}
+
+	source := radioMetricsOnly{
+		collector: &APCollector{
+			metrics:          APMetrics{Radio: true},
+			noiseFloorDesc:   prometheus.NewDesc("wnc_ap_noise_floor_dbm", "t", []string{"mac", "radio"}, nil),
+			channelDesc:      prometheus.NewDesc("wnc_ap_channel_number", "t", []string{"mac", "radio"}, nil),
+			channelWidthDesc: prometheus.NewDesc("wnc_ap_channel_width_mhz", "t", []string{"mac", "radio"}, nil),
+		},
+		radio: radio,
+		rrmMap: map[string]*rrm.RRMMeasurement{
+			"aa:bb:cc:dd:ee:ff:2": {Noise: &rrm.Noise{Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{
+				{Chan: 1, Noise: otherNoise},
+				{Chan: operatingChannel, Noise: operatingNoise},
+			}}}},
+		},
+	}
+
+	if got := gatherRadioValues(t, source)["wnc_ap_noise_floor_dbm"]; got != operatingNoise {
+		t.Errorf("wnc_ap_noise_floor_dbm = %v, want %v from the operating channel", got, operatingNoise)
+	}
 }
 
 func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {

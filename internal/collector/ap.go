@@ -650,10 +650,14 @@ func (c *APCollector) collectRadioMetrics(
 
 	metrics := []Float64Metric{}
 
-	if len(radio.RadioBandInfo) > 0 {
+	// Both series come from the record for the band the radio is operating on. A
+	// fixed index reports another band's power table, and only tx-power-level-1 may
+	// be read from that table: the entries past num-supp-power-levels are undefined
+	// and are not required to be ordered.
+	if bandInfo, ok := currentBandInfo(radio); ok {
 		metrics = append(metrics,
-			Float64Metric{c.txPowerDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
-			Float64Metric{c.txPowerMaxDesc, float64(radio.RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
+			Float64Metric{c.txPowerDesc, float64(bandInfo.PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
+			Float64Metric{c.txPowerMaxDesc, float64(bandInfo.PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
 		)
 	}
 
@@ -673,10 +677,8 @@ func (c *APCollector) collectRadioMetrics(
 				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
 			)
 		}
-		if rrmData.Noise != nil && len(rrmData.Noise.Noise.NoiseData) > 0 {
-			metrics = append(metrics,
-				Float64Metric{c.noiseFloorDesc, float64(rrmData.Noise.Noise.NoiseData[0].Noise)},
-			)
+		if noise, found := noiseOnCurrentChannel(rrmData, radio); found {
+			metrics = append(metrics, Float64Metric{c.noiseFloorDesc, float64(noise)})
 		}
 	}
 
@@ -976,4 +978,30 @@ func CalculateUptimeFromBootTime(bootTimeStr string) (int64, error) {
 
 	uptime := time.Since(bootTime)
 	return int64(uptime.Seconds()), nil
+}
+
+// noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,
+// and reports whether the channel was found.
+//
+// noise-data is a per-channel list spanning the band's channel set, so a fixed index
+// reports a channel the radio is not on. The list carries no YANG key either, so its
+// order is not specified. The channel to match is the primary one, which is absent on
+// a radio in monitor or sniffer mode; because the SDK types it as a plain integer,
+// zero is treated as absent rather than as a channel.
+func noiseOnCurrentChannel(rrmData *rrm.RRMMeasurement, radio *ap.RadioOperData) (int, bool) {
+	if radio.PhyHtCfg == nil || rrmData.Noise == nil {
+		return 0, false
+	}
+
+	channel := radio.PhyHtCfg.CfgData.CurrFreq
+	if channel == 0 {
+		return 0, false
+	}
+
+	for _, item := range rrmData.Noise.Noise.NoiseData {
+		if item.Chan == channel {
+			return item.Noise, true
+		}
+	}
+	return 0, false
 }
