@@ -3,8 +3,10 @@ package wnc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -19,30 +21,31 @@ import (
 func TestNewDataSource(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name string
-		cfg  config.WNC
-	}{
-		{
-			name: "With valid configuration",
-			cfg: config.WNC{
-				Controller:    "wnc1.example.internal",
-				AccessToken:   "test-token",
-				Timeout:       30 * time.Second,
-				TLSSkipVerify: true,
-				CacheTTL:      55 * time.Second,
-			},
-		},
+	ds := newTestDataSource(t, "wnc1.example.internal", 55*time.Second)
+	suppressBackgroundRefresh(ds)
+
+	stats := ds.Stats()
+	if len(stats.Errors) != len(dataTypeNames) {
+		t.Fatalf("Stats().Errors covers %d data types, want %d seeded at zero",
+			len(stats.Errors), len(dataTypeNames))
+	}
+	for _, name := range dataTypeNames {
+		if got, ok := stats.Errors[name]; !ok || got != 0 {
+			t.Errorf("Stats().Errors[%s] = %d (present=%t), want 0", name, got, ok)
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			source := NewDataSource(tt.cfg)
-			if source == nil {
-				t.Fatal("NewDataSource returned nil")
-			}
-		})
+	if stats.Attempted {
+		t.Error("Stats().Attempted = true before any refresh, want false")
+	}
+	if stats.Up {
+		t.Error("Stats().Up = true before any refresh, want false")
+	}
+	if !stats.RefreshedAt.IsZero() {
+		t.Error("Stats().RefreshedAt is set before any refresh, want zero")
+	}
+	if len(stats.Items) != 0 {
+		t.Errorf("Stats().Items = %v before any refresh, want empty", stats.Items)
 	}
 }
 
@@ -90,6 +93,29 @@ func TestDataSource_GetCachedData_MockError(t *testing.T) {
 
 	if data != nil {
 		t.Error("GetCachedData() returned non-nil data on error")
+	}
+}
+
+func TestSnapshot_SkipsFailedDataType(t *testing.T) {
+	t.Parallel()
+
+	src := &mockDataSource{data: &WNCDataCache{
+		CAPWAPData:  []ap.CAPWAPData{{WtpMAC: mockAPMAC}},
+		FetchErrors: map[string]error{dataAPCAPWAPData: errors.New("fetch failed")},
+	}}
+	ctx := context.Background()
+
+	if _, err := snapshot(ctx, src, dataAPCAPWAPData); err == nil {
+		t.Errorf("snapshot(%s) error = nil, want the recorded fetch error", dataAPCAPWAPData)
+	}
+
+	data, err := snapshot(ctx, src, dataAPOperData)
+	if err != nil {
+		t.Fatalf("snapshot(%s) error = %v, want nil for a data type that did not fail",
+			dataAPOperData, err)
+	}
+	if len(data.CAPWAPData) != 1 {
+		t.Errorf("snapshot() CAPWAPData length = %d, want 1", len(data.CAPWAPData))
 	}
 }
 
@@ -277,25 +303,23 @@ func TestWNCDataCache_EmptyInitialization(t *testing.T) {
 	if cache.WLANConfigEntries != nil {
 		t.Error("WLANConfigEntries should be nil when not initialized")
 	}
+	if cache.FetchErrors != nil {
+		t.Error("FetchErrors should be nil when not initialized")
+	}
 }
 
 func TestDataFetcher_Structure(t *testing.T) {
 	t.Parallel()
 
 	fetcher := dataFetcher{
-		name:     "test-fetcher",
-		required: true,
-		fetch: func(ctx context.Context, cache *WNCDataCache) error {
-			return nil
+		name: "test-fetcher",
+		fetch: func(ctx context.Context, cache *WNCDataCache) (int, error) {
+			return 1, nil
 		},
 	}
 
 	if fetcher.name != "test-fetcher" {
 		t.Errorf("dataFetcher name = %s, want test-fetcher", fetcher.name)
-	}
-
-	if !fetcher.required {
-		t.Error("dataFetcher required = false, want true")
 	}
 
 	if fetcher.fetch == nil {
@@ -304,469 +328,521 @@ func TestDataFetcher_Structure(t *testing.T) {
 
 	cache := &WNCDataCache{}
 	ctx := context.Background()
-	err := fetcher.fetch(ctx, cache)
+	count, err := fetcher.fetch(ctx, cache)
 	if err != nil {
 		t.Errorf("dataFetcher fetch() error = %v, want nil", err)
+	}
+	if count != 1 {
+		t.Errorf("dataFetcher fetch() count = %d, want 1", count)
+	}
+}
+
+// TestFetchers_MatchDataTypeNames guards the fetch order the deadline truncates
+// from: dataTypeNames is what the error and item series are seeded from, so a
+// fetcher missing from it would never be reported.
+func TestFetchers_MatchDataTypeNames(t *testing.T) {
+	t.Parallel()
+
+	ds := newTestDataSource(t, "wnc1.example.internal", 55*time.Second)
+	suppressBackgroundRefresh(ds)
+
+	fetchers := ds.fetchers()
+	if len(fetchers) != len(dataTypeNames) {
+		t.Fatalf("fetchers() returned %d fetchers, want %d", len(fetchers), len(dataTypeNames))
+	}
+	for i, f := range fetchers {
+		if f.name != dataTypeNames[i] {
+			t.Errorf("fetchers()[%d].name = %s, want %s", i, f.name, dataTypeNames[i])
+		}
+	}
+	if dataTypeNames[0] != dataAPCAPWAPData {
+		t.Errorf("dataTypeNames[0] = %s, want %s: the AP inventory labels every other AP series",
+			dataTypeNames[0], dataAPCAPWAPData)
+	}
+}
+
+func TestMockEndpoints_CoverEveryDataType(t *testing.T) {
+	t.Parallel()
+
+	if len(mockEndpoints) != len(dataTypeNames) {
+		t.Fatalf("mockEndpoints covers %d data types, want %d", len(mockEndpoints), len(dataTypeNames))
+	}
+
+	covered := make(map[string]string, len(mockEndpoints))
+	for segment, ep := range mockEndpoints {
+		if other, dup := covered[ep.dataType]; dup {
+			t.Errorf("segments %q and %q both serve %s", other, segment, ep.dataType)
+		}
+		covered[ep.dataType] = segment
+	}
+	for _, name := range dataTypeNames {
+		if _, ok := covered[name]; !ok {
+			t.Errorf("mockEndpoints has no endpoint for %s", name)
+		}
 	}
 }
 
 func TestDataSource_FetchAllData_Success(t *testing.T) {
 	t.Parallel()
 
-	server := newMockWNCServer(mockServerConfig{
-		apCAPWAPSuccess:    true,
-		apOperSuccess:      true,
-		radioOperSuccess:   true,
-		nameMACSuccess:     true,
-		rrmMeasSuccess:     true,
-		wlanCfgSuccess:     true,
-		wlanPolicySuccess:  true,
-		wlanPolicyListSucc: true,
-		clientCommonSucc:   true,
-		clientDCSuccess:    true,
-		clientDot11Succ:    true,
-		clientSISFSuccess:  true,
-		clientTrafficSucc:  true,
-		clientMobilitySucc: true,
-		radioStatsSuccess:  true,
-		radioResetSuccess:  true,
-		rrmCoverageSuccess: true,
-		apRadarSuccess:     true,
-	})
+	server := newMockWNCServer(failing())
 	defer server.Close()
 
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
-	}
+	ds := newTestDataSource(t, server.URL, 55*time.Second)
 
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	data, err := ds.GetCachedData(ctx)
+	data, err := ds.fetchAllData(context.Background())
 	if err != nil {
-		t.Fatalf("GetCachedData() error = %v, want nil", err)
+		t.Fatalf("fetchAllData() error = %v, want nil", err)
+	}
+	if len(data.FetchErrors) != 0 {
+		t.Errorf("FetchErrors = %v, want empty", data.FetchErrors)
+	}
+	if data.RefreshedAt.IsZero() {
+		t.Error("RefreshedAt is zero, want the refresh start time")
 	}
 
-	if len(data.CAPWAPData) != 1 {
-		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
+	suppressBackgroundRefresh(ds)
+	stats := ds.Stats()
+	if !stats.Up {
+		t.Error("Stats().Up = false, want true")
 	}
-	if len(data.ApOperData) != 1 {
-		t.Errorf("ApOperData length = %d, want 1", len(data.ApOperData))
+	if !stats.Attempted {
+		t.Error("Stats().Attempted = false, want true after a completed refresh")
+	}
+	for _, name := range dataTypeNames {
+		if stats.Items[name] != 1 {
+			t.Errorf("Stats().Items[%s] = %d, want 1", name, stats.Items[name])
+		}
+		if stats.Errors[name] != 0 {
+			t.Errorf("Stats().Errors[%s] = %d, want 0", name, stats.Errors[name])
+		}
+	}
+}
+
+func TestDataSource_FetchAllData_PartialFailure(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(failing(dataAPCAPWAPData))
+	defer server.Close()
+
+	ds := newTestDataSource(t, server.URL, 55*time.Second)
+
+	data, err := ds.fetchAllData(context.Background())
+	if err != nil {
+		t.Fatalf("fetchAllData() error = %v, want nil: a partial failure must not discard the snapshot", err)
+	}
+	if data.FetchErrors[dataAPCAPWAPData] == nil {
+		t.Errorf("FetchErrors[%s] = nil, want the fetch error so collectors skip its series", dataAPCAPWAPData)
+	}
+	if err := data.FetchErrors[dataAPRadioOperData]; err != nil {
+		t.Errorf("FetchErrors[%s] = %v, want nil", dataAPRadioOperData, err)
+	}
+	if len(data.CAPWAPData) != 0 {
+		t.Errorf("CAPWAPData length = %d, want 0 because the fetch failed", len(data.CAPWAPData))
 	}
 	if len(data.RadioOperData) != 1 {
 		t.Errorf("RadioOperData length = %d, want 1", len(data.RadioOperData))
 	}
+
+	suppressBackgroundRefresh(ds)
+	stats := ds.Stats()
+	if !stats.Up {
+		t.Error("Stats().Up = false, want true while at least one data type succeeds")
+	}
+	if stats.Errors[dataAPCAPWAPData] != 1 {
+		t.Errorf("Stats().Errors[%s] = %d, want 1", dataAPCAPWAPData, stats.Errors[dataAPCAPWAPData])
+	}
+	if _, ok := stats.Items[dataAPCAPWAPData]; ok {
+		t.Errorf("Stats().Items records %s, want it absent so wnc_refresh_items reports no zero",
+			dataAPCAPWAPData)
+	}
+	if stats.Items[dataAPRadioOperData] != 1 {
+		t.Errorf("Stats().Items[%s] = %d, want 1", dataAPRadioOperData, stats.Items[dataAPRadioOperData])
+	}
 }
 
-func TestDataSource_FetchAllData_RequiredFetcherFailure(t *testing.T) {
+func TestDataSource_FetchAllData_AllFail(t *testing.T) {
 	t.Parallel()
 
-	server := newMockWNCServer(mockServerConfig{
-		apCAPWAPSuccess: false,
-	})
+	server := newMockWNCServer(failing(dataTypeNames...))
 	defer server.Close()
 
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
-	}
+	ds := newTestDataSource(t, server.URL, 55*time.Second)
 
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	_, err := ds.GetCachedData(ctx)
+	data, err := ds.fetchAllData(context.Background())
 	if err == nil {
-		t.Fatal("GetCachedData() error = nil, want error")
+		t.Fatal("fetchAllData() error = nil, want error when every data type fails")
+	}
+	if data != nil {
+		t.Error("fetchAllData() returned a snapshot, want nil so the previous one keeps being served")
+	}
+	if errors.Unwrap(err) == nil {
+		t.Errorf("fetchAllData() error = %q, want the last fetch error wrapped so the cause is diagnosable",
+			err)
+	}
+	if want := fmt.Sprintf("all %d", len(dataTypeNames)); !strings.Contains(err.Error(), want) {
+		t.Errorf("fetchAllData() error = %q, want it to report %q", err, want)
 	}
 
-	if !strings.Contains(err.Error(), "failed to fetch AP CAPWAP") {
-		t.Errorf("error message = %v, want to contain 'failed to fetch AP CAPWAP'", err)
+	suppressBackgroundRefresh(ds)
+	stats := ds.Stats()
+	if stats.Up {
+		t.Error("Stats().Up = true, want false when every data type failed")
 	}
-}
-
-func TestDataSource_FetchAllData_OptionalFetcherFailure(t *testing.T) {
-	t.Parallel()
-
-	server := newMockWNCServer(mockServerConfig{
-		apCAPWAPSuccess:    true,
-		apOperSuccess:      true,
-		radioOperSuccess:   true,
-		nameMACSuccess:     true,
-		rrmMeasSuccess:     true,
-		wlanCfgSuccess:     true,
-		wlanPolicySuccess:  true,
-		wlanPolicyListSucc: true,
-		clientCommonSucc:   true,
-		clientDCSuccess:    true,
-		clientDot11Succ:    true,
-		clientSISFSuccess:  true,
-		clientTrafficSucc:  true,
-		clientMobilitySucc: true,
-		radioStatsSuccess:  false,
-		radioResetSuccess:  true,
-		rrmCoverageSuccess: true,
-		apRadarSuccess:     true,
-	})
-	defer server.Close()
-
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
+	if len(stats.Items) != 0 {
+		t.Errorf("Stats().Items = %v, want empty when every data type failed", stats.Items)
 	}
-
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	data, err := ds.GetCachedData(ctx)
-	if err != nil {
-		t.Fatalf("GetCachedData() error = %v, want nil (optional failure should not error)", err)
-	}
-
-	if len(data.RadioOperStats) != 0 {
-		t.Errorf(
-			"RadioOperStats length = %d, want 0 (optional fetcher failed)",
-			len(data.RadioOperStats),
-		)
-	}
-
-	if len(data.CAPWAPData) != 1 {
-		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
+	for _, name := range dataTypeNames {
+		if stats.Errors[name] != 1 {
+			t.Errorf("Stats().Errors[%s] = %d, want 1", name, stats.Errors[name])
+		}
 	}
 }
 
-func TestDataSource_FetchAllData_HTTPError(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "internal server error"}`))
-	}))
-	defer server.Close()
-
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
-	}
-
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	_, err := ds.GetCachedData(ctx)
-	if err == nil {
-		t.Fatal("GetCachedData() error = nil, want error")
-	}
-}
-
-func TestDataSource_FetchAllData_Timeout(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(3 * time.Second)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       100 * time.Millisecond,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
-	}
-
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	_, err := ds.GetCachedData(ctx)
-	if err == nil {
-		t.Fatal("GetCachedData() error = nil, want timeout error")
-	}
-}
-
-func TestDataSource_FetchAllData_Unauthorized(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "unauthorized"}`))
-	}))
-	defer server.Close()
-
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "invalid-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
-	}
-
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
-
-	_, err := ds.GetCachedData(ctx)
-	if err == nil {
-		t.Fatal("GetCachedData() error = nil, want unauthorized error")
-	}
-}
-
-func TestDataSource_FetchAllData_InvalidJSON(t *testing.T) {
+// TestDataSource_FetchAllData_TruncatedByDeadline answers the first data type
+// immediately so the snapshot survives, then stalls the rest. Failing the first
+// one instead would make every data type fail and discard the snapshot, leaving
+// the truncation bookkeeping unverifiable.
+func TestDataSource_FetchAllData_TruncatedByDeadline(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yang-data+json")
+
+		ep, ok := mockEndpoints[path.Base(r.URL.Path)]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if ep.dataType != dataAPCAPWAPData {
+			<-r.Context().Done()
+			return
+		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{invalid json}`))
+		w.Write([]byte(ep.body))
 	}))
 	defer server.Close()
 
-	cfg := config.WNC{
-		Controller:    extractHostFromURL(server.URL),
-		AccessToken:   "test-token",
-		Timeout:       5 * time.Second,
-		TLSSkipVerify: true,
-		CacheTTL:      55 * time.Second,
+	ds := newTestDataSource(t, server.URL, 100*time.Millisecond)
+
+	data, err := ds.fetchAllData(context.Background())
+	if err != nil {
+		t.Fatalf("fetchAllData() error = %v, want nil while the first data type succeeds", err)
+	}
+	if err := data.FetchErrors[dataAPCAPWAPData]; err != nil {
+		t.Errorf("FetchErrors[%s] = %v, want nil", dataAPCAPWAPData, err)
+	}
+	if len(data.CAPWAPData) != 1 {
+		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
 	}
 
-	ds := NewDataSource(cfg)
-	ctx := context.Background()
+	last := dataTypeNames[len(dataTypeNames)-1]
+	if !errors.Is(data.FetchErrors[last], context.DeadlineExceeded) {
+		t.Errorf("FetchErrors[%s] = %v, want a deadline error: a data type the deadline never reached "+
+			"must not read as a successful empty fetch", last, data.FetchErrors[last])
+	}
 
-	_, err := ds.GetCachedData(ctx)
-	if err == nil {
-		t.Fatal("GetCachedData() error = nil, want JSON parse error")
+	suppressBackgroundRefresh(ds)
+	stats := ds.Stats()
+	if stats.Errors[last] != 1 {
+		t.Errorf("Stats().Errors[%s] = %d, want 1 so truncation is visible in wnc_refresh_errors_total",
+			last, stats.Errors[last])
+	}
+	if !stats.Up {
+		t.Error("Stats().Up = false, want true while the first data type succeeded")
 	}
 }
 
-// mockServerConfig controls which endpoints return success responses.
+func TestDataSource_FetchAllData_TotalFailureVariants(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{
+			name: "Unauthorized",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error": "unauthorized"}`))
+			},
+		},
+		{
+			name: "Internal server error",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"error": "internal server error"}`))
+			},
+		},
+		{
+			name: "Invalid JSON",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/yang-data+json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{invalid json}`))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTLSServer(tt.handler)
+			defer server.Close()
+
+			ds := newTestDataSource(t, server.URL, 55*time.Second)
+
+			if _, err := ds.fetchAllData(context.Background()); err == nil {
+				t.Fatal("fetchAllData() error = nil, want error when every data type fails")
+			}
+		})
+	}
+}
+
+// TestDataSource_GetCachedData_ColdStart pins the property the whole design
+// exists for: the first scrape returns immediately instead of waiting for the
+// controller.
+func TestDataSource_GetCachedData_ColdStart(t *testing.T) {
+	t.Parallel()
+
+	ds := newTestDataSource(t, "wnc1.example.internal", 55*time.Second)
+	suppressBackgroundRefresh(ds)
+
+	data, err := ds.GetCachedData(context.Background())
+	if !errors.Is(err, errNoSnapshot) {
+		t.Fatalf("GetCachedData() error = %v, want errNoSnapshot", err)
+	}
+	if data != nil {
+		t.Error("GetCachedData() returned data before the first refresh completed")
+	}
+}
+
+func TestDataSource_GetCachedData_ServesAfterRefresh(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(failing())
+	defer server.Close()
+
+	ds := newTestDataSource(t, server.URL, 55*time.Second)
+	ds.refresher.refreshOnce(context.Background())
+
+	data, err := ds.GetCachedData(context.Background())
+	if err != nil {
+		t.Fatalf("GetCachedData() error = %v, want nil after a completed refresh", err)
+	}
+	if len(data.CAPWAPData) != 1 {
+		t.Errorf("CAPWAPData length = %d, want 1", len(data.CAPWAPData))
+	}
+
+	stats := ds.Stats()
+	if stats.RefreshedAt != data.RefreshedAt {
+		t.Errorf("Stats().RefreshedAt = %v, want the snapshot's %v", stats.RefreshedAt, data.RefreshedAt)
+	}
+}
+
+func TestDataSource_GetCachedData_WithheldAfterConsecutiveFailures(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(failing())
+	defer server.Close()
+
+	ds := newTestDataSource(t, server.URL, 55*time.Second)
+	ds.refresher.refreshOnce(context.Background())
+	suppressBackgroundRefresh(ds)
+
+	for range maxConsecutiveRefreshFailures - 1 {
+		ds.onRefreshDone(errors.New("refresh failed"), time.Second)
+	}
+	if _, err := ds.GetCachedData(context.Background()); err != nil {
+		t.Fatalf("GetCachedData() error = %v, want nil below the failure threshold", err)
+	}
+
+	ds.onRefreshDone(errors.New("refresh failed"), time.Second)
+	if _, err := ds.GetCachedData(context.Background()); !errors.Is(err, errSnapshotWithheld) {
+		t.Fatalf("GetCachedData() error = %v, want errSnapshotWithheld", err)
+	}
+
+	// Freshness has to stay observable exactly while data is being withheld,
+	// otherwise the staleness alert has nothing to fire on.
+	if ds.Stats().RefreshedAt.IsZero() {
+		t.Error("Stats().RefreshedAt is zero while the snapshot is withheld, want it observable")
+	}
+
+	ds.onRefreshDone(nil, time.Second)
+	if _, err := ds.GetCachedData(context.Background()); err != nil {
+		t.Errorf("GetCachedData() error = %v, want nil after a successful refresh clears the count", err)
+	}
+}
+
+func TestDataSource_OnRefreshDone_PanicRecordsEveryDataType(t *testing.T) {
+	t.Parallel()
+
+	ds := newTestDataSource(t, "wnc1.example.internal", 55*time.Second)
+	suppressBackgroundRefresh(ds)
+
+	ds.onRefreshDone(fmt.Errorf("run: %w", errRefreshPanicked), 2*time.Second)
+
+	stats := ds.Stats()
+	if stats.Up {
+		t.Error("Stats().Up = true after a panicked refresh, want false")
+	}
+	if !stats.Attempted {
+		t.Error("Stats().Attempted = false after a panicked refresh, want true")
+	}
+	if stats.Duration != 2*time.Second {
+		t.Errorf("Stats().Duration = %v, want 2s", stats.Duration)
+	}
+	for _, name := range dataTypeNames {
+		if stats.Errors[name] != 1 {
+			t.Errorf("Stats().Errors[%s] = %d, want 1", name, stats.Errors[name])
+		}
+	}
+}
+
+func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
+	t.Parallel()
+
+	// The per-request timeout defaults to the cache TTL, so a one-times-TTL
+	// deadline would give eighteen sequential requests the budget of one.
+	if refreshDeadlineFactor < 2 {
+		t.Errorf("refreshDeadlineFactor = %d, want at least 2", refreshDeadlineFactor)
+	}
+	if got := refreshDeadlineFactor * config.DefaultWNCCacheTTL; got <= config.DefaultWNCTimeout {
+		t.Errorf("default refresh deadline = %v, want more than the per-request timeout %v",
+			got, config.DefaultWNCTimeout)
+	}
+}
+
+// RESTCONF module names the mock replies are keyed by.
+const (
+	mockAPOperModule        = "Cisco-IOS-XE-wireless-access-point-oper"
+	mockClientOperModule    = "Cisco-IOS-XE-wireless-client-oper"
+	mockRRMOperModule       = "Cisco-IOS-XE-wireless-rrm-oper"
+	mockRRMGlobalOperModule = "Cisco-IOS-XE-wireless-rrm-global-oper"
+	mockWLANCfgModule       = "Cisco-IOS-XE-wireless-wlan-cfg"
+)
+
+const (
+	mockAPMAC     = "aa:bb:cc:11:22:80"
+	mockClientMAC = "aa:bb:cc:11:22:a9"
+)
+
+// mockEndpoint is the reply the mock server serves for one data type.
+type mockEndpoint struct {
+	dataType string
+	body     string
+}
+
+// mockEndpoints maps the final RESTCONF path segment to the data type it serves.
+// Those segments are unique across all eighteen data types, so the handler matches
+// them exactly: substring matching routed every client and RRM request into the AP
+// branch, which left most of the per-data-type failure switches unexercised.
+var mockEndpoints = map[string]mockEndpoint{
+	"capwap-data": {dataAPCAPWAPData, mockList(mockAPOperModule, "capwap-data",
+		`{"wtp-mac":"`+mockAPMAC+`","ip-addr":"192.168.255.11","name":"TEST-AP01"}`)},
+	"oper-data": {dataAPOperData, mockList(mockAPOperModule, "oper-data",
+		`{"wtp-mac":"`+mockAPMAC+`","radio-id":0}`)},
+	"radio-oper-data": {dataAPRadioOperData, mockList(mockAPOperModule, "radio-oper-data",
+		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
+	"ap-name-mac-map": {dataAPNameMACMap, mockList(mockAPOperModule, "ap-name-mac-map",
+		`{"wtp-name":"TEST-AP01","eth-mac":"`+mockAPMAC+`"}`)},
+	"radio-oper-stats": {dataAPRadioOperStats, mockList(mockAPOperModule, "radio-oper-stats",
+		`{"ap-mac":"`+mockAPMAC+`","slot-id":0}`)},
+	"radio-reset-stats": {dataAPRadioResetStats, mockList(mockAPOperModule, "radio-reset-stats",
+		`{"ap-mac":"`+mockAPMAC+`","radio-id":0}`)},
+	"common-oper-data": {dataClientCommonOperData, mockList(mockClientOperModule, "common-oper-data",
+		`{"client-mac":"`+mockClientMAC+`"}`)},
+	"dc-info": {dataClientDCInfo, mockList(mockClientOperModule, "dc-info",
+		`{"client-mac":"`+mockClientMAC+`"}`)},
+	"dot11-oper-data": {dataClientDot11OperData, mockList(mockClientOperModule, "dot11-oper-data",
+		`{"ms-mac-address":"`+mockClientMAC+`"}`)},
+	"sisf-db-mac": {dataClientSISFDBMac, mockList(mockClientOperModule, "sisf-db-mac",
+		`{"mac-addr":"`+mockClientMAC+`"}`)},
+	"traffic-stats": {dataClientTrafficStats, mockList(mockClientOperModule, "traffic-stats",
+		`{"ms-mac-address":"`+mockClientMAC+`"}`)},
+	"mm-if-client-history": {dataClientMMIFHistory, mockList(mockClientOperModule, "mm-if-client-history",
+		`{"client-mac":"`+mockClientMAC+`"}`)},
+	"rrm-measurement": {dataRRMMeasurement, mockList(mockRRMOperModule, "rrm-measurement",
+		`{"wtp-mac":"`+mockAPMAC+`"}`)},
+	"rrm-coverage": {dataRRMCoverage, mockList(mockRRMGlobalOperModule, "rrm-coverage",
+		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
+	"ap-dot11-radar-data": {dataRRMAPDot11RadarData, mockList(mockRRMOperModule, "ap-dot11-radar-data",
+		`{"wtp-mac":"`+mockAPMAC+`"}`)},
+	"wlan-cfg-entries": {dataWLANCfgEntries, mockNestedList(mockWLANCfgModule, "wlan-cfg-entries",
+		"wlan-cfg-entry", `{"wlan-id":1}`)},
+	"wlan-policies": {dataWLANPolicies, mockNestedList(mockWLANCfgModule, "wlan-policies",
+		"wlan-policy", `{"policy-profile-name":"test-policy"}`)},
+	"policy-list-entries": {dataWLANPolicyListEntries, mockNestedList(mockWLANCfgModule, "policy-list-entries",
+		"policy-list-entry", `{"tag-name":"test-tag"}`)},
+}
+
+// mockList wraps one entry in a module-qualified YANG list.
+func mockList(module, container, entry string) string {
+	return `{"` + module + `:` + container + `":[` + entry + `]}`
+}
+
+// mockNestedList wraps one entry in a container that nests the list, which is how
+// the WLAN configuration subtree is shaped.
+func mockNestedList(module, container, list, entry string) string {
+	return `{"` + module + `:` + container + `":{"` + list + `":[` + entry + `]}}`
+}
+
+// mockServerConfig selects which data types the mock server answers with HTTP 500.
 type mockServerConfig struct {
-	apCAPWAPSuccess    bool
-	apOperSuccess      bool
-	radioOperSuccess   bool
-	nameMACSuccess     bool
-	rrmMeasSuccess     bool
-	wlanCfgSuccess     bool
-	wlanPolicySuccess  bool
-	wlanPolicyListSucc bool
-	clientCommonSucc   bool
-	clientDCSuccess    bool
-	clientDot11Succ    bool
-	clientSISFSuccess  bool
-	clientTrafficSucc  bool
-	clientMobilitySucc bool
-	radioStatsSuccess  bool
-	radioResetSuccess  bool
-	rrmCoverageSuccess bool
-	apRadarSuccess     bool
+	fail map[string]bool
+}
+
+// failing returns a config where exactly the named data types fail.
+func failing(dataTypes ...string) mockServerConfig {
+	fail := make(map[string]bool, len(dataTypes))
+	for _, name := range dataTypes {
+		fail[name] = true
+	}
+	return mockServerConfig{fail: fail}
 }
 
 func newMockWNCServer(cfg mockServerConfig) *httptest.Server {
 	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yang-data+json")
 
-		switch {
-		case strings.Contains(r.URL.Path, "capwap-data"):
-			if cfg.apCAPWAPSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:capwap-data":` +
-						`[{"wtp-mac":"aa:bb:cc:11:22:80","ip-addr":"192.168.255.11","name":"TEST-AP01"}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "oper-data") && !strings.Contains(r.URL.Path, "radio-oper-data"):
-			if cfg.apOperSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:oper-data":` +
-						`[{"wtp-mac":"aa:bb:cc:11:22:80","radio-id":0}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "radio-oper-data") && !strings.Contains(r.URL.Path, "stats"):
-			if cfg.radioOperSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-oper-data":` +
-						`[{"wtp-mac":"aa:bb:cc:11:22:80","radio-slot-id":0}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "ap-name-mac-map"):
-			if cfg.nameMACSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:ap-name-mac-map":` +
-						`[{"wtp-name":"TEST-AP01","eth-mac":"aa:bb:cc:11:22:80"}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "rrm-measurement"):
-			if cfg.rrmMeasSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-rrm-oper:rrm-measurement":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "wlan-cfg-data/wlan-cfg-entries"):
-			if cfg.wlanCfgSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-wlan-cfg:wlan-cfg-entries":{"wlan-cfg-entry":[{"wlan-id":1}]}}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "wlan-policies"):
-			if cfg.wlanPolicySuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-wlan-cfg:wlan-policies":` +
-						`{"wlan-policy":[{"policy-profile-name":"test-policy"}]}}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "policy-list-entries"):
-			if cfg.wlanPolicyListSucc {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-wlan-cfg:policy-list-entries":` +
-						`{"policy-list-entry":[{"tag-name":"test-tag"}]}}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "common-oper-data"):
-			if cfg.clientCommonSucc {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-client-oper:common-oper-data":[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "dc-info"):
-			if cfg.clientDCSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-client-oper:dc-info":[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "dot11-oper-data"):
-			if cfg.clientDot11Succ {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-client-oper:dot11-oper-data":` +
-						`[{"ms-mac-address":"aa:bb:cc:11:22:a9"}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "sisf-db-mac"):
-			if cfg.clientSISFSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-client-oper:sisf-db-mac":[{"mac-addr":"aa:bb:cc:11:22:a9"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "traffic-stats"):
-			if cfg.clientTrafficSucc {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-client-oper:traffic-stats":` +
-						`[{"ms-mac-address":"aa:bb:cc:11:22:a9"}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "mm-if-client-history"):
-			if cfg.clientMobilitySucc {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-client-oper:mm-if-client-history":` +
-						`[{"client-mac":"aa:bb:cc:11:22:a9"}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "radio-oper-data/radio-oper-stats"):
-			if cfg.radioStatsSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-oper-stats":` +
-						`[{"ap-mac":"aa:bb:cc:11:22:80","slot-id":0}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "radio-reset-stats"):
-			if cfg.radioResetSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(
-					`{"Cisco-IOS-XE-wireless-access-point-oper:radio-reset-stats":` +
-						`[{"ap-mac":"aa:bb:cc:11:22:80","radio-id":0}]}`,
-				))
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "rrm-coverage"):
-			if cfg.rrmCoverageSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-rrm-oper:rrm-coverage":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case strings.Contains(r.URL.Path, "ap-dot11-radar-data"):
-			if cfg.apRadarSuccess {
-				w.WriteHeader(http.StatusOK)
-				w.Write(
-					[]byte(
-						`{"Cisco-IOS-XE-wireless-rrm-oper:ap-dot11-radar-data":[{"wtp-mac":"aa:bb:cc:11:22:80"}]}`,
-					),
-				)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		default:
+		ep, ok := mockEndpoints[path.Base(r.URL.Path)]
+		if !ok {
 			w.WriteHeader(http.StatusNotFound)
+			return
 		}
+		if cfg.fail[ep.dataType] {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(ep.body))
 	}))
+}
+
+// newTestDataSource returns the concrete data source so tests can drive
+// fetchAllData and the refresher directly instead of racing the background one.
+func newTestDataSource(t *testing.T, controllerURL string, ttl time.Duration) *dataSource {
+	t.Helper()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    extractHostFromURL(controllerURL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      ttl,
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+	return ds
+}
+
+// suppressBackgroundRefresh keeps Stats and GetCachedData from starting a refresh
+// that would race assertions on statistics a test produced synchronously.
+func suppressBackgroundRefresh(ds *dataSource) {
+	ds.refresher.inflight.Store(true)
 }
 
 func extractHostFromURL(url string) string {

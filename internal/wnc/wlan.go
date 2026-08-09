@@ -29,7 +29,7 @@ func NewWLANSource(sharedDataSource DataSource) WLANSource {
 
 // ListConfigEntries retrieves WLAN configuration entries via SharedDataSource (cached).
 func (s *wlanSource) ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataWLANCfgEntries)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *wlanSource) ListConfigEntries(ctx context.Context) ([]wlan.WlanCfgEntry
 
 // ListPolicies retrieves WLAN policies via SharedDataSource (cached).
 func (s *wlanSource) ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataWLANPolicies)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (s *wlanSource) ListPolicies(ctx context.Context) ([]wlan.WlanPolicy, error
 
 // ListPolicyListEntries retrieves policy list entries via SharedDataSource (cached).
 func (s *wlanSource) ListPolicyListEntries(ctx context.Context) ([]wlan.PolicyListEntry, error) {
-	data, err := s.sharedDataSource.GetCachedData(ctx)
+	data, err := snapshot(ctx, s.sharedDataSource, dataWLANPolicyListEntries)
 	if err != nil {
 		return nil, err
 	}
