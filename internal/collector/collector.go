@@ -80,6 +80,8 @@ func (c *Collector) RegisterSystemCollectors() {
 
 // RegisterServiceCollectors registers all service-specific collectors based on configuration.
 func (c *Collector) RegisterServiceCollectors() {
+	registered := false
+
 	// Register AP collector if any AP module is enabled
 	if IsEnabled(
 		c.cfg.Collectors.AP.General,
@@ -92,6 +94,7 @@ func (c *Collector) RegisterServiceCollectors() {
 		rrmSource := wnc.NewRRMSource(c.sharedDataSource)
 		clientSource := wnc.NewClientSource(c.sharedDataSource)
 		c.registerAPCollector(apSource, rrmSource, clientSource)
+		registered = true
 	} else {
 		slog.Debug("Skipped AP collector registration - all modules disabled")
 	}
@@ -106,6 +109,7 @@ func (c *Collector) RegisterServiceCollectors() {
 		wlanSource := wnc.NewWLANSource(c.sharedDataSource)
 		clientSource := wnc.NewClientSource(c.sharedDataSource)
 		c.registerWLANCollector(wlanSource, clientSource)
+		registered = true
 	} else {
 		slog.Debug("Skipped WLAN collector registration - all modules disabled")
 	}
@@ -120,9 +124,27 @@ func (c *Collector) RegisterServiceCollectors() {
 	) {
 		clientSource := wnc.NewClientSource(c.sharedDataSource)
 		c.registerClientCollector(clientSource)
+		registered = true
 	} else {
 		slog.Debug("Skipped Client collector registration - all modules disabled")
 	}
+
+	// Refresh health is only meaningful once something actually queries the WNC.
+	if registered {
+		c.registerRefreshCollector()
+	}
+}
+
+// registerRefreshCollector registers the WNC data refresh health collector.
+func (c *Collector) registerRefreshCollector() {
+	stats, ok := c.sharedDataSource.(wnc.StatsProvider)
+	if !ok {
+		slog.Debug("Skipped refresh collector registration - data source reports no stats")
+		return
+	}
+
+	c.registry.MustRegister(NewSafeCollector(NewRefreshCollector(stats), "Refresh"))
+	slog.Debug("Registered refresh collector")
 }
 
 // registerAPCollector registers the AP collector with its modules.

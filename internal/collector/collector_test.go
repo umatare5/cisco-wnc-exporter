@@ -353,6 +353,56 @@ func TestCollector_RegisterServiceCollectors_WLANEnabled(t *testing.T) {
 	}
 }
 
+func TestCollector_RegisterRefreshCollector(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		cfg     *config.Config
+		wantUp  bool
+		wantMsg string
+	}{
+		{
+			name:    "collectors enabled",
+			cfg:     createTestConfig(),
+			wantUp:  true,
+			wantMsg: "wnc_up must be exposed so a failing refresh is detectable",
+		},
+		{
+			name:    "collectors disabled",
+			cfg:     createDisabledConfig(),
+			wantUp:  false,
+			wantMsg: "wnc_up must be absent when nothing queries the WNC",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			collector := NewCollector(tt.cfg)
+			collector.RegisterServiceCollectors()
+
+			families, err := collector.registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+
+			found := false
+			for _, family := range families {
+				if family.GetName() == "wnc_up" {
+					found = true
+					break
+				}
+			}
+
+			if found != tt.wantUp {
+				t.Errorf("wnc_up present = %v, want %v: %s", found, tt.wantUp, tt.wantMsg)
+			}
+		})
+	}
+}
+
 func TestCollector_Float64Metric_Type(t *testing.T) {
 	t.Parallel()
 	desc := prometheus.NewDesc("test_metric", "Test metric", nil, nil)

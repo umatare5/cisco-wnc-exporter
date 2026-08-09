@@ -24,4 +24,7 @@ const (
 
 	// WLAN-specific labels.
 	labelID = "id" // WLAN identifier
+
+	// Refresh health labels.
+	labelData = "data" // WNC data type identifier
 )
