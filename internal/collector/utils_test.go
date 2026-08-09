@@ -171,198 +171,103 @@ func TestStringToUint64(t *testing.T) {
 	}
 }
 
-// TestMapWirelessProtocol tests the MapWirelessProtocol function.
+// TestMapWirelessProtocol covers every value of ms-phy-radio-type, the typedef of
+// the phyType argument, so that the table can be diffed against the model.
 func TestMapWirelessProtocol(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		phyType     string
-		radioType   string
-		is11GClient bool
-		expected    WirelessProtocol
+		phyType string
+		want    WirelessProtocol
 	}{
-		// 802.11n
-		{
-			name:        "802.11n by phyType",
-			phyType:     "dot11n",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolN,
-		},
-		{
-			name:        "802.11n with substring",
-			phyType:     "client-dot11n-24-ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolN,
-		},
+		{"client-unknown-prot", ProtocolUnknown},
+		{"client-dot11b", Protocol11B},
+		{"client-dot11g", Protocol11G},
+		{"client-dot11a", Protocol11A},
+		{"client-dot11n-24-ghz-prot", ProtocolN},
+		{"client-dot11n-5-ghz-prot", ProtocolN},
+		{"client-dot11ac", ProtocolAC},
+		{"client-phy-type-notappl", ProtocolUnknown},
+		{"client-ethernet", ProtocolUnknown},
+		{"client-dot11ax-5ghz-prot", ProtocolAX},
+		{"client-dot11ax-24ghz-prot", ProtocolAX},
+		{"client-802-3", ProtocolUnknown},
+		{"client-dot11ax-6ghz-prot", ProtocolAX},
+		{"client-dot11be-24ghz-prot", ProtocolBE},
+		{"client-dot11be-5ghz-prot", ProtocolBE},
+		{"client-dot11be-6ghz-prot", ProtocolBE},
+	}
 
-		// 802.11ac
-		{
-			name:        "802.11ac by phyType",
-			phyType:     "dot11ac",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAC,
-		},
-		{
-			name:        "802.11ac with substring",
-			phyType:     "client-dot11ac-5-ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAC,
-		},
-
-		// 802.11ax
-		{
-			name:        "802.11ax by phyType",
-			phyType:     "dot11ax",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAX,
-		},
-		{
-			name:        "802.11ax 24GHz",
-			phyType:     "client-dot11ax-24ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAX,
-		},
-		{
-			name:        "802.11ax 5GHz",
-			phyType:     "client-dot11ax-5ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAX,
-		},
-		{
-			name:        "802.11ax 6GHz",
-			phyType:     "client-dot11ax-6ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolAX,
-		},
-
-		// 802.11be
-		{
-			name:        "802.11be by phyType",
-			phyType:     "dot11be",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolBE,
-		},
-		{
-			name:        "802.11be EHT",
-			phyType:     "eht",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolBE,
-		},
-
-		// 802.11bg with flag differentiation
-		{
-			name:        "802.11g client (flag set)",
-			phyType:     "dot11bg",
-			radioType:   "",
-			is11GClient: true,
-			expected:    Protocol11G,
-		},
-		{
-			name:        "802.11b client (flag not set)",
-			phyType:     "dot11bg",
-			radioType:   "",
-			is11GClient: false,
-			expected:    Protocol11B,
-		},
-
-		// 802.11a
-		{
-			name:        "802.11a by phyType",
-			phyType:     "dot11a",
-			radioType:   "",
-			is11GClient: false,
-			expected:    Protocol11A,
-		},
-		{
-			name:        "802.11a by radioType",
-			phyType:     "",
-			radioType:   "dot11-radio-type-a",
-			is11GClient: false,
-			expected:    Protocol11A,
-		},
-		{
-			name:        "802.11a protocol substring",
-			phyType:     "client-dot11a-5-ghz-prot",
-			radioType:   "",
-			is11GClient: false,
-			expected:    Protocol11A,
-		},
-
-		// 802.11g
-		{
-			name:        "802.11g by phyType",
-			phyType:     "dot11g",
-			radioType:   "",
-			is11GClient: false,
-			expected:    Protocol11G,
-		},
-		{
-			name:        "802.11g by flag",
-			phyType:     "",
-			radioType:   "",
-			is11GClient: true,
-			expected:    Protocol11G,
-		},
-
-		// Unknown
-		{
-			name:        "Unknown protocol",
-			phyType:     "unknown",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolUnknown,
-		},
-		{
-			name:        "Empty parameters",
-			phyType:     "",
-			radioType:   "",
-			is11GClient: false,
-			expected:    ProtocolUnknown,
-		},
-
-		// Edge cases - precedence tests
-		{
-			name:        "Multiple conditions - n takes precedence",
-			phyType:     "dot11n",
-			radioType:   "dot11-radio-type-a",
-			is11GClient: true,
-			expected:    ProtocolN,
-		},
-		{
-			name:        "AC over ax substring match",
-			phyType:     "dot11ac",
-			radioType:   "client-dot11ax-5ghz-prot",
-			is11GClient: false,
-			expected:    ProtocolAC,
-		},
+	if len(tests) != 16 {
+		t.Fatalf("the table covers %d values, want every value of ms-phy-radio-type", len(tests))
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.phyType, func(t *testing.T) {
 			t.Parallel()
-			result := MapWirelessProtocol(tt.phyType, tt.radioType, tt.is11GClient)
-			if result != tt.expected {
-				t.Errorf(
-					"MapWirelessProtocol(%q, %q, %v) = %v; expected %v",
-					tt.phyType,
-					tt.radioType,
-					tt.is11GClient,
-					result,
-					tt.expected,
-				)
+			if got := MapWirelessProtocol(tt.phyType, ""); got != tt.want {
+				t.Errorf("MapWirelessProtocol(%q, \"\") = %v, want %v", tt.phyType, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestMapWirelessProtocol_RadioTypeFallback covers ms-radio-type, which names the
+// band rather than the generation and is only consulted when the PHY type is absent.
+func TestMapWirelessProtocol_RadioTypeFallback(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		radioType string
+		want      WirelessProtocol
+	}{
+		{"dot11-radio-type-none", ProtocolUnknown},
+		{"dot11-radio-type-a", Protocol11A},
+		// The band alone does not name a generation for these two.
+		{"dot11-radio-type-bg", ProtocolUnknown},
+		{"dot11-radio-type-6ghz", ProtocolUnknown},
+		{"", ProtocolUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.radioType, func(t *testing.T) {
+			t.Parallel()
+			if got := MapWirelessProtocol("", tt.radioType); got != tt.want {
+				t.Errorf("MapWirelessProtocol(\"\", %q) = %v, want %v", tt.radioType, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestMapWirelessProtocol_EveryValueIsReachable pins that no declared protocol is
+// dead code. Protocol11B was unreachable because the mapping looked for a combined
+// bg spelling that the typedef does not use.
+func TestMapWirelessProtocol_EveryValueIsReachable(t *testing.T) {
+	t.Parallel()
+
+	phyTypes := []string{
+		"client-unknown-prot", "client-dot11b", "client-dot11g", "client-dot11a",
+		"client-dot11n-24-ghz-prot", "client-dot11n-5-ghz-prot", "client-dot11ac",
+		"client-phy-type-notappl", "client-ethernet", "client-dot11ax-5ghz-prot",
+		"client-dot11ax-24ghz-prot", "client-802-3", "client-dot11ax-6ghz-prot",
+		"client-dot11be-24ghz-prot", "client-dot11be-5ghz-prot", "client-dot11be-6ghz-prot",
+	}
+	radioTypes := []string{
+		"", "dot11-radio-type-none", "dot11-radio-type-a",
+		"dot11-radio-type-bg", "dot11-radio-type-6ghz",
+	}
+
+	seen := make(map[WirelessProtocol]bool)
+	for _, phyType := range append([]string{""}, phyTypes...) {
+		for _, radioType := range radioTypes {
+			seen[MapWirelessProtocol(phyType, radioType)] = true
+		}
+	}
+
+	for protocol := ProtocolUnknown; protocol <= ProtocolBE; protocol++ {
+		if !seen[protocol] {
+			t.Errorf("protocol %v is never returned for any documented input", protocol)
+		}
 	}
 }
 

@@ -94,7 +94,8 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.Radio {
 		collector.protocolDesc = prometheus.NewDesc(
 			"wnc_client_protocol",
-			"Client wireless protocol (1=802.11a, 2=802.11b, 3=802.11g, 4=802.11n, 5=802.11ac, 6=802.11ax)",
+			"Client wireless protocol (0=unknown, 1=802.11a, 2=802.11b, 3=802.11g, "+
+				"4=802.11n, 5=802.11ac, 6=802.11ax, 7=802.11be)",
 			labels, nil,
 		)
 		collector.mcsIndexDesc = prometheus.NewDesc(
@@ -409,7 +410,7 @@ func (c *ClientCollector) collectRadioMetrics(
 	if dot11, ok := dot11Map[data.ClientMAC]; ok {
 		metrics = append(metrics, Float64Metric{
 			c.protocolDesc,
-			float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType, dot11.Is11GClient)),
+			float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType)),
 		})
 	}
 	if traffic, ok := trafficMap[data.ClientMAC]; ok {

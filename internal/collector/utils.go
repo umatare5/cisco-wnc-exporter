@@ -48,25 +48,34 @@ func MapClientState(state string) int {
 }
 
 // MapWirelessProtocol maps WNC PHY type strings to WirelessProtocol enum values.
-func MapWirelessProtocol(phyType, radioType string, is11GClient bool) WirelessProtocol {
+//
+// phyType is ms-phy-radio-type and radioType is ms-radio-type; they are different
+// typedefs. is-11g-client is not an input: the controller sets it on clients whose
+// PHY type is not 802.11g, so using it as a fallback reported that generation for
+// clients on bands where the PHY does not exist.
+func MapWirelessProtocol(phyType, radioType string) WirelessProtocol {
 	switch {
-	case strings.Contains(phyType, "dot11n"):
-		return ProtocolN
-	case strings.Contains(phyType, "dot11ac"):
-		return ProtocolAC
+	case strings.Contains(phyType, "dot11be"):
+		return ProtocolBE
 	case strings.Contains(phyType, "dot11ax"):
 		return ProtocolAX
-	case strings.Contains(phyType, "dot11be"), strings.Contains(phyType, "eht"):
-		return ProtocolBE
-	case strings.Contains(phyType, "dot11bg"):
-		if is11GClient {
-			return Protocol11G
-		}
-		return Protocol11B
-	case strings.Contains(phyType, "dot11a") || radioType == "dot11-radio-type-a":
-		return Protocol11A
-	case strings.Contains(phyType, "dot11g") || is11GClient:
+	case strings.Contains(phyType, "dot11ac"):
+		return ProtocolAC
+	case strings.Contains(phyType, "dot11n"):
+		return ProtocolN
+	// ms-phy-radio-type spells the legacy generations without a band suffix, so these
+	// must be matched before the substrings above would catch a longer name.
+	case phyType == "client-dot11g":
 		return Protocol11G
+	case phyType == "client-dot11b":
+		return Protocol11B
+	case phyType == "client-dot11a":
+		return Protocol11A
+	case radioType == "dot11-radio-type-a":
+		// dot11-oper-data/radio-type names the band, not the generation. It is only
+		// consulted when the PHY type is absent, and 802.11a is the only generation
+		// the band alone implies.
+		return Protocol11A
 	default:
 		return ProtocolUnknown
 	}
