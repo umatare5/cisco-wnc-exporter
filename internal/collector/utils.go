@@ -22,14 +22,6 @@ const (
 	APAdminStateEnabled = "enabled"
 )
 
-// Band constants for radio bands.
-const (
-	BandUnknown = "unknown"
-	Band24GHz   = "2.4"
-	Band5GHz    = "5"
-	Band6GHz    = "6"
-)
-
 // Radio slot constants for band mapping.
 const (
 	RadioSlot24GHz = 0
