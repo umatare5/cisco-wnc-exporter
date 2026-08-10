@@ -220,7 +220,7 @@ AP collector focuses on RF foundation and radio performance.
 | traffic | `wnc_ap_tx_bytes_total`              | Counter | Total transmitted bytes (calculated)             |
 | traffic | `wnc_ap_rx_packets_total`            | Counter | Total received packets                           |
 | traffic | `wnc_ap_tx_packets_total`            | Counter | Total transmitted packets                        |
-| traffic | `wnc_ap_total_tx_frames_total`       | Counter | Total TX frames                                  |
+| traffic | `wnc_ap_total_tx_frames_total`       | Counter | TX frames, not a sum of the frame series         |
 | traffic | `wnc_ap_data_rx_frames_total`        | Counter | Data RX frames                                   |
 | traffic | `wnc_ap_data_tx_frames_total`        | Counter | Data TX frames                                   |
 | traffic | `wnc_ap_management_rx_frames_total`  | Counter | Management RX frames                             |

@@ -298,7 +298,7 @@ func NewAPCollector(
 		)
 		collector.totalTxFramesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_total_tx_frames_total",
-			"Total TX frames",
+			"TX frames as the controller counts them, not the sum of the per-type series",
 			baseRadioLabels,
 			nil,
 		)
