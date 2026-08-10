@@ -719,7 +719,7 @@ func TestWLANCollector_MetricNames(t *testing.T) {
 		expected string
 	}{
 		{collector.enabledDesc, "wnc_wlan_enabled"},
-		{collector.clientCountDesc, "wnc_wlan_clients_total"},
+		{collector.clientCountDesc, "wnc_wlan_clients"},
 		{collector.bytesRxDesc, "wnc_wlan_rx_bytes_total"},
 		{collector.bytesTxDesc, "wnc_wlan_tx_bytes_total"},
 		{collector.authPskDesc, "wnc_wlan_auth_psk_enabled"},

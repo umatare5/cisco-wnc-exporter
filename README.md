@@ -512,7 +512,7 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | Module  | Metric                                    | Type    | Description                          |
 | :------ | :---------------------------------------- | :------ | :----------------------------------- |
 | general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                          |
-| traffic | `wnc_wlan_clients_total`                  | Gauge   | Connected clients count (calculated) |
+| traffic | `wnc_wlan_clients`                        | Gauge   | Connected clients count (calculated) |
 | traffic | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes (calculated)     |
 | traffic | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes (calculated)  |
 | config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled           |

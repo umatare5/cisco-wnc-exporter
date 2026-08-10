@@ -119,7 +119,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
 		{typeClientCommonOperData, []string{
 			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
-			"wnc_wlan_clients_total", "wnc_wlan_rx_bytes_total", "wnc_wlan_tx_bytes_total",
+			"wnc_wlan_clients", "wnc_wlan_rx_bytes_total", "wnc_wlan_tx_bytes_total",
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},
 		{typeClientTrafficStats, clientTrafficDerived},
@@ -132,7 +132,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeRRMCoverage, []string{"wnc_ap_coverage_hole_events_total"}},
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_on_radio_at"}},
 		{typeWLANCfgEntries, []string{
-			"wnc_wlan_enabled", "wnc_wlan_clients_total", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
+			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 		}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},

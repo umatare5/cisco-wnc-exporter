@@ -69,8 +69,8 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 
 	if metrics.Traffic {
 		collector.clientCountDesc = prometheus.NewDesc(
-			"wnc_wlan_clients_total",
-			"Number of connected clients",
+			"wnc_wlan_clients",
+			"Number of clients in the run state on this WLAN",
 			labels, nil,
 		)
 		collector.bytesRxDesc = prometheus.NewDesc(
