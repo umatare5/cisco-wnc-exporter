@@ -1527,7 +1527,7 @@ func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 	t.Parallel()
 
 	clientsDesc := prometheus.NewDesc(
-		"wnc_ap_clients_total", "Number of associated clients", []string{"mac", "radio"}, nil,
+		"wnc_ap_clients", "Number of clients in the run state on this radio", []string{"mac", "radio"}, nil,
 	)
 
 	source := radioMetricsOnly{
@@ -1557,17 +1557,17 @@ func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 
 	found := false
 	for _, mf := range metricFamilies {
-		if mf.GetName() != "wnc_ap_clients_total" {
+		if mf.GetName() != "wnc_ap_clients" {
 			continue
 		}
 		found = true
 		if got := mf.GetMetric()[0].GetGauge().GetValue(); got != wantClientCount {
-			t.Errorf("wnc_ap_clients_total = %v, want %v", got, wantClientCount)
+			t.Errorf("wnc_ap_clients = %v, want %v", got, wantClientCount)
 		}
 	}
 
 	if !found {
-		t.Error("wnc_ap_clients_total was not emitted")
+		t.Error("wnc_ap_clients was not emitted")
 	}
 }
 

@@ -109,16 +109,16 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeAPCAPWAPData, []string{"wnc_ap_config_state", "wnc_ap_uptime_seconds"}},
 		{typeAPOperData, []string{"wnc_ap_cpu_utilization_percent", "wnc_ap_memory_utilization_percent"}},
 		{typeAPRadioOperData, []string{
-			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients_total", "wnc_ap_info",
+			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients", "wnc_ap_info",
 		}},
-		{typeAPNameMACMap, []string{"wnc_ap_clients_total"}},
+		{typeAPNameMACMap, []string{"wnc_ap_clients"}},
 		{typeAPRadioOperStats, []string{
 			"wnc_ap_rx_packets_total", "wnc_ap_tx_bytes_total",
 			"wnc_ap_rx_errors_total", "wnc_ap_fcs_errors_total",
 		}},
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
 		{typeClientCommonOperData, []string{
-			"wnc_client_state", "wnc_client_info", "wnc_ap_clients_total",
+			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
 			"wnc_wlan_clients_total", "wnc_wlan_rx_bytes_total", "wnc_wlan_tx_bytes_total",
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},

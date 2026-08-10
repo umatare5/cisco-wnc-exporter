@@ -201,8 +201,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.associatedClientsDesc = prometheus.NewDesc(
-			"wnc_ap_clients_total",
-			"Number of associated clients",
+			"wnc_ap_clients",
+			"Number of clients in the run state on this radio",
 			baseRadioLabels,
 			nil,
 		)

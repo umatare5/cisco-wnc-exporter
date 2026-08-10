@@ -215,7 +215,7 @@ AP collector focuses on RF foundation and radio performance.
 | radio   | `wnc_ap_rx_utilization_percent`      | Gauge   | RX utilization percentage                        |
 | radio   | `wnc_ap_tx_utilization_percent`      | Gauge   | TX utilization percentage                        |
 | radio   | `wnc_ap_noise_utilization_percent`   | Gauge   | Noise channel utilization percentage             |
-| radio   | `wnc_ap_clients_total`               | Gauge   | Associated clients count (calculated)            |
+| radio   | `wnc_ap_clients`                     | Gauge   | Associated clients count (calculated)            |
 | traffic | `wnc_ap_rx_bytes_total`              | Counter | Total received bytes (calculated)                |
 | traffic | `wnc_ap_tx_bytes_total`              | Counter | Total transmitted bytes (calculated)             |
 | traffic | `wnc_ap_rx_packets_total`            | Counter | Total received packets                           |
