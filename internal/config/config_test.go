@@ -412,6 +412,85 @@ func TestConfig_Validate(t *testing.T) {
 			"telemetry path must start with '/'",
 		},
 		{
+			// http.ServeMux reads a leading space-separated field as a method.
+			"Telemetry path with a space",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/met rics"
+				return &cfg
+			}(),
+			true,
+			"telemetry path must not contain whitespace",
+		},
+		{
+			// A pattern is unescaped before it is tested for conflicts, so this one
+			// collides with the health path and panics at registration.
+			"Telemetry path escaping into the health path",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/%68ealthz"
+				return &cfg
+			}(),
+			true,
+			"telemetry path must not contain whitespace",
+		},
+		{
+			// A brace declares a wildcard, which would answer unrelated requests.
+			"Telemetry path with a wildcard",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/{path}"
+				return &cfg
+			}(),
+			true,
+			"telemetry path must not contain whitespace",
+		},
+		{
+			// ServeMux redirects a request whose path needs cleaning, so metrics
+			// registered here would never be served.
+			"Telemetry path needing cleaning",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/a/../healthz"
+				return &cfg
+			}(),
+			true,
+			"telemetry path must be clean",
+		},
+		{
+			"Telemetry path with a trailing slash",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/metrics/"
+				return &cfg
+			}(),
+			true,
+			"telemetry path must be clean",
+		},
+		{
+			// The server registers the health check unconditionally, and ServeMux
+			// panics on a duplicate pattern.
+			"Telemetry path taking the health path",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = HealthPath
+				return &cfg
+			}(),
+			true,
+			"telemetry path must not be " + HealthPath,
+		},
+		{
+			// The root is accepted: the server drops the landing page instead.
+			"Telemetry path at the root",
+			func() *Config {
+				cfg := *validConfig
+				cfg.Web.TelemetryPath = "/"
+				return &cfg
+			}(),
+			false,
+			"",
+		},
+		{
 			"Invalid log level",
 			func() *Config {
 				cfg := *validConfig

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -13,9 +14,12 @@ import (
 )
 
 const (
-	DefaultListenAddress         = "0.0.0.0"
-	DefaultListenPort            = 10039
-	DefaultTelemetryPath         = "/metrics"
+	DefaultListenAddress = "0.0.0.0"
+	DefaultListenPort    = 10039
+	DefaultTelemetryPath = "/metrics"
+	// HealthPath lives here so Validate can reject a telemetry path that takes it.
+	// The server package already depends on this one, so the reverse would cycle.
+	HealthPath                   = "/healthz"
 	DefaultWNCTimeout            = 55 * time.Second
 	DefaultWNCCacheTTL           = 55 * time.Second
 	DefaultCollectorInfoCacheTTL = 1800 * time.Second
@@ -215,6 +219,26 @@ func (c *Config) Validate() error {
 		{
 			!strings.HasPrefix(c.Web.TelemetryPath, "/"),
 			"telemetry path must start with '/': " + c.Web.TelemetryPath,
+		},
+		{
+			// Whitespace and % make http.ServeMux panic at registration: it reads a
+			// leading field as a method, and it unescapes a pattern before testing it
+			// for conflicts, so /%68ealthz collides with the health path. A brace
+			// declares a wildcard that would answer unrelated one-segment requests,
+			// and ? or # never reach the server, leaving the handler unreachable.
+			strings.ContainsAny(c.Web.TelemetryPath, " \t{?#%"),
+			"telemetry path must not contain whitespace, '{', '?', '#' or '%': " + c.Web.TelemetryPath,
+		},
+		{
+			// http.ServeMux redirects a request whose path needs cleaning, so metrics
+			// registered at an uncleaned pattern are never served.
+			path.Clean(c.Web.TelemetryPath) != c.Web.TelemetryPath,
+			"telemetry path must be clean, without '.', '..' or a repeated or trailing '/': " +
+				c.Web.TelemetryPath,
+		},
+		{
+			c.Web.TelemetryPath == HealthPath,
+			"telemetry path must not be " + HealthPath + ", which serves the health check",
 		},
 		{
 			!isValidLogLevel(c.Log.Level),

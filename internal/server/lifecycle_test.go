@@ -24,6 +24,7 @@ func TestNewLifecycleManager(t *testing.T) {
 				Web: config.Web{
 					ListenAddress: "0.0.0.0",
 					ListenPort:    8080,
+					TelemetryPath: config.DefaultTelemetryPath,
 				},
 			},
 		},
@@ -33,6 +34,7 @@ func TestNewLifecycleManager(t *testing.T) {
 				Web: config.Web{
 					ListenAddress: "127.0.0.1",
 					ListenPort:    9090,
+					TelemetryPath: config.DefaultTelemetryPath,
 				},
 			},
 		},
@@ -62,6 +64,7 @@ func TestLifecycleManager_RunWithImmediateCancel(t *testing.T) {
 		Web: config.Web{
 			ListenAddress: "127.0.0.1",
 			ListenPort:    0, // Use port 0 to get an available port
+			TelemetryPath: config.DefaultTelemetryPath,
 		},
 	}
 
@@ -86,6 +89,7 @@ func TestLifecycleManager_RunWithTimeout(t *testing.T) {
 		Web: config.Web{
 			ListenAddress: "127.0.0.1",
 			ListenPort:    0, // Use port 0 to get an available port
+			TelemetryPath: config.DefaultTelemetryPath,
 		},
 	}
 
