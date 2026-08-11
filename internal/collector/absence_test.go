@@ -171,8 +171,10 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}
 }
 
-// TestAllCollectors_FailedDataTypeNeverAddsSeries covers all eighteen data types,
-// including the ones that only contribute info labels.
+// TestAllCollectors_FailedDataTypeNeverAddsSeries iterates all eighteen data types.
+// Two of them gate no series, only info label values, and a collector keeps the
+// series and empties the label when their fetch fails, so those two pass here
+// whatever the collector does. Nothing in this file covers label provenance.
 func TestAllCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
 	t.Parallel()
 
