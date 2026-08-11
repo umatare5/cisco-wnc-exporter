@@ -197,55 +197,55 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 
 AP collector focuses on RF foundation and radio performance.
 
-| Module  | Metric                               | Type    | Description                                      |
-| :------ | :----------------------------------- | :------ | :----------------------------------------------- |
-| general | `wnc_ap_admin_state`                 | Gauge   | Admin state (0=disabled, 1=enabled)              |
-| general | `wnc_ap_oper_state`                  | Gauge   | Operational state (0=down, 1=up)                 |
-| general | `wnc_ap_radio_state`                 | Gauge   | Radio state (0=down, 1=up)                       |
-| general | `wnc_ap_config_state`                | Gauge   | Tag config state (0=valid, 1=invalid)            |
-| general | `wnc_ap_uptime_seconds`              | Gauge   | AP uptime in seconds                             |
-| general | `wnc_ap_cpu_utilization_ratio`       | Gauge   | CPU utilization ratio (0-1)                      |
-| general | `wnc_ap_memory_utilization_ratio`    | Gauge   | Memory utilization ratio (0-1)                   |
-| radio   | `wnc_ap_channel_number`              | Gauge   | Operating channel number **(\*4)**               |
-| radio   | `wnc_ap_channel_width_mhz`           | Gauge   | Channel bandwidth (MHz)                          |
-| radio   | `wnc_ap_tx_power_dbm`                | Gauge   | Current transmit power (dBm)                     |
-| radio   | `wnc_ap_tx_power_max_dbm`            | Gauge   | Maximum TX power capability (dBm)                |
-| radio   | `wnc_ap_noise_floor_dbm`             | Gauge   | Noise on the operating channel (dBm)             |
-| radio   | `wnc_ap_channel_utilization_ratio`   | Gauge   | Channel utilization ratio (CCA), 0-1             |
-| radio   | `wnc_ap_rx_utilization_ratio`        | Gauge   | RX utilization ratio (0-1)                       |
-| radio   | `wnc_ap_tx_utilization_ratio`        | Gauge   | TX utilization ratio (0-1)                       |
-| radio   | `wnc_ap_noise_utilization_ratio`     | Gauge   | Noise channel utilization ratio (0-1)            |
-| radio   | `wnc_ap_clients`                     | Gauge   | Associated clients count (calculated)            |
-| traffic | `wnc_ap_rx_bytes_total`              | Counter | Total received bytes (calculated)                |
-| traffic | `wnc_ap_tx_bytes_total`              | Counter | Total transmitted bytes (calculated)             |
-| traffic | `wnc_ap_rx_packets_total`            | Counter | Total received packets                           |
-| traffic | `wnc_ap_tx_packets_total`            | Counter | Total transmitted packets                        |
-| traffic | `wnc_ap_total_tx_frames_total`       | Counter | TX frames, not a sum of the frame series         |
-| traffic | `wnc_ap_data_rx_frames_total`        | Counter | Data RX frames                                   |
-| traffic | `wnc_ap_data_tx_frames_total`        | Counter | Data TX frames                                   |
-| traffic | `wnc_ap_management_rx_frames_total`  | Counter | Management RX frames                             |
-| traffic | `wnc_ap_management_tx_frames_total`  | Counter | Management TX frames                             |
-| traffic | `wnc_ap_control_rx_frames_total`     | Counter | Control RX frames **(\*1)**                      |
-| traffic | `wnc_ap_control_tx_frames_total`     | Counter | Control TX frames **(\*1)**                      |
-| traffic | `wnc_ap_multicast_rx_frames_total`   | Counter | Multicast RX frames **(\*1)**                    |
-| traffic | `wnc_ap_multicast_tx_frames_total`   | Counter | Multicast TX frames **(\*1)**                    |
-| traffic | `wnc_ap_rts_success_total`           | Counter | Successful RTS transmissions **(\*1)**           |
-| errors  | `wnc_ap_tx_errors_total`             | Counter | Total TX errors **(\*1)**                        |
-| errors  | `wnc_ap_rx_errors_total`             | Counter | Total RX errors **(\*1)**                        |
-| errors  | `wnc_ap_tx_drops_total`              | Counter | Total TX drops (calculated)                      |
-| errors  | `wnc_ap_tx_retries_total`            | Counter | Total TX retries (calculated)                    |
-| errors  | `wnc_ap_transmission_failures_total` | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
-| errors  | `wnc_ap_duplicate_frames_total`      | Counter | Duplicate frames received                        |
-| errors  | `wnc_ap_fcs_errors_total`            | Counter | Frame Check Sequence errors                      |
-| errors  | `wnc_ap_fragmentation_rx_total`      | Counter | RX fragmented packets **(\*1)**                  |
-| errors  | `wnc_ap_fragmentation_tx_total`      | Counter | TX fragmented packets **(\*1)**                  |
-| errors  | `wnc_ap_rts_failures_total`          | Counter | RTS failures **(\*1)**                           |
-| errors  | `wnc_ap_decryption_errors_total`     | Counter | Decryption errors **(\*1)**                      |
-| errors  | `wnc_ap_mic_errors_total`            | Counter | MIC errors **(\*1)**                             |
-| errors  | `wnc_ap_wep_undecryptable_total`     | Counter | WEP undecryptable frames **(\*1)**               |
-| errors  | `wnc_ap_coverage_hole_events_total`  | Counter | Coverage hole events                             |
-| errors  | `wnc_ap_last_radar_on_radio_at`      | Gauge   | Last radar detection unix timestamp              |
-| errors  | `wnc_ap_radio_reset_total`           | Counter | Radio reset count                                |
+| Module  | Metric                                | Type    | Description                                      |
+| :------ | :------------------------------------ | :------ | :----------------------------------------------- |
+| general | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
+| general | `wnc_ap_oper_state`                   | Gauge   | Operational state (0=down, 1=up)                 |
+| general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
+| general | `wnc_ap_config_state`                 | Gauge   | Tag config state (0=valid, 1=invalid)            |
+| general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
+| general | `wnc_ap_cpu_utilization_ratio`        | Gauge   | CPU utilization ratio (0-1)                      |
+| general | `wnc_ap_memory_utilization_ratio`     | Gauge   | Memory utilization ratio (0-1)                   |
+| radio   | `wnc_ap_channel_number`               | Gauge   | Operating channel number **(\*4)**               |
+| radio   | `wnc_ap_channel_width_mhz`            | Gauge   | Channel bandwidth (MHz)                          |
+| radio   | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
+| radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
+| radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Noise on the operating channel (dBm)             |
+| radio   | `wnc_ap_channel_utilization_ratio`    | Gauge   | Channel utilization ratio (CCA), 0-1             |
+| radio   | `wnc_ap_rx_utilization_ratio`         | Gauge   | RX utilization ratio (0-1)                       |
+| radio   | `wnc_ap_tx_utilization_ratio`         | Gauge   | TX utilization ratio (0-1)                       |
+| radio   | `wnc_ap_noise_utilization_ratio`      | Gauge   | Noise channel utilization ratio (0-1)            |
+| radio   | `wnc_ap_clients`                      | Gauge   | Associated clients count (calculated)            |
+| traffic | `wnc_ap_rx_bytes_total`               | Counter | Total received bytes (calculated)                |
+| traffic | `wnc_ap_tx_bytes_total`               | Counter | Total transmitted bytes (calculated)             |
+| traffic | `wnc_ap_rx_packets_total`             | Counter | Total received packets                           |
+| traffic | `wnc_ap_tx_packets_total`             | Counter | Total transmitted packets                        |
+| traffic | `wnc_ap_total_tx_frames_total`        | Counter | TX frames, not a sum of the frame series         |
+| traffic | `wnc_ap_data_rx_frames_total`         | Counter | Data RX frames                                   |
+| traffic | `wnc_ap_data_tx_frames_total`         | Counter | Data TX frames                                   |
+| traffic | `wnc_ap_management_rx_frames_total`   | Counter | Management RX frames                             |
+| traffic | `wnc_ap_management_tx_frames_total`   | Counter | Management TX frames                             |
+| traffic | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*1)**                      |
+| traffic | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*1)**                      |
+| traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*1)**                    |
+| traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
+| traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
+| errors  | `wnc_ap_tx_errors_total`              | Counter | Total TX errors **(\*1)**                        |
+| errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
+| errors  | `wnc_ap_tx_drops_total`               | Counter | Total TX drops (calculated)                      |
+| errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
+| errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
+| errors  | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |
+| errors  | `wnc_ap_fcs_errors_total`             | Counter | Frame Check Sequence errors                      |
+| errors  | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*1)**                  |
+| errors  | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*1)**                  |
+| errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
+| errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
+| errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
+| errors  | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
+| errors  | `wnc_ap_coverage_hole_events_total`   | Counter | Coverage hole events                             |
+| errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
+| errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
 
 <details><summary><b>*1</b> Metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 

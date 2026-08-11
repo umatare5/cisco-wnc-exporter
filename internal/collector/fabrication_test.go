@@ -130,7 +130,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_noise_floor_dbm",
 		}},
 		{typeRRMCoverage, []string{"wnc_ap_coverage_hole_events_total"}},
-		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_on_radio_at"}},
+		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 		}},
@@ -221,6 +221,13 @@ func gatherAllCollectors(t *testing.T, failedDataType string) map[string]bool {
 	present := make(map[string]bool, len(families))
 	for _, family := range families {
 		present[family.GetName()] = len(family.GetMetric()) > 0
+
+		// Nothing else in the suite asserts a metric's type, so a gauge that
+		// regressed to a counter would pass. Prometheus reads a counter's drop as a
+		// reset and extrapolates, so the wrong type here silently invents data.
+		if family.GetName() == "wnc_ap_last_radar_timestamp_seconds" && family.GetType().String() != "GAUGE" {
+			t.Errorf("%s is a %s, want a GAUGE", family.GetName(), family.GetType())
+		}
 	}
 	return present
 }

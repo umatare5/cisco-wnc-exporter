@@ -396,8 +396,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.lastRadarOnRadioAtDesc = prometheus.NewDesc(
-			"wnc_ap_last_radar_on_radio_at",
-			"Last radar detection timestamp (unix time, 0=never detected)",
+			"wnc_ap_last_radar_timestamp_seconds",
+			"Unix timestamp of the last radar detection on this radio",
 			baseRadioLabels,
 			nil,
 		)
@@ -758,7 +758,7 @@ func (c *APCollector) collectErrorMetrics(
 	if radar, exists := apDot11RadarMap[radioID]; exists &&
 		!radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
 		ch <- prometheus.MustNewConstMetric(
-			c.lastRadarOnRadioAtDesc, prometheus.CounterValue,
+			c.lastRadarOnRadioAtDesc, prometheus.GaugeValue,
 			float64(radar.LastRadarOnRadio.Unix()), labels...)
 	}
 
