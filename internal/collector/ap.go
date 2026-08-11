@@ -210,8 +210,8 @@ func NewAPCollector(
 
 	if metrics.General {
 		collector.cpuUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_cpu_utilization_percent",
-			"CPU utilization percentage",
+			"wnc_ap_cpu_utilization_ratio",
+			"CPU utilization ratio (0-1)",
 			baseAPLabels,
 			nil,
 		)
@@ -610,7 +610,7 @@ func (c *APCollector) collectSystemMetrics(
 
 	if sysStats := apOperDataMap[wtpMAC].ApSysStats; sysStats != nil {
 		metrics = append(metrics,
-			Float64Metric{c.cpuUtilizationDesc, float64(sysStats.CPUUsage)},
+			Float64Metric{c.cpuUtilizationDesc, float64(sysStats.CPUUsage) / 100},
 			Float64Metric{c.memoryUtilizationDesc, float64(sysStats.MemoryUsage)},
 		)
 	}

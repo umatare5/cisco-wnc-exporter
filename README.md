@@ -204,7 +204,7 @@ AP collector focuses on RF foundation and radio performance.
 | general | `wnc_ap_radio_state`                 | Gauge   | Radio state (0=down, 1=up)                       |
 | general | `wnc_ap_config_state`                | Gauge   | Tag config state (0=valid, 1=invalid)            |
 | general | `wnc_ap_uptime_seconds`              | Gauge   | AP uptime in seconds                             |
-| general | `wnc_ap_cpu_utilization_percent`     | Gauge   | CPU utilization percentage                       |
+| general | `wnc_ap_cpu_utilization_ratio`       | Gauge   | CPU utilization ratio (0-1)                      |
 | general | `wnc_ap_memory_utilization_percent`  | Gauge   | Memory utilization percentage                    |
 | radio   | `wnc_ap_channel_number`              | Gauge   | Operating channel number **(\*4)**               |
 | radio   | `wnc_ap_channel_width_mhz`           | Gauge   | Channel bandwidth (MHz)                          |

@@ -107,7 +107,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		absent   []string
 	}{
 		{typeAPCAPWAPData, []string{"wnc_ap_config_state", "wnc_ap_uptime_seconds"}},
-		{typeAPOperData, []string{"wnc_ap_cpu_utilization_percent", "wnc_ap_memory_utilization_percent"}},
+		{typeAPOperData, []string{"wnc_ap_cpu_utilization_ratio", "wnc_ap_memory_utilization_percent"}},
 		{typeAPRadioOperData, []string{
 			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients", "wnc_ap_info",
 		}},
