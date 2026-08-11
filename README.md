@@ -417,6 +417,12 @@ The `radio` label is not a substitute. A dual band radio keeps its slot while it
 > ```bash
 > wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
 > ```
+>
+> `radio` is a required label, so this metric carries one series per radio. Joining a series that has no `radio` label fails with a duplicate match group instead of returning nothing, so collapse the info metric first:
+>
+> ```bash
+> wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
+> ```
 
 > [!Note]
 >
