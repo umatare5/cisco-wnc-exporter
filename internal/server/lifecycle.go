@@ -27,7 +27,7 @@ type LifecycleManager struct {
 // NewLifecycleManager creates a new server lifecycle manager.
 func NewLifecycleManager(registry *prometheus.Registry, cfg *config.Config) *LifecycleManager {
 	addr := net.JoinHostPort(cfg.Web.ListenAddress, strconv.Itoa(cfg.Web.ListenPort))
-	server := New(registry, addr)
+	server := New(registry, addr, cfg.Web.TelemetryPath)
 
 	return &LifecycleManager{
 		server: server,
@@ -41,7 +41,8 @@ func StartAndServe(ctx context.Context, cfg *config.Config, version string) erro
 	slog.Info("Starting cisco-wnc-exporter",
 		"version", version,
 		"listen_address", cfg.Web.ListenAddress,
-		"listen_port", cfg.Web.ListenPort)
+		"listen_port", cfg.Web.ListenPort,
+		"telemetry_path", cfg.Web.TelemetryPath)
 
 	// Create and setup collector manager
 	collectorMgr := collector.NewCollector(cfg)

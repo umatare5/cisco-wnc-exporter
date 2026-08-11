@@ -9,8 +9,59 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 	"github.com/umatare5/cisco-wnc-exporter/internal/server"
 )
+
+// probeRegistry holds one named series so a response can be told apart from the
+// landing page by its body rather than by its status, which is 200 either way.
+func probeRegistry(t *testing.T) *prometheus.Registry {
+	t.Helper()
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: "wnc_probe", Help: "probe"}))
+	return reg
+}
+
+func TestServer_ServesMetricsAtTheConfiguredPath(t *testing.T) {
+	t.Parallel()
+
+	const telemetryPath = "/wnc-metrics"
+
+	srv := server.New(probeRegistry(t), ":8080", telemetryPath)
+
+	w := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, telemetryPath, http.NoBody))
+	if body := w.Body.String(); !strings.Contains(body, "wnc_probe") {
+		t.Errorf("%s body = %q, want the registry exposition", telemetryPath, body)
+	}
+
+	w = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, config.DefaultTelemetryPath, http.NoBody))
+	if strings.Contains(w.Body.String(), "wnc_probe") {
+		t.Errorf("%s serves metrics, want only the configured path to", config.DefaultTelemetryPath)
+	}
+
+	w = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	if want := `<a href="` + telemetryPath + `">Metrics</a>`; !strings.Contains(w.Body.String(), want) {
+		t.Errorf("landing page body = %q, want it to link %s", w.Body.String(), want)
+	}
+}
+
+// TestServer_ServesMetricsAtTheRoot covers the only value Validate accepts that
+// would register a second handler on a pattern already taken.
+func TestServer_ServesMetricsAtTheRoot(t *testing.T) {
+	t.Parallel()
+
+	srv := server.New(probeRegistry(t), ":8080", "/")
+
+	w := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	if body := w.Body.String(); !strings.Contains(body, "wnc_probe") {
+		t.Errorf("/ body = %q, want the registry exposition", body)
+	}
+}
 
 func TestNew(t *testing.T) {
 	t.Parallel()
@@ -34,7 +85,7 @@ func TestNew(t *testing.T) {
 			t.Parallel()
 
 			reg := prometheus.NewRegistry()
-			srv := server.New(reg, tt.addr)
+			srv := server.New(reg, tt.addr, config.DefaultTelemetryPath)
 
 			if srv == nil {
 				t.Fatal("New() returned nil server")
@@ -60,7 +111,7 @@ func TestServer_MetricsEndpoint(t *testing.T) {
 	t.Parallel()
 
 	reg := prometheus.NewRegistry()
-	srv := server.New(reg, ":8080")
+	srv := server.New(reg, ":8080", config.DefaultTelemetryPath)
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	w := httptest.NewRecorder()
@@ -82,7 +133,7 @@ func TestServer_HealthzEndpoint(t *testing.T) {
 	t.Parallel()
 
 	reg := prometheus.NewRegistry()
-	srv := server.New(reg, ":8080")
+	srv := server.New(reg, ":8080", config.DefaultTelemetryPath)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", http.NoBody)
 	w := httptest.NewRecorder()
@@ -108,7 +159,7 @@ func TestServer_RootEndpoint(t *testing.T) {
 	t.Parallel()
 
 	reg := prometheus.NewRegistry()
-	srv := server.New(reg, ":8080")
+	srv := server.New(reg, ":8080", config.DefaultTelemetryPath)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
@@ -143,7 +194,7 @@ func TestServer_NotFoundEndpoint(t *testing.T) {
 	t.Parallel()
 
 	reg := prometheus.NewRegistry()
-	srv := server.New(reg, ":8080")
+	srv := server.New(reg, ":8080", config.DefaultTelemetryPath)
 
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent", http.NoBody)
 	w := httptest.NewRecorder()
@@ -167,7 +218,7 @@ func TestServer_HTTPMethods(t *testing.T) {
 	t.Parallel()
 
 	reg := prometheus.NewRegistry()
-	srv := server.New(reg, ":8080")
+	srv := server.New(reg, ":8080", config.DefaultTelemetryPath)
 
 	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete}
 

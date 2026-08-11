@@ -590,7 +590,7 @@ There are multiple ways to run the exporter, including direct binary execution a
 The exporter serves three endpoints:
 
 - `/` - Landing page. Visit http://localhost:10039/ to verify the exporter is running
-- `/metrics` - Metrics endpoint
+- `/metrics` - Metrics endpoint, moved by `--web.telemetry-path`. Pointing it at `/` replaces the landing page
 - `/healthz` - Liveness probe. Returns a static 200 and deliberately ignores WNC reachability
 
 > [!Note]
