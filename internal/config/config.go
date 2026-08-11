@@ -75,7 +75,7 @@ type APCollectorModules struct {
 	General bool `json:"general"`
 	// Radio: channel, power, noise, utilization
 	Radio bool `json:"radio"`
-	// Traffic: clients, bytes, frames
+	// Traffic: frames
 	Traffic bool `json:"traffic"`
 	// Errors: errors, drops, retries, failures
 	Errors bool `json:"errors"`

@@ -48,8 +48,6 @@ type APCollector struct {
 	operStateDesc               *prometheus.Desc
 	configStateDesc             *prometheus.Desc
 	txPowerMaxDesc              *prometheus.Desc
-	rxBytesTotalDesc            *prometheus.Desc
-	txBytesTotalDesc            *prometheus.Desc
 	dataRxFramesTotalDesc       *prometheus.Desc
 	dataTxFramesTotalDesc       *prometheus.Desc
 	managementRxFramesTotalDesc *prometheus.Desc
@@ -222,18 +220,6 @@ func NewAPCollector(
 	}
 
 	if metrics.Traffic {
-		collector.rxBytesTotalDesc = prometheus.NewDesc(
-			"wnc_ap_rx_bytes_total",
-			"Total received bytes",
-			baseRadioLabels,
-			nil,
-		)
-		collector.txBytesTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_bytes_total",
-			"Total transmitted bytes",
-			baseRadioLabels,
-			nil,
-		)
 		collector.dataRxFramesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_data_rx_frames_total",
 			"Data RX frames",
@@ -421,8 +407,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.associatedClientsDesc
 	}
 	if c.metrics.Traffic {
-		ch <- c.rxBytesTotalDesc
-		ch <- c.txBytesTotalDesc
 		ch <- c.dataRxFramesTotalDesc
 		ch <- c.dataTxFramesTotalDesc
 		ch <- c.managementRxFramesTotalDesc
@@ -703,11 +687,7 @@ func (c *APCollector) collectTrafficMetrics(
 	}
 
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
-	const averageFrameSize = 1500
-
 	trafficMetrics := []Float64Metric{
-		{c.rxBytesTotalDesc, float64(stats.RxDataFrameCount * averageFrameSize)},
-		{c.txBytesTotalDesc, float64(stats.TxDataFrameCount * averageFrameSize)},
 		{c.dataRxFramesTotalDesc, float64(stats.RxDataFrameCount)},
 		{c.dataTxFramesTotalDesc, float64(stats.TxDataFrameCount)},
 		{c.managementRxFramesTotalDesc, float64(stats.RxMgmtFrameCount)},

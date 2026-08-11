@@ -239,7 +239,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			APMetrics{Traffic: true},
-			12, // rx/tx bytes, data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_success
+			10, // data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_success
 		},
 		{
 			"Errors module only",
@@ -260,7 +260,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			46, // 7+10+12+16+1
+			44, // 7+10+10+16+1
 		},
 	}
 
@@ -1078,7 +1078,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 46
+	expectedDescs := 44
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1697,8 +1697,6 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 
 	collector := &APCollector{
 		metrics:                     APMetrics{Traffic: true},
-		rxBytesTotalDesc:            prometheus.NewDesc("test_rx_bytes", "test", []string{"mac", "radio"}, nil),
-		txBytesTotalDesc:            prometheus.NewDesc("test_tx_bytes", "test", []string{"mac", "radio"}, nil),
 		dataRxFramesTotalDesc:       prometheus.NewDesc("test_data_rx", "test", []string{"mac", "radio"}, nil),
 		dataTxFramesTotalDesc:       prometheus.NewDesc("test_data_tx", "test", []string{"mac", "radio"}, nil),
 		managementRxFramesTotalDesc: prometheus.NewDesc("test_mgmt_rx", "test", []string{"mac", "radio"}, nil),
