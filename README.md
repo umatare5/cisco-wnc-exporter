@@ -199,7 +199,7 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 >
 > - A series carrying a `state` label always has the value `1`, so the label is the reading
 > - The controller's spelling passes through unmapped, so a value this file does not name can appear
-> - Only the current state has a series, so `== 0` and an equality match on the healthy spelling never fire
+> - Only the current state has a series, so `== 0` never fires, and an equality match on the healthy spelling selects the healthy devices rather than revealing the unhealthy ones
 > - Alert on the healthy spelling's absence, with `state` aggregated away:
 >
 > ```bash
