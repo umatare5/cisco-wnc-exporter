@@ -80,11 +80,11 @@ func (f fixtureSource) GetCachedData(context.Context) (*wnc.WNCDataCache, error)
 	return f.data, nil
 }
 
-// TestCollectors_OmitSeriesWhenDataTypeFails is the regression test for the whole
+// TestAllCollectors_OmitSeriesWhenDataTypeFails is the regression test for the whole
 // change: a data type that failed to fetch must make its derived series disappear
 // rather than report a zero, a NaN or a timestamp near the Unix epoch. Prometheus
 // cannot distinguish a fabricated zero from a measured one.
-func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
+func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	t.Parallel()
 
 	policyDerived := []string{
@@ -178,9 +178,9 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}
 }
 
-// TestCollectors_FailedDataTypeNeverAddsSeries covers all eighteen data types,
+// TestAllCollectors_FailedDataTypeNeverAddsSeries covers all eighteen data types,
 // including the ones that only contribute info labels.
-func TestCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
+func TestAllCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
 	t.Parallel()
 
 	baseline := gatherAllCollectors(t, "")
