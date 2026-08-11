@@ -71,8 +71,8 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.General {
 		collector.stateDesc = prometheus.NewDesc(
 			"wnc_client_state",
-			"Client connection state",
-			labels, nil,
+			"Client connection state reported in the state label, always 1",
+			[]string{labelMAC, labelState}, nil,
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
@@ -333,6 +333,19 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, data := range clientData {
+		// A client the controller holds short of the run state is the failure an
+		// operator most needs to see, and the filter below would drop it. An empty
+		// leaf is not a state, and an empty label reads as no label at all.
+		if c.metrics.General && data.CoState != "" {
+			ch <- prometheus.MustNewConstMetric(
+				c.stateDesc,
+				prometheus.GaugeValue,
+				1,
+				data.ClientMAC,
+				data.CoState,
+			)
+		}
+
 		if data.CoState != ClientStatusRun {
 			continue
 		}
@@ -368,9 +381,7 @@ func (c *ClientCollector) collectGeneralMetrics(
 	// reported this client in that data set yet. Emitting the zero value would
 	// read as a measurement: an association uptime of roughly two millennia from
 	// a zero timestamp, or a power save state the client never reported.
-	metrics := []Float64Metric{
-		{c.stateDesc, float64(MapClientState(data.CoState))},
-	}
+	var metrics []Float64Metric
 	if dot11, ok := dot11Map[data.ClientMAC]; ok {
 		metrics = append(metrics,
 			Float64Metric{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()})

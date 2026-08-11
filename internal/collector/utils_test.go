@@ -42,58 +42,6 @@ func TestBoolToFloat64(t *testing.T) {
 	}
 }
 
-// TestMapClientState tests the MapClientState function.
-func TestMapClientState(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		input    string
-		expected int
-	}{
-		{
-			name:     "Run state",
-			input:    "client-status-run",
-			expected: 2,
-		},
-		{
-			name:     "Authenticated state",
-			input:    "client-status-authenticated",
-			expected: 1,
-		},
-		{
-			name:     "Unknown state",
-			input:    "unknown",
-			expected: 0,
-		},
-		{
-			name:     "Empty string",
-			input:    "",
-			expected: 0,
-		},
-		{
-			name:     "Invalid state",
-			input:    "client-status-invalid",
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result := MapClientState(tt.input)
-			if result != tt.expected {
-				t.Errorf(
-					"MapClientState(%q) = %d; expected %d",
-					tt.input,
-					result,
-					tt.expected,
-				)
-			}
-		})
-	}
-}
-
 // TestStringToUint64 tests the stringToUint64 function.
 func TestStringToUint64(t *testing.T) {
 	t.Parallel()

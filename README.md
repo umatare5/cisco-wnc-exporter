@@ -193,6 +193,24 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 > - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
 > - Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`
 
+> [!Note]
+>
+> **A state is a label, not a number**
+>
+> - A series carrying a `state` label always has the value `1`, so the label is the reading
+> - The controller's spelling passes through unmapped, so a value this file does not name can appear
+> - Only the current state has a series, so `== 0` and an equality match on the healthy spelling never fire
+> - Alert on the healthy spelling's absence, with `state` aggregated away:
+>
+> ```bash
+> group by (mac) (wnc_client_state{state!="client-status-run"})
+> ```
+>
+> - Keeping `state` in the result restarts `for:` on every state change, so a stuck device never fires
+> - Pair the query with a `for:` longer than a legitimate transition takes
+> - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
+> - Every other `_state` metric keeps its numeric `0` or `1`
+
 ### AP Collector
 
 AP collector focuses on RF foundation and radio performance.
@@ -430,7 +448,7 @@ Client collector focuses on user experience quality and connection performance.
 
 | Module  | Metric                                | Type    | Description                          |
 | :------ | :------------------------------------ | :------ | :----------------------------------- |
-| general | `wnc_client_state`                    | Gauge   | Client state (0-2)                   |
+| general | `wnc_client_state`                    | Gauge   | Connection state in `state` label    |
 | general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
 | general | `wnc_client_power_save_state`         | Gauge   | Power save state (0=active, 1=save)  |
 | radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
