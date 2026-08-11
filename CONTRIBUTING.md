@@ -24,7 +24,7 @@ The repository includes a ready to use `Dockerfile`. To build a new Docker image
 make image
 ```
 
-This creates an image named `ghcr.io/$USER/cisco-wnc-exporter` and exposes `10039/tcp`.
+This cross-compiles a Linux binary into `./tmp/image`, then builds from that directory because the `Dockerfile` expects the binary at the context root. The image is tagged `$USER/cisco-wnc-exporter` and declares no port, so publish one with `docker run -p`. Released images are pushed to `ghcr.io/umatare5/cisco-wnc-exporter` by GoReleaser instead.
 
 ## Release
 
@@ -40,5 +40,5 @@ Once the pull request is merged, the GitHub Workflow automatically creates and p
 1. Fork ([https://github.com/umatare5/cisco-wnc-exporter/fork](https://github.com/umatare5/cisco-wnc-exporter/fork))
 2. Create a feature branch
 3. Commit your changes
-4. Rebase your local changes against the master branch
+4. Rebase your local changes against the `main` branch
 5. Create a new Pull Request
