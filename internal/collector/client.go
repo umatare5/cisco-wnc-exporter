@@ -185,8 +185,8 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 			labels, nil,
 		)
 		collector.rxGroupCounterDesc = prometheus.NewDesc(
-			"wnc_client_rx_group_counter_total",
-			"RX group counter",
+			"wnc_client_rx_group_total",
+			"RX group counter (rx-group-counter)",
 			labels, nil,
 		)
 		collector.txTotalDropsDesc = prometheus.NewDesc(

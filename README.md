@@ -455,7 +455,7 @@ Client collector focuses on user experience quality and connection performance.
 | errors  | `wnc_client_mic_mismatch_total`       | Counter | MIC mismatch errors **(\*3)**        |
 | errors  | `wnc_client_mic_missing_total`        | Counter | MIC missing errors **(\*3)**         |
 | errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors **(\*3)**              |
-| errors  | `wnc_client_rx_group_counter_total`   | Counter | RX group counter **(\*3)**           |
+| errors  | `wnc_client_rx_group_total`           | Counter | RX group counter                     |
 
 <details><summary><b>*3</b> Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
 
@@ -467,7 +467,6 @@ The following client error metrics consistently return zero values due to implem
 - `wnc_client_mic_missing_total`
 - `wnc_client_policy_errors_total`
 - `wnc_client_rts_retries_total`
-- `wnc_client_rx_group_counter_total`
 - `wnc_client_tx_retries_total`
 
 This was verified through direct RESTCONF API access to the live WNC environment:

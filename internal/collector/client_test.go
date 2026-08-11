@@ -182,7 +182,7 @@ func TestClientCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			ClientMetrics{Errors: true},
-			12, // retry_ratio, policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group_counter, tx_drops, data_retries, rts_retries, tx_retries
+			12, // retry_ratio, policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group, tx_drops, data_retries, rts_retries, tx_retries
 		},
 		{
 			"Info module only",
