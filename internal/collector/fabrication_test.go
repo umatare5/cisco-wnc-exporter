@@ -105,6 +105,10 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_client_tx_bytes_total",
 		"wnc_client_rx_packets_total",
 		"wnc_client_tx_packets_total",
+		// The error counters share one omission guard, so two of them witness all
+		// eleven. wnc_client_rx_group_total also pins the name against a rename.
+		"wnc_client_policy_errors_total",
+		"wnc_client_rx_group_total",
 	}
 
 	tests := []struct {
