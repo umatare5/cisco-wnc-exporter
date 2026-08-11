@@ -11,7 +11,66 @@ import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
+	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
+
+// TestAPCollector_StateReportsSpellingInLabel pins the AP-level encoding. The series
+// previously duplicated wnc_ap_radio_state, so it must now carry the CAPWAP state in a
+// label and must not carry a radio label.
+func TestAPCollector_StateReportsSpellingInLabel(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.CAPWAPData = append(data.CAPWAPData,
+		ap.CAPWAPData{WtpMAC: "22:33:44:55:66:77", ApState: ap.ApState{ApOperationState: "downloading"}},
+		ap.CAPWAPData{WtpMAC: "33:44:55:66:77:88"},
+	)
+	src := fixtureSource{data: data}
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{General: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	states := make(map[string]float64)
+	series := 0
+	for _, family := range families {
+		if family.GetName() != "wnc_ap_oper_state" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			series++
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == labelRadio {
+					t.Error("wnc_ap_oper_state carries a radio label, want one series per AP")
+				}
+				if label.GetName() == labelState {
+					states[label.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+	}
+
+	// Two of the three fixture APs report a state. A third series would mean the
+	// radio-level duplicate is back, since a per-radio emit reuses this descriptor
+	// and passes a slot number where the state belongs.
+	const wantSeries = 2
+	if series != wantSeries {
+		t.Errorf("wnc_ap_oper_state has %d series, want %d, one per AP reporting a state", series, wantSeries)
+	}
+	if got := states["downloading"]; got != 1 {
+		t.Errorf("wnc_ap_oper_state{state=downloading} = %v, want 1 with the state in the label", got)
+	}
+	if _, ok := states[""]; ok {
+		t.Error("wnc_ap_oper_state carries an empty state label, want that series omitted")
+	}
+}
 
 func TestNewAPCollector(t *testing.T) {
 	t.Parallel()
@@ -1174,30 +1233,34 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 		uptimeSecondsDesc:     prometheus.NewDesc("test_uptime", "test", []string{"mac"}, nil),
 		cpuUtilizationDesc:    prometheus.NewDesc("test_cpu", "test", []string{"mac"}, nil),
 		memoryUtilizationDesc: prometheus.NewDesc("test_memory", "test", []string{"mac"}, nil),
+		operStateDesc:         prometheus.NewDesc("test_oper_state", "test", []string{"mac", "state"}, nil),
 	}
 
-	capwapMap := map[string]ap.CAPWAPData{wtpMAC: {WtpMAC: wtpMAC}}
+	capwapMap := map[string]ap.CAPWAPData{
+		wtpMAC: {WtpMAC: wtpMAC, ApState: ap.ApState{ApOperationState: "registered"}},
+	}
 	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
 
 	tests := []struct {
 		name          string
 		apOperDataMap map[string]ap.OperData
-		expected      int // Config state and uptime are always emitted, CPU and memory only with ApSysStats.
+		// Oper state, config state and uptime are always emitted, CPU and memory only with ApSysStats.
+		expected int
 	}{
 		{
 			"ApSysStats present",
 			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC, ApSysStats: sysStats}},
-			4,
+			5,
 		},
 		{
 			"ApSysStats absent",
 			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC}},
-			2,
+			3,
 		},
 		{
 			"AP missing from oper data map",
 			map[string]ap.OperData{},
-			2,
+			3,
 		},
 	}
 
@@ -1238,7 +1301,6 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 		metrics:        APMetrics{General: true},
 		radioStateDesc: prometheus.NewDesc("test_radio_state", "test", []string{"mac", "radio"}, nil),
 		adminStateDesc: prometheus.NewDesc("test_admin_state", "test", []string{"mac", "radio"}, nil),
-		operStateDesc:  prometheus.NewDesc("test_oper_state", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 10)

@@ -124,8 +124,8 @@ func NewAPCollector(
 		)
 		collector.operStateDesc = prometheus.NewDesc(
 			"wnc_ap_oper_state",
-			"Operational state (0=down, 1=up)",
-			baseRadioLabels,
+			"AP operational state reported in the state label, always 1",
+			[]string{labelMAC, labelState},
 			nil,
 		)
 		collector.configStateDesc = prometheus.NewDesc(
@@ -603,6 +603,19 @@ func (c *APCollector) collectSystemMetrics(
 ) {
 	labels := []string{wtpMAC}
 
+	// The controller lists only APs that have joined, so an AP that leaves CAPWAP
+	// loses this series rather than reporting a state. An empty leaf is not a state,
+	// and an empty label reads as no label at all.
+	if operState := capwapMap[wtpMAC].ApState.ApOperationState; operState != "" {
+		ch <- prometheus.MustNewConstMetric(
+			c.operStateDesc,
+			prometheus.GaugeValue,
+			1,
+			wtpMAC,
+			operState,
+		)
+	}
+
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
@@ -630,7 +643,6 @@ func (c *APCollector) collectGeneralMetrics(
 	metrics := []Float64Metric{
 		{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 		{c.adminStateDesc, boolToFloat64(radio.AdminState == APAdminStateEnabled)},
-		{c.operStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 	}
 
 	for _, metric := range metrics {

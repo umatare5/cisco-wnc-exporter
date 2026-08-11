@@ -209,6 +209,7 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 > - Keeping `state` in the result restarts `for:` on every state change, so a stuck device never fires
 > - Pair the query with a `for:` longer than a legitimate transition takes
 > - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
+> - `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
 > - Every other `_state` metric keeps its numeric `0` or `1`
 
 ### AP Collector
@@ -218,7 +219,7 @@ AP collector focuses on RF foundation and radio performance.
 | Module  | Metric                                | Type    | Description                                      |
 | :------ | :------------------------------------ | :------ | :----------------------------------------------- |
 | general | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
-| general | `wnc_ap_oper_state`                   | Gauge   | Operational state (0=down, 1=up)                 |
+| general | `wnc_ap_oper_state`                   | Gauge   | Operational state in `state` label               |
 | general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
 | general | `wnc_ap_config_state`                 | Gauge   | Tag config state (0=valid, 1=invalid)            |
 | general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |

@@ -114,7 +114,9 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		dataType string
 		absent   []string
 	}{
-		{typeAPCAPWAPData, []string{"wnc_ap_config_state", "wnc_ap_uptime_seconds"}},
+		{typeAPCAPWAPData, []string{
+			"wnc_ap_config_state", "wnc_ap_uptime_seconds", "wnc_ap_oper_state",
+		}},
 		{typeAPOperData, []string{"wnc_ap_cpu_utilization_ratio", "wnc_ap_memory_utilization_ratio"}},
 		{typeAPRadioOperData, []string{
 			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients", "wnc_ap_info",
@@ -253,6 +255,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			IPAddr:     "192.0.2.11",
 			Name:       fixtureAPName,
 			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+			ApState:    ap.ApState{ApOperationState: "registered"},
 		}},
 		ApOperData: []ap.OperData{{
 			WtpMAC:     fixtureAPMAC,
