@@ -59,7 +59,6 @@ type APCollector struct {
 	totalTxFramesTotalDesc      *prometheus.Desc
 	rtsSuccessTotalDesc         *prometheus.Desc
 	rxErrorsTotalDesc           *prometheus.Desc
-	txErrorsTotalDesc           *prometheus.Desc
 	txDropsTotalDesc            *prometheus.Desc
 	txRetriesTotalDesc          *prometheus.Desc
 	ackFailuresTotalDesc        *prometheus.Desc
@@ -289,12 +288,6 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.txErrorsTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_errors_total",
-			"Total TX errors",
-			baseRadioLabels,
-			nil,
-		)
 		collector.txDropsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_tx_drops_total",
 			"Total TX drops",
@@ -420,7 +413,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Errors {
 		ch <- c.rxErrorsTotalDesc
-		ch <- c.txErrorsTotalDesc
 		ch <- c.txDropsTotalDesc
 		ch <- c.txRetriesTotalDesc
 		ch <- c.ackFailuresTotalDesc
@@ -743,7 +735,6 @@ func (c *APCollector) collectErrorMetrics(
 
 	errorMetrics := []Float64Metric{
 		{c.rxErrorsTotalDesc, float64(stats.RxErrorFrameCount)},
-		{c.txErrorsTotalDesc, float64(stats.FailedCount)},
 		{c.txDropsTotalDesc, float64(stats.AckFailureCount)},
 		{c.txRetriesTotalDesc, float64(stats.RetryCount)},
 		{c.ackFailuresTotalDesc, float64(stats.FailedCount)},

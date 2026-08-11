@@ -245,7 +245,6 @@ AP collector focuses on RF foundation and radio performance.
 | traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*1)**                    |
 | traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
 | traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
-| errors  | `wnc_ap_tx_errors_total`              | Counter | Total TX errors **(\*1)**                        |
 | errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
 | errors  | `wnc_ap_tx_drops_total`               | Counter | Total TX drops (calculated)                      |
 | errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
@@ -266,13 +265,13 @@ AP collector focuses on RF foundation and radio performance.
 
 The following metrics consistently return zero values due to implementation limitations. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
 
-- `wnc_ap_(tx|rx)_errors_total`
 - `wnc_ap_control_(rx|tx)_frames_total`
 - `wnc_ap_decryption_errors_total`
 - `wnc_ap_fragmentation_(rx|tx)_total`
 - `wnc_ap_mic_errors_total`
 - `wnc_ap_multicast_(rx|tx)_frames_total`
 - `wnc_ap_rts_(success|failures)_total`
+- `wnc_ap_rx_errors_total`
 - `wnc_ap_transmission_failures_total`
 - `wnc_ap_wep_undecryptable_total`
 

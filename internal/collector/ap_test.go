@@ -244,7 +244,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			APMetrics{Errors: true},
-			16, // rx/tx errors, drops, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
+			15, // rx errors, drops, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
 		},
 		{
 			"Info module only",
@@ -260,7 +260,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			44, // 7+10+10+16+1
+			43, // 7+10+10+15+1
 		},
 	}
 
@@ -948,7 +948,6 @@ func TestAPCollector_MetricNames(t *testing.T) {
 		{collector.txPowerDesc, "wnc_ap_tx_power_dbm"},
 		{collector.noiseFloorDesc, "wnc_ap_noise_floor_dbm"},
 		{collector.rxErrorsTotalDesc, "wnc_ap_rx_errors_total"},
-		{collector.txErrorsTotalDesc, "wnc_ap_tx_errors_total"},
 		{collector.infoDesc, "wnc_ap_info"},
 	}
 
@@ -1078,7 +1077,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 44
+	expectedDescs := 43
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1759,7 +1758,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	collector := &APCollector{
 		metrics:                   APMetrics{Errors: true},
 		rxErrorsTotalDesc:         prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
-		txErrorsTotalDesc:         prometheus.NewDesc("test_tx_errors", "test", []string{"mac", "radio"}, nil),
 		txDropsTotalDesc:          prometheus.NewDesc("test_tx_drops", "test", []string{"mac", "radio"}, nil),
 		txRetriesTotalDesc:        prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
 		ackFailuresTotalDesc:      prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
