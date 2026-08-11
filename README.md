@@ -246,7 +246,6 @@ AP collector focuses on RF foundation and radio performance.
 | traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
 | traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
 | errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
-| errors  | `wnc_ap_tx_drops_total`               | Counter | Total TX drops (calculated)                      |
 | errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
 | errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
 | errors  | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |

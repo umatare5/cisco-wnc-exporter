@@ -77,7 +77,7 @@ type APCollectorModules struct {
 	Radio bool `json:"radio"`
 	// Traffic: frames
 	Traffic bool `json:"traffic"`
-	// Errors: errors, drops, retries, failures
+	// Errors: errors, retries, failures
 	Errors bool `json:"errors"`
 	// Info: info metric with labels
 	Info       bool     `json:"info"`
