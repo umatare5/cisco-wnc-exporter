@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
@@ -49,14 +50,6 @@ var allDataTypes = []string{
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries,
 }
 
-// gaugesOnceTypedAsCounters names the series that were published as counters while
-// holding a value that is not cumulative. Both were corrected, and both are listed
-// so a regression fails the build rather than reaching Prometheus.
-var gaugesOnceTypedAsCounters = []string{
-	"wnc_ap_last_radar_timestamp_seconds",
-	"wnc_ap_coverage_failed_clients",
-}
-
 const (
 	fixtureAPMAC     = "aa:bb:cc:dd:ee:ff"
 	fixtureAPName    = "TEST-AP01"
@@ -80,11 +73,11 @@ func (f fixtureSource) GetCachedData(context.Context) (*wnc.WNCDataCache, error)
 	return f.data, nil
 }
 
-// TestCollectors_OmitSeriesWhenDataTypeFails is the regression test for the whole
+// TestAllCollectors_OmitSeriesWhenDataTypeFails is the regression test for the whole
 // change: a data type that failed to fetch must make its derived series disappear
 // rather than report a zero, a NaN or a timestamp near the Unix epoch. Prometheus
 // cannot distinguish a fabricated zero from a measured one.
-func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
+func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	t.Parallel()
 
 	policyDerived := []string{
@@ -105,6 +98,10 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_client_tx_bytes_total",
 		"wnc_client_rx_packets_total",
 		"wnc_client_tx_packets_total",
+		// The error counters share one omission guard, so two of them witness all
+		// eleven. wnc_client_rx_group_total also pins the name against a rename.
+		"wnc_client_policy_errors_total",
+		"wnc_client_rx_group_total",
 	}
 
 	tests := []struct {
@@ -174,9 +171,11 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}
 }
 
-// TestCollectors_FailedDataTypeNeverAddsSeries covers all eighteen data types,
-// including the ones that only contribute info labels.
-func TestCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
+// TestAllCollectors_FailedDataTypeNeverAddsSeries iterates all eighteen data types.
+// Two of them gate no series, only info label values, and a collector keeps the
+// series and empties the label when their fetch fails, so those two pass here
+// whatever the collector does. Nothing in this file covers label provenance.
+func TestAllCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
 	t.Parallel()
 
 	baseline := gatherAllCollectors(t, "")
@@ -195,10 +194,54 @@ func TestCollectors_FailedDataTypeNeverAddsSeries(t *testing.T) {
 	}
 }
 
-// gatherAllCollectors registers the three data collectors over one snapshot in
-// which the named data type is marked as failed, and reports which metric names
-// carry at least one series. An empty failedDataType gathers the baseline.
+// TestAllCollectors_MetricNamesMatchTypes binds every family's type to its name.
+// Nothing else in the suite asserts a type, and Prometheus reads a counter's drop
+// as a reset and extrapolates, so a type regression silently invents data. This
+// exporter gives every counter a _total suffix and no other metric one, which is
+// the correspondence promlint checks, so the whole surface is covered rather than
+// a hand-kept list of the families that regressed once.
+func TestAllCollectors_MetricNamesMatchTypes(t *testing.T) {
+	t.Parallel()
+
+	families, err := fixtureRegistry(t, "").Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+	if len(families) == 0 {
+		t.Fatal("no families were gathered, so the lint below proves nothing")
+	}
+
+	problems, err := promlint.NewWithMetricFamilies(families).Lint()
+	if err != nil {
+		t.Fatalf("Lint() error = %v, want nil", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("%s: %s", problem.Metric, problem.Text)
+	}
+}
+
+// gatherAllCollectors reports which metric names carry at least one series when
+// the named data type is marked as failed. An empty failedDataType gathers the
+// baseline.
 func gatherAllCollectors(t *testing.T, failedDataType string) map[string]bool {
+	t.Helper()
+
+	families, err := fixtureRegistry(t, failedDataType).Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	present := make(map[string]bool, len(families))
+	for _, family := range families {
+		present[family.GetName()] = len(family.GetMetric()) > 0
+	}
+	return present
+}
+
+// fixtureRegistry registers the three data collectors over one snapshot in which
+// the named data type is marked as failed. An empty failedDataType leaves every
+// fetch succeeding.
+func fixtureRegistry(t *testing.T, failedDataType string) *prometheus.Registry {
 	t.Helper()
 
 	data := fullFixtureSnapshot()
@@ -219,25 +262,7 @@ func gatherAllCollectors(t *testing.T, failedDataType string) map[string]bool {
 		NewClientCollector(wnc.NewClientSource(src), clientMetrics),
 		NewWLANCollector(wnc.NewWLANSource(src), wnc.NewClientSource(src), wlanMetrics),
 	)
-
-	families, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Gather() error = %v, want nil", err)
-	}
-
-	present := make(map[string]bool, len(families))
-	for _, family := range families {
-		present[family.GetName()] = len(family.GetMetric()) > 0
-
-		// Nothing else in the suite asserts a metric's type, so a gauge that
-		// regressed to a counter would pass. Prometheus reads a counter's drop as a
-		// reset and extrapolates, so the wrong type here silently invents data.
-		if slices.Contains(gaugesOnceTypedAsCounters, family.GetName()) &&
-			family.GetType().String() != "GAUGE" {
-			t.Errorf("%s is a %s, want a GAUGE", family.GetName(), family.GetType())
-		}
-	}
-	return present
+	return registry
 }
 
 // fullFixtureSnapshot returns a snapshot in which every data type carries one
