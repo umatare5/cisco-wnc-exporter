@@ -120,7 +120,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeAPNameMACMap, []string{"wnc_ap_clients"}},
 		{typeAPRadioOperStats, []string{
-			"wnc_ap_rx_packets_total", "wnc_ap_tx_bytes_total",
+			"wnc_ap_data_rx_frames_total", "wnc_ap_tx_bytes_total",
 			"wnc_ap_rx_errors_total", "wnc_ap_fcs_errors_total",
 		}},
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
