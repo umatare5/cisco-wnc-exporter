@@ -105,8 +105,6 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_client_tx_bytes_total",
 		"wnc_client_rx_packets_total",
 		"wnc_client_tx_packets_total",
-		"wnc_wlan_rx_bytes_total",
-		"wnc_wlan_tx_bytes_total",
 	}
 
 	tests := []struct {
@@ -128,7 +126,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
 		{typeClientCommonOperData, []string{
 			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
-			"wnc_wlan_clients", "wnc_wlan_rx_bytes_total", "wnc_wlan_tx_bytes_total",
+			"wnc_wlan_clients",
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},
 		{typeClientTrafficStats, clientTrafficDerived},

@@ -32,8 +32,6 @@ type WLANCollector struct {
 
 	enabledDesc               *prometheus.Desc
 	clientCountDesc           *prometheus.Desc
-	bytesRxDesc               *prometheus.Desc
-	bytesTxDesc               *prometheus.Desc
 	authPskDesc               *prometheus.Desc
 	authDot1xDesc             *prometheus.Desc
 	authDot1xSha256Desc       *prometheus.Desc
@@ -71,16 +69,6 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		collector.clientCountDesc = prometheus.NewDesc(
 			"wnc_wlan_clients",
 			"Number of clients in the run state on this WLAN",
-			labels, nil,
-		)
-		collector.bytesRxDesc = prometheus.NewDesc(
-			"wnc_wlan_rx_bytes_total",
-			"WLAN received bytes",
-			labels, nil,
-		)
-		collector.bytesTxDesc = prometheus.NewDesc(
-			"wnc_wlan_tx_bytes_total",
-			"WLAN transmitted bytes",
 			labels, nil,
 		)
 	}
@@ -175,8 +163,6 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Traffic {
 		ch <- c.clientCountDesc
-		ch <- c.bytesRxDesc
-		ch <- c.bytesTxDesc
 	}
 	if c.metrics.Config {
 		ch <- c.authPskDesc
@@ -233,24 +219,14 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	var wlanStatsMap map[int]wlanStats
-	trafficKnown := false
 	if IsEnabled(c.metrics.Traffic) {
 		clientData, clientErr := c.clientSrc.GetClientData(ctx)
 		if clientErr != nil {
 			slog.Debug("Failed to get client data for WLAN traffic metrics", "error", clientErr)
 		}
 
-		trafficStats, trafficErr := c.clientSrc.GetTrafficStats(ctx)
-		if trafficErr != nil {
-			slog.Debug("Failed to get client traffic stats for WLAN metrics", "error", trafficErr)
-		}
-
-		// The two series have different dependencies. A nil map omits both; a WLAN
-		// with zero clients legitimately reports zero clients and zero bytes, so
-		// availability cannot be inferred from the map being empty.
 		if clientErr == nil {
-			wlanStatsMap = c.buildWLANStats(clientData, trafficStats)
-			trafficKnown = trafficErr == nil
+			wlanStatsMap = c.buildWLANStats(clientData)
 		}
 	}
 
@@ -259,7 +235,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 			c.collectGeneralMetrics(ch, entry)
 		}
 		if c.metrics.Traffic {
-			c.collectTrafficMetrics(ch, entry, wlanStatsMap, trafficKnown)
+			c.collectTrafficMetrics(ch, entry, wlanStatsMap)
 		}
 		if c.metrics.Config {
 			c.collectConfigMetrics(ch, entry, wlanToPolicyMap)
@@ -296,7 +272,6 @@ func (c *WLANCollector) collectTrafficMetrics(
 	ch chan<- prometheus.Metric,
 	entry wlan.WlanCfgEntry,
 	wlanStatsMap map[int]wlanStats,
-	trafficKnown bool,
 ) {
 	// A nil map means client data was unavailable. Indexing it would publish a
 	// zero client count, which reads as "no clients on this SSID".
@@ -313,34 +288,10 @@ func (c *WLANCollector) collectTrafficMetrics(
 		float64(stats.clientCount),
 		labels...,
 	)
-
-	// Zero byte counters would make the next successful scrape look like a counter
-	// reset, so rate() would report a spike of the full counter value.
-	if !trafficKnown {
-		return
-	}
-
-	metrics := []Float64Metric{
-		{c.bytesRxDesc, float64(stats.bytesRx)},
-		{c.bytesTxDesc, float64(stats.bytesTx)},
-	}
-
-	for _, metric := range metrics {
-		ch <- prometheus.MustNewConstMetric(
-			metric.Desc,
-			prometheus.CounterValue,
-			metric.Value,
-			labels...,
-		)
-	}
 }
 
 type wlanStats struct {
 	clientCount int
-	bytesRx     uint64
-	bytesTx     uint64
-	packetsRx   uint64
-	packetsTx   uint64
 }
 
 // collectConfigMetrics collects config metrics.
@@ -406,21 +357,11 @@ func (c *WLANCollector) collectInfoMetrics(
 }
 
 // buildWLANStats builds client traffic statistics by WLAN ID.
-func (c *WLANCollector) buildWLANStats(
-	clientData []client.CommonOperData,
-	trafficStats []client.TrafficStats,
-) map[int]wlanStats {
+func (c *WLANCollector) buildWLANStats(clientData []client.CommonOperData) map[int]wlanStats {
 	wlanStats := make(map[int]wlanStats)
 
 	if clientData == nil {
 		return wlanStats
-	}
-
-	trafficMap := make(map[string]client.TrafficStats)
-	for _, traffic := range trafficStats {
-		if traffic.MsMACAddress != "" {
-			trafficMap[traffic.MsMACAddress] = traffic
-		}
 	}
 
 	for _, commonData := range clientData {
@@ -432,13 +373,6 @@ func (c *WLANCollector) buildWLANStats(
 
 		stats := wlanStats[wlanID]
 		stats.clientCount++
-
-		if traffic, ok := trafficMap[commonData.ClientMAC]; ok {
-			stats.bytesRx += stringToUint64(traffic.BytesRx)
-			stats.bytesTx += stringToUint64(traffic.BytesTx)
-			stats.packetsRx += stringToUint64(traffic.PktsRx)
-			stats.packetsTx += stringToUint64(traffic.PktsTx)
-		}
 
 		wlanStats[wlanID] = stats
 	}

@@ -103,7 +103,7 @@ type ClientCollectorModules struct {
 type WLANCollectorModules struct {
 	// General: enabled
 	General bool `json:"general"`
-	// Traffic: clients, bytes
+	// Traffic: clients
 	Traffic bool `json:"traffic"`
 	// Config: auth, security, networking settings
 	Config bool `json:"config"`

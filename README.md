@@ -534,25 +534,23 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 WLAN collector focuses on logical SSID performance and parameter checks.
 
-| Module  | Metric                                    | Type    | Description                          |
-| :------ | :---------------------------------------- | :------ | :----------------------------------- |
-| general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                          |
-| traffic | `wnc_wlan_clients`                        | Gauge   | Connected clients count (calculated) |
-| traffic | `wnc_wlan_rx_bytes_total`                 | Counter | WLAN received bytes (calculated)     |
-| traffic | `wnc_wlan_tx_bytes_total`                 | Counter | WLAN transmitted bytes (calculated)  |
-| config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled           |
-| config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled        |
-| config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled           |
-| config  | `wnc_wlan_wpa2_enabled`                   | Gauge   | WPA2 support enabled                 |
-| config  | `wnc_wlan_wpa3_enabled`                   | Gauge   | WPA3 support enabled                 |
-| config  | `wnc_wlan_session_timeout_seconds`        | Gauge   | Session timeout duration             |
-| config  | `wnc_wlan_load_balance_enabled`           | Gauge   | Load balancing enabled               |
-| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge   | 802.11k neighbor list enabled        |
-| config  | `wnc_wlan_client_steering_enabled`        | Gauge   | 6GHz client steering enabled         |
-| config  | `wnc_wlan_central_switching_enabled`      | Gauge   | Central switching enabled            |
-| config  | `wnc_wlan_central_authentication_enabled` | Gauge   | Central authentication enabled       |
-| config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                 |
-| config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled          |
+| Module  | Metric                                    | Type  | Description                          |
+| :------ | :---------------------------------------- | :---- | :----------------------------------- |
+| general | `wnc_wlan_enabled`                        | Gauge | WLAN status                          |
+| traffic | `wnc_wlan_clients`                        | Gauge | Connected clients count (calculated) |
+| config  | `wnc_wlan_auth_psk_enabled`               | Gauge | PSK authentication enabled           |
+| config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge | 802.1x authentication enabled        |
+| config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge | 802.1x SHA256 auth enabled           |
+| config  | `wnc_wlan_wpa2_enabled`                   | Gauge | WPA2 support enabled                 |
+| config  | `wnc_wlan_wpa3_enabled`                   | Gauge | WPA3 support enabled                 |
+| config  | `wnc_wlan_session_timeout_seconds`        | Gauge | Session timeout duration             |
+| config  | `wnc_wlan_load_balance_enabled`           | Gauge | Load balancing enabled               |
+| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge | 802.11k neighbor list enabled        |
+| config  | `wnc_wlan_client_steering_enabled`        | Gauge | 6GHz client steering enabled         |
+| config  | `wnc_wlan_central_switching_enabled`      | Gauge | Central switching enabled            |
+| config  | `wnc_wlan_central_authentication_enabled` | Gauge | Central authentication enabled       |
+| config  | `wnc_wlan_central_dhcp_enabled`           | Gauge | Central DHCP enabled                 |
+| config  | `wnc_wlan_central_association_enabled`    | Gauge | Central association enabled          |
 
 > [!Tip]
 >
