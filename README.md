@@ -162,86 +162,16 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 > [!Important]
 >
 > All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
->
-> **WNC data refresh (`--wnc.cache-ttl`)**
->
-> - A scrape is served from the last snapshot and never waits for the controller
-> - The flag sets the minimum idle time between refresh completions, not a snapshot expiry
-> - The first scrape after start-up therefore reports `wnc_up 0` and carries no data series
-> - A refresh is bounded at twice the flag value; data types the deadline never reached count as failures
-> - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
->
-> **Prometheus info metrics caching (`--collector.info-cache-ttl`)**
->
-> - Info metrics are served from a snapshot up to 1800 seconds (30 minutes) old, and the collector behind them still runs on every scrape, so no controller request is saved
-> - A client that roamed keeps its previous `ap` label until the cache expires
-> - A newly associated client is missing from the info metric for up to that long, so `group_left` joins on it return nothing
-> - Caching does not reduce cardinality: every `ap` label value a client has held remains its own series
 
 > [!Note]
 >
-> **WNC-side metrics management**
->
-> - The controller updates AP and client counters, RSSI and SNR on its own schedule rather than on scrape
-> - The AP profile `stats-timer` governs that schedule and defaults to 180 seconds
-> - RRM noise and coverage update every 180 seconds, and RRM load every 60 seconds
-> - Use a range of **15 minutes or more** for `rate()` and `increase()`
-> - A shorter range spans too few controller updates to be meaningful
->
-> **Counter reset timing**
->
-> - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
-> - Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`
-
-> [!Note]
->
-> **A state is a label, not a number**
->
-> - A series carrying a `state` label always has the value `1`, so the label is the reading
-> - The controller's spelling passes through unmapped, so a value this file does not name can appear
-> - Only the current state has a series, so `== 0` never fires, and an equality match on the healthy spelling selects the healthy devices rather than revealing the unhealthy ones
-> - Alert on the healthy spelling's absence, with `state` aggregated away:
->
-> ```bash
-> group by (mac) (wnc_client_state{state!="client-status-run"})
-> ```
->
-> - Keeping `state` in the result restarts `for:` on every state change, so a stuck device never fires
-> - Pair the query with a `for:` longer than a legitimate transition takes
-> - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
-> - `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
-> - Every other `_state` metric keeps its numeric `0` or `1`
+> - The controller updates its counters on its own schedule, so use a range of **15 minutes or more** for `rate()` and `increase()`
+> - A series carrying a `state` label always has the value `1`, so the label is the reading and `== 0` never fires
+> - See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
 
 ### AP Collector
 
 AP collector focuses on RF foundation and radio performance. See [docs/collector.ap.md](docs/collector.ap.md) for every metric it publishes and the labels `wnc_ap_info` carries.
-
-> [!Note]
->
-> **Utilization is reported as a ratio**
->
-> - Metric names ending in `_ratio` carry 0 to 1, the Prometheus base unit for a percentage
-> - Multiply by 100 for a percentage axis, as in `wnc_ap_channel_utilization_ratio * 100`
-> - Grafana renders these series without that multiplication under the `percentunit` unit
-
-> [!Note]
->
-> **The `band` label**
->
-> - AP band comes from the radio's operating band, not from the `radio` slot
-> - A dual band radio changes band without changing slot, so the slot is not a band
-> - Client band comes from the PHY generation the client associated with
-> - `unknown` means the controller reported a value this exporter does not map
-> - `unknown` is a label value, not a missing series: the other labels stay joinable
-> - A band change takes up to `--collector.info-cache-ttl` to appear
-
-> [!Warning]
->
-> **Multi-link clients**
->
-> - An 802.11be client may hold links on more than one band at once
-> - The controller reports one PHY generation per client, so `band` names one link
-> - Aggregations such as `count by (band)` therefore undercount the other links
 
 ### Client Collector
 
