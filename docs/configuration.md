@@ -12,9 +12,9 @@ USAGE:
    cisco-wnc-exporter [global options]
 
 VERSION:
-   0.1.0
+   0.2.0
 
-OPTIONS:
+GLOBAL OPTIONS:
    --dry-run                    Validate configuration without starting the server
    --help, -h                   show help
    --log.format string          Log format (json, text) (default: "json")
@@ -27,7 +27,7 @@ OPTIONS:
    --wnc.cache-ttl duration     Minimum interval between WNC data refreshes (default: 55s)
    --wnc.controller string      WNC controller hostname or IP address [$WNC_CONTROLLER]
    --wnc.timeout duration       WNC API request timeout (default: 55s)
-   --wnc.tls-skip-verify        Skip TLS certificate verification (default: false)
+   --wnc.tls-skip-verify        Skip TLS certificate verification
 
    # AP Collector Options
 
