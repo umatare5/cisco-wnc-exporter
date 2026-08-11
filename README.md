@@ -119,7 +119,7 @@ The series a dashboard usually starts from:
 | WLAN      | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |
 | WLAN      | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 
-The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe its own data refresh rather than the wireless network and appear whenever any collector is enabled.
+The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe the exporter itself rather than the wireless network.
 
 > [!Important]
 >
@@ -133,15 +133,18 @@ The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics
 
 ### Exporter Health Metrics
 
-These series describe the exporter's own WNC data refresh. They have no module and no collector flag: enabling any collector above exposes them all. Without them a failed refresh produces a successful scrape carrying no series, which no alert can detect.
+These series describe the exporter itself rather than the wireless network. They have no module and no collector flag. Without the refresh series a failed refresh produces a successful scrape carrying no series, which no alert can detect.
 
 | Metric                                  | Type    | Description                                            |
 | :-------------------------------------- | :------ | :----------------------------------------------------- |
+| `wnc_build_info`                        | Gauge   | Exporter version in the `version` label, always 1      |
 | `wnc_up`                                | Gauge   | Whether the last **completed** refresh reached the WNC |
 | `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**               |
 | `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot   |
 | `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up          |
 | `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type        |
+
+`wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled. The refresh series appear as soon as one collector is enabled.
 
 > [!Important]
 >
