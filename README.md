@@ -211,7 +211,7 @@ AP collector focuses on RF foundation and radio performance.
 | radio   | `wnc_ap_tx_power_dbm`                | Gauge   | Current transmit power (dBm)                     |
 | radio   | `wnc_ap_tx_power_max_dbm`            | Gauge   | Maximum TX power capability (dBm)                |
 | radio   | `wnc_ap_noise_floor_dbm`             | Gauge   | Noise on the operating channel (dBm)             |
-| radio   | `wnc_ap_channel_utilization_percent` | Gauge   | Channel utilization percentage (CCA)             |
+| radio   | `wnc_ap_channel_utilization_ratio`   | Gauge   | Channel utilization ratio (CCA), 0-1             |
 | radio   | `wnc_ap_rx_utilization_percent`      | Gauge   | RX utilization percentage                        |
 | radio   | `wnc_ap_tx_utilization_percent`      | Gauge   | TX utilization percentage                        |
 | radio   | `wnc_ap_noise_utilization_percent`   | Gauge   | Noise channel utilization percentage             |
@@ -374,6 +374,14 @@ The `radio` label is not a substitute. A dual band radio keeps its slot while it
 `wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel; the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
 
 </details>
+
+> [!Note]
+>
+> **Utilization is reported as a ratio**
+>
+> - Metric names ending in `_ratio` carry 0 to 1, the Prometheus base unit for a percentage
+> - Multiply by 100 for a percentage axis, as in `wnc_ap_channel_utilization_ratio * 100`
+> - Grafana renders these series without that multiplication under the `percentunit` unit
 
 > [!Tip]
 >

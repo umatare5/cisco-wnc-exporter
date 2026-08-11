@@ -1523,6 +1523,35 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
 	}
 }
 
+// TestAPCollector_collectRadioMetrics_ScalesUtilization pins the unit conversion.
+// The controller reports these leaves in whole percent, so a name that promises a
+// ratio without the division would report a value a hundred times too large, and
+// no other assertion in this suite reads their value.
+func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
+	t.Parallel()
+
+	source := radioMetricsOnly{
+		collector: &APCollector{
+			metrics: APMetrics{Radio: true},
+			channelUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_channel_utilization_ratio", "t", []string{"mac", "radio"}, nil),
+			rxUtilizationDesc:    prometheus.NewDesc("test_rx_util", "t", []string{"mac", "radio"}, nil),
+			txUtilizationDesc:    prometheus.NewDesc("test_tx_util", "t", []string{"mac", "radio"}, nil),
+			noiseUtilizationDesc: prometheus.NewDesc("test_noise_util", "t", []string{"mac", "radio"}, nil),
+		},
+		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0},
+		rrmMap: map[string]*rrm.RRMMeasurement{
+			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{CcaUtilPercentage: 30}},
+		},
+	}
+
+	values := gatherRadioValues(t, source)
+
+	if got := values["wnc_ap_channel_utilization_ratio"]; got != 0.3 {
+		t.Errorf("wnc_ap_channel_utilization_ratio = %v, want 0.3 from a leaf reporting whole percent", got)
+	}
+}
+
 func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 	t.Parallel()
 

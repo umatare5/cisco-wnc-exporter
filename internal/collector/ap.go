@@ -171,8 +171,8 @@ func NewAPCollector(
 
 	if metrics.Radio {
 		collector.channelUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_channel_utilization_percent",
-			"Channel utilization percentage (CCA-based)",
+			"wnc_ap_channel_utilization_ratio",
+			"Channel utilization ratio (CCA-based, 0-1)",
 			baseRadioLabels,
 			nil,
 		)
@@ -671,7 +671,7 @@ func (c *APCollector) collectRadioMetrics(
 	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {
 		if rrmData.Load != nil {
 			metrics = append(metrics,
-				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
+				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage) / 100},
 				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
 				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
 				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
