@@ -91,18 +91,35 @@ This exporter supports following environment variables:
 
 ## Metrics
 
-This exporter collects wireless network metrics from Cisco C9800 WNC using following collectors:
+This exporter collects wireless network metrics from Cisco C9800 WNC using three collectors:
 
-- **AP Collector** - For RF foundation and radio performance
-- **Client Collector** - For user experience quality and connection performance
-- **WLAN Collector** - For logical SSID performance and parameter checks
+| Collector                          | Focus                                              |
+| :--------------------------------- | :------------------------------------------------- |
+| [AP](docs/collector.ap.md)         | RF foundation and radio performance                |
+| [Client](docs/collector.client.md) | User experience quality and connection performance |
+| [WLAN](docs/collector.wlan.md)     | Logical SSID performance and parameter checks      |
 
-The `Module` column names the flag suffix that enables a metric, as in `--collector.ap.radio`.
+Each page lists every metric its collector publishes, the labels its `_info` metric carries, and the counters the controller may report as a constant zero. The `Module` column on those pages names the flag suffix that enables a metric, as in `--collector.ap.radio`.
 
-The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metrics)** series.
+The series a dashboard usually starts from:
 
-- These describe the exporter's own data refresh rather than the wireless network
-- These are exposed whenever at least one of the collectors above is enabled
+| Collector | Metric                             | Type  | Description                          |
+| :-------- | :--------------------------------- | :---- | :----------------------------------- |
+| AP        | `wnc_ap_oper_state`                | Gauge | Operational state in `state` label   |
+| AP        | `wnc_ap_channel_number`            | Gauge | Operating channel number             |
+| AP        | `wnc_ap_tx_power_dbm`              | Gauge | Current transmit power (dBm)         |
+| AP        | `wnc_ap_noise_floor_dbm`           | Gauge | Noise on the operating channel (dBm) |
+| AP        | `wnc_ap_channel_utilization_ratio` | Gauge | Channel utilization ratio (CCA), 0-1 |
+| AP        | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
+| Client    | `wnc_client_state`                 | Gauge | Connection state in `state` label    |
+| Client    | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
+| Client    | `wnc_client_speed_mbps`            | Gauge | Connection throughput                |
+| Client    | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
+| Client    | `wnc_client_snr_decibels`          | Gauge | Signal-to-noise ratio (dB)           |
+| WLAN      | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |
+| WLAN      | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
+
+The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe its own data refresh rather than the wireless network and appear whenever any collector is enabled.
 
 > [!Important]
 >
@@ -113,18 +130,6 @@ The exporter also exposes the **[Exporter Health Metrics](#exporter-health-metri
 > - The controller updates its counters on its own schedule, so use a range of **15 minutes or more** for `rate()` and `increase()`
 > - A series carrying a `state` label always has the value `1`, so the label is the reading and `== 0` never fires
 > - See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
-
-### AP Collector
-
-AP collector focuses on RF foundation and radio performance. See [docs/collector.ap.md](docs/collector.ap.md) for every metric it publishes and the labels `wnc_ap_info` carries.
-
-### Client Collector
-
-Client collector focuses on user experience quality and connection performance. See [docs/collector.client.md](docs/collector.client.md) for every metric it publishes and the labels `wnc_client_info` carries.
-
-### WLAN Collector
-
-WLAN collector focuses on logical SSID performance and parameter checks. See [docs/collector.wlan.md](docs/collector.wlan.md) for every metric it publishes and the labels `wnc_wlan_info` carries.
 
 ### Exporter Health Metrics
 
