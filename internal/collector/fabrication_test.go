@@ -101,7 +101,6 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_client_spatial_streams",
 		"wnc_client_mcs_index",
 		"wnc_client_power_save_state",
-		"wnc_client_retry_ratio_percent",
 		"wnc_client_rx_bytes_total",
 		"wnc_client_tx_bytes_total",
 		"wnc_client_rx_packets_total",

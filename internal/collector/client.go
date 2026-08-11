@@ -44,7 +44,6 @@ type ClientCollector struct {
 	bytesTxDesc                *prometheus.Desc
 	packetsRxDesc              *prometheus.Desc
 	packetsTxDesc              *prometheus.Desc
-	retryRatioDesc             *prometheus.Desc
 	policyErrorsDesc           *prometheus.Desc
 	duplicateReceivedDesc      *prometheus.Desc
 	decryptionFailedDesc       *prometheus.Desc
@@ -149,11 +148,6 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	}
 
 	if metrics.Errors {
-		collector.retryRatioDesc = prometheus.NewDesc(
-			"wnc_client_retry_ratio_percent",
-			"Retry rate percentage",
-			labels, nil,
-		)
 		collector.policyErrorsDesc = prometheus.NewDesc(
 			"wnc_client_policy_errors_total",
 			"Policy errors",
@@ -258,7 +252,6 @@ func (c *ClientCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.packetsTxDesc
 	}
 	if c.metrics.Errors {
-		ch <- c.retryRatioDesc
 		ch <- c.policyErrorsDesc
 		ch <- c.duplicateReceivedDesc
 		ch <- c.decryptionFailedDesc
@@ -489,21 +482,6 @@ func (c *ClientCollector) collectErrorMetrics(
 	}
 
 	labels := []string{data.ClientMAC}
-
-	dataRetries := stringToUint64(traffic.DataRetries)
-	txRetries := stringToUint64(traffic.TxRetries)
-	packetsTx := stringToUint64(traffic.PktsTx)
-
-	// A client that has transmitted nothing yields 0/0. NaN propagates through
-	// avg() and max(), so it would poison those aggregations across the whole job.
-	if packetsTx > 0 {
-		ch <- prometheus.MustNewConstMetric(
-			c.retryRatioDesc,
-			prometheus.GaugeValue,
-			float64(dataRetries+txRetries)/float64(packetsTx)*percentScale,
-			labels...,
-		)
-	}
 
 	metrics := []StringMetric{
 		{c.policyErrorsDesc, traffic.PolicyErrs},

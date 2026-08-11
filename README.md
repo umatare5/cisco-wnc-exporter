@@ -463,7 +463,6 @@ Client collector focuses on user experience quality and connection performance.
 | traffic | `wnc_client_tx_bytes_total`           | Counter | Transmitted bytes                    |
 | traffic | `wnc_client_rx_packets_total`         | Counter | Received packets                     |
 | traffic | `wnc_client_tx_packets_total`         | Counter | Transmitted packets                  |
-| errors  | `wnc_client_retry_ratio_percent`      | Gauge   | Retry rate percentage                |
 | errors  | `wnc_client_tx_retries_total`         | Counter | TX retries count **(\*3)**           |
 | errors  | `wnc_client_data_retries_total`       | Counter | Data retries by mobile station       |
 | errors  | `wnc_client_excessive_retries_total`  | Counter | Excessive retries count **(\*3)**    |

@@ -233,7 +233,7 @@ func TestClientCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			ClientMetrics{Errors: true},
-			12, // retry_ratio, policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group, tx_drops, data_retries, rts_retries, tx_retries
+			11, // policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group, tx_drops, data_retries, rts_retries, tx_retries
 		},
 		{
 			"Info module only",
@@ -249,7 +249,7 @@ func TestClientCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			27, // 4+6+4+12+1
+			26, // 4+6+4+11+1
 		},
 	}
 
@@ -887,7 +887,6 @@ func TestClientCollector_MetricNames(t *testing.T) {
 		{collector.bytesTxDesc, "wnc_client_tx_bytes_total"},
 		{collector.packetsRxDesc, "wnc_client_rx_packets_total"},
 		{collector.packetsTxDesc, "wnc_client_tx_packets_total"},
-		{collector.retryRatioDesc, "wnc_client_retry_ratio_percent"},
 		{collector.policyErrorsDesc, "wnc_client_policy_errors_total"},
 		{collector.infoDesc, "wnc_client_info"},
 	}
@@ -1018,7 +1017,7 @@ func TestClientCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 27
+	expectedDescs := 26
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1279,7 +1278,6 @@ func TestClientCollector_collectErrorMetrics(t *testing.T) {
 
 	collector := &ClientCollector{
 		metrics:               ClientMetrics{Errors: true},
-		retryRatioDesc:        prometheus.NewDesc("test_retry_ratio", "test", []string{"mac"}, nil),
 		policyErrorsDesc:      prometheus.NewDesc("test_policy_errors", "test", []string{"mac"}, nil),
 		duplicateReceivedDesc: prometheus.NewDesc("test_duplicate_received", "test", []string{"mac"}, nil),
 		decryptionFailedDesc:  prometheus.NewDesc("test_decryption_failed", "test", []string{"mac"}, nil),
@@ -1407,7 +1405,6 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 				t.Helper()
 				collector := &ClientCollector{
 					metrics:               ClientMetrics{Errors: true},
-					retryRatioDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					policyErrorsDesc:      prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					duplicateReceivedDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					decryptionFailedDesc:  prometheus.NewDesc("test", "test", []string{"mac"}, nil),
