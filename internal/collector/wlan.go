@@ -412,7 +412,7 @@ func (c *WLANCollector) buildWLANStats(
 ) map[int]wlanStats {
 	wlanStats := make(map[int]wlanStats)
 
-	if clientData == nil || trafficStats == nil {
+	if clientData == nil {
 		return wlanStats
 	}
 

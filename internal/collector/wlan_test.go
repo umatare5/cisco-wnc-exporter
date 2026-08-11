@@ -835,6 +835,16 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 				1: {clientCount: 1, bytesRx: 0, bytesTx: 0},
 			},
 		},
+		{
+			"Traffic stats unavailable",
+			[]client.CommonOperData{
+				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
+			},
+			nil,
+			map[int]wlanStats{
+				1: {clientCount: 1},
+			},
+		},
 	}
 
 	for _, tt := range tests {
