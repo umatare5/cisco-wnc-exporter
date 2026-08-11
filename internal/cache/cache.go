@@ -62,35 +62,3 @@ func (c *Cache[T]) Get(refreshFunc func() (T, error)) (T, error) {
 func (c *Cache[T]) isFresh() bool {
 	return !c.cachedAt.IsZero() && time.Since(c.cachedAt) < c.ttl
 }
-
-// GetCached returns cached data without refreshing if available and fresh.
-// Returns zero value and false if cache is stale or empty.
-func (c *Cache[T]) GetCached() (T, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if c.isFresh() {
-		return c.data, true
-	}
-
-	var zero T
-	return zero, false
-}
-
-// Invalidate clears the cache, forcing the next Get() call to refresh.
-func (c *Cache[T]) Invalidate() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.cachedAt = time.Time{}
-	slog.Debug("cache invalidated", "cache_name", c.name)
-}
-
-// SetTTL updates the cache TTL. Useful for dynamic TTL adjustment.
-func (c *Cache[T]) SetTTL(ttl time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.ttl = ttl
-	slog.Debug("cache TTL updated", "cache_name", c.name, "ttl_seconds", ttl.Seconds())
-}
