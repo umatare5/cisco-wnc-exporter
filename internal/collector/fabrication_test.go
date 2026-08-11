@@ -49,6 +49,14 @@ var allDataTypes = []string{
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries,
 }
 
+// gaugesOnceTypedAsCounters names the series that were published as counters while
+// holding a value that is not cumulative. Both were corrected, and both are listed
+// so a regression fails the build rather than reaching Prometheus.
+var gaugesOnceTypedAsCounters = []string{
+	"wnc_ap_last_radar_timestamp_seconds",
+	"wnc_ap_coverage_failed_clients",
+}
+
 const (
 	fixtureAPMAC     = "aa:bb:cc:dd:ee:ff"
 	fixtureAPName    = "TEST-AP01"
@@ -129,7 +137,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_tx_utilization_ratio", "wnc_ap_noise_utilization_ratio",
 			"wnc_ap_noise_floor_dbm",
 		}},
-		{typeRRMCoverage, []string{"wnc_ap_coverage_hole_events_total"}},
+		{typeRRMCoverage, []string{"wnc_ap_coverage_failed_clients"}},
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
@@ -225,7 +233,8 @@ func gatherAllCollectors(t *testing.T, failedDataType string) map[string]bool {
 		// Nothing else in the suite asserts a metric's type, so a gauge that
 		// regressed to a counter would pass. Prometheus reads a counter's drop as a
 		// reset and extrapolates, so the wrong type here silently invents data.
-		if family.GetName() == "wnc_ap_last_radar_timestamp_seconds" && family.GetType().String() != "GAUGE" {
+		if slices.Contains(gaugesOnceTypedAsCounters, family.GetName()) &&
+			family.GetType().String() != "GAUGE" {
 			t.Errorf("%s is a %s, want a GAUGE", family.GetName(), family.GetType())
 		}
 	}

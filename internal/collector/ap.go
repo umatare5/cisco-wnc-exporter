@@ -390,8 +390,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.coverageHoleEventsDesc = prometheus.NewDesc(
-			"wnc_ap_coverage_hole_events_total",
-			"Coverage hole events",
+			"wnc_ap_coverage_failed_clients",
+			"RRM coverage failed client count (current value, not cumulative)",
 			baseRadioLabels,
 			nil,
 		)
@@ -752,7 +752,7 @@ func (c *APCollector) collectErrorMetrics(
 	}
 	if coverage, exists := rrmCoverageMap[radioID]; exists {
 		ch <- prometheus.MustNewConstMetric(
-			c.coverageHoleEventsDesc, prometheus.CounterValue,
+			c.coverageHoleEventsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
 	if radar, exists := apDot11RadarMap[radioID]; exists &&

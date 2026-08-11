@@ -243,7 +243,7 @@ AP collector focuses on RF foundation and radio performance.
 | errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
 | errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
 | errors  | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
-| errors  | `wnc_ap_coverage_hole_events_total`   | Counter | Coverage hole events                             |
+| errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
 | errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
 | errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
 
