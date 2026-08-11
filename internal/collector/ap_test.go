@@ -1535,13 +1535,14 @@ func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
 			metrics: APMetrics{Radio: true},
 			channelUtilizationDesc: prometheus.NewDesc(
 				"wnc_ap_channel_utilization_ratio", "t", []string{"mac", "radio"}, nil),
-			rxUtilizationDesc:    prometheus.NewDesc("test_rx_util", "t", []string{"mac", "radio"}, nil),
+			rxUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_rx_utilization_ratio", "t", []string{"mac", "radio"}, nil),
 			txUtilizationDesc:    prometheus.NewDesc("test_tx_util", "t", []string{"mac", "radio"}, nil),
 			noiseUtilizationDesc: prometheus.NewDesc("test_noise_util", "t", []string{"mac", "radio"}, nil),
 		},
 		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0},
 		rrmMap: map[string]*rrm.RRMMeasurement{
-			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{CcaUtilPercentage: 30}},
+			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{CcaUtilPercentage: 30, RxUtilPercentage: 10}},
 		},
 	}
 
@@ -1549,6 +1550,9 @@ func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
 
 	if got := values["wnc_ap_channel_utilization_ratio"]; got != 0.3 {
 		t.Errorf("wnc_ap_channel_utilization_ratio = %v, want 0.3 from a leaf reporting whole percent", got)
+	}
+	if got := values["wnc_ap_rx_utilization_ratio"]; got != 0.1 {
+		t.Errorf("wnc_ap_rx_utilization_ratio = %v, want 0.1 from a leaf reporting whole percent", got)
 	}
 }
 

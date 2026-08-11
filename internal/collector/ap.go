@@ -177,8 +177,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.rxUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_rx_utilization_percent",
-			"RX utilization percentage",
+			"wnc_ap_rx_utilization_ratio",
+			"RX utilization ratio (0-1)",
 			baseRadioLabels,
 			nil,
 		)
@@ -672,7 +672,7 @@ func (c *APCollector) collectRadioMetrics(
 		if rrmData.Load != nil {
 			metrics = append(metrics,
 				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage) / 100},
-				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
+				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage) / 100},
 				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
 				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
 			)

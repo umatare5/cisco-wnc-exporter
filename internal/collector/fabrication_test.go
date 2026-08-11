@@ -125,7 +125,7 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeClientTrafficStats, clientTrafficDerived},
 		{typeClientMMIFHistory, []string{"wnc_client_state_transition_seconds"}},
 		{typeRRMMeasurement, []string{
-			"wnc_ap_channel_utilization_ratio", "wnc_ap_rx_utilization_percent",
+			"wnc_ap_channel_utilization_ratio", "wnc_ap_rx_utilization_ratio",
 			"wnc_ap_tx_utilization_percent", "wnc_ap_noise_utilization_percent",
 			"wnc_ap_noise_floor_dbm",
 		}},
