@@ -33,7 +33,7 @@ To release a new version, follow these steps:
 1. Update the version in the `VERSION` file.
 2. Submit a pull request with the updated `VERSION` file.
 
-Once the pull request is merged, the GitHub Workflow automatically creates and pushes a new tag, after which I manually publish a release using the [GitHub Actions release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml).
+Merging that pull request is the whole release. A push to `main` touching `VERSION` runs the [release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml), which tags the commit and publishes the release in the same run. The workflow has no manual trigger, so there is no step to perform by hand.
 
 ## Pull requests
 
