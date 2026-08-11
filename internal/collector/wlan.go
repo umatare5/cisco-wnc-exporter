@@ -356,7 +356,7 @@ func (c *WLANCollector) collectInfoMetrics(
 	)
 }
 
-// buildWLANStats builds client traffic statistics by WLAN ID.
+// buildWLANStats counts the clients in the run state on each WLAN ID.
 func (c *WLANCollector) buildWLANStats(clientData []client.CommonOperData) map[int]wlanStats {
 	wlanStats := make(map[int]wlanStats)
 
