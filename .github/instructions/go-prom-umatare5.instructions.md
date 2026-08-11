@@ -235,7 +235,7 @@ func (c *ClientCollector) collectRadioMetrics(
 
 ## 4. Metrics Naming & Labels
 
-- **MN-001 (MUST)** Prefix names with `wnc_`. Use `snake_case` and **unit suffixes** (`_bytes`, `_seconds`, `_ratio`, `_percent`, `_count`).
+- **MN-001 (MUST)** Prefix names with `wnc_`. Use `snake_case` and **unit suffixes** (`_bytes`, `_seconds`, `_ratio`). Express a proportion as a `_ratio` in 0-1, never `_percent`; `_count` is reserved for histogram and summary sub-metrics.
 - **MN-002 (MUST)** **Counters** for monotonic totals; **Gauges** for instantaneous values; **Histograms/Summaries** only with strong justification.
 - **MN-003 (MUST)** Labels must be **bounded** and **documented**. For AP/WLAN/Client collectors, expose **one** selector label as configured by flags (e.g., AP = MAC/IP/Hostname; WLAN = ID/Name; Client = MAC/IP/Hostname/Username).
 - **MN-004 (SHOULD)** Prefer IDs over names. Avoid free‑form text and high‑cardinality labels.
