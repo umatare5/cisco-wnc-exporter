@@ -202,6 +202,6 @@ wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
 
 The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
 
-`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel; the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
+`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
 
 </details>
