@@ -49,6 +49,14 @@ var allDataTypes = []string{
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries,
 }
 
+// gaugesOnceTypedAsCounters names the series that were published as counters while
+// holding a value that is not cumulative. Both were corrected, and both are listed
+// so a regression fails the build rather than reaching Prometheus.
+var gaugesOnceTypedAsCounters = []string{
+	"wnc_ap_last_radar_timestamp_seconds",
+	"wnc_ap_coverage_failed_clients",
+}
+
 const (
 	fixtureAPMAC     = "aa:bb:cc:dd:ee:ff"
 	fixtureAPName    = "TEST-AP01"
@@ -93,46 +101,45 @@ func TestCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_client_spatial_streams",
 		"wnc_client_mcs_index",
 		"wnc_client_power_save_state",
-		"wnc_client_retry_ratio_percent",
 		"wnc_client_rx_bytes_total",
 		"wnc_client_tx_bytes_total",
 		"wnc_client_rx_packets_total",
 		"wnc_client_tx_packets_total",
-		"wnc_wlan_rx_bytes_total",
-		"wnc_wlan_tx_bytes_total",
 	}
 
 	tests := []struct {
 		dataType string
 		absent   []string
 	}{
-		{typeAPCAPWAPData, []string{"wnc_ap_config_state", "wnc_ap_uptime_seconds"}},
-		{typeAPOperData, []string{"wnc_ap_cpu_utilization_percent", "wnc_ap_memory_utilization_percent"}},
-		{typeAPRadioOperData, []string{
-			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients_total", "wnc_ap_info",
+		{typeAPCAPWAPData, []string{
+			"wnc_ap_config_state", "wnc_ap_uptime_seconds", "wnc_ap_oper_state",
 		}},
-		{typeAPNameMACMap, []string{"wnc_ap_clients_total"}},
+		{typeAPOperData, []string{"wnc_ap_cpu_utilization_ratio", "wnc_ap_memory_utilization_ratio"}},
+		{typeAPRadioOperData, []string{
+			"wnc_ap_radio_state", "wnc_ap_channel_number", "wnc_ap_clients", "wnc_ap_info",
+		}},
+		{typeAPNameMACMap, []string{"wnc_ap_clients"}},
 		{typeAPRadioOperStats, []string{
-			"wnc_ap_rx_packets_total", "wnc_ap_tx_bytes_total",
+			"wnc_ap_data_rx_frames_total", "wnc_ap_data_tx_frames_total",
 			"wnc_ap_rx_errors_total", "wnc_ap_fcs_errors_total",
 		}},
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
 		{typeClientCommonOperData, []string{
-			"wnc_client_state", "wnc_client_info", "wnc_ap_clients_total",
-			"wnc_wlan_clients_total", "wnc_wlan_rx_bytes_total", "wnc_wlan_tx_bytes_total",
+			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
+			"wnc_wlan_clients",
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},
 		{typeClientTrafficStats, clientTrafficDerived},
 		{typeClientMMIFHistory, []string{"wnc_client_state_transition_seconds"}},
 		{typeRRMMeasurement, []string{
-			"wnc_ap_channel_utilization_percent", "wnc_ap_rx_utilization_percent",
-			"wnc_ap_tx_utilization_percent", "wnc_ap_noise_utilization_percent",
+			"wnc_ap_channel_utilization_ratio", "wnc_ap_rx_utilization_ratio",
+			"wnc_ap_tx_utilization_ratio", "wnc_ap_noise_utilization_ratio",
 			"wnc_ap_noise_floor_dbm",
 		}},
-		{typeRRMCoverage, []string{"wnc_ap_coverage_hole_events_total"}},
-		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_on_radio_at"}},
+		{typeRRMCoverage, []string{"wnc_ap_coverage_failed_clients"}},
+		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeWLANCfgEntries, []string{
-			"wnc_wlan_enabled", "wnc_wlan_clients_total", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
+			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 		}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},
@@ -221,6 +228,14 @@ func gatherAllCollectors(t *testing.T, failedDataType string) map[string]bool {
 	present := make(map[string]bool, len(families))
 	for _, family := range families {
 		present[family.GetName()] = len(family.GetMetric()) > 0
+
+		// Nothing else in the suite asserts a metric's type, so a gauge that
+		// regressed to a counter would pass. Prometheus reads a counter's drop as a
+		// reset and extrapolates, so the wrong type here silently invents data.
+		if slices.Contains(gaugesOnceTypedAsCounters, family.GetName()) &&
+			family.GetType().String() != "GAUGE" {
+			t.Errorf("%s is a %s, want a GAUGE", family.GetName(), family.GetType())
+		}
 	}
 	return present
 }
@@ -237,6 +252,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			IPAddr:     "192.0.2.11",
 			Name:       fixtureAPName,
 			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+			ApState:    ap.ApState{ApOperationState: "registered"},
 		}},
 		ApOperData: []ap.OperData{{
 			WtpMAC:     fixtureAPMAC,

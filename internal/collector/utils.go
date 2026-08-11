@@ -7,13 +7,9 @@ import (
 	"strings"
 )
 
-// percentScale converts a ratio to a percentage.
-const percentScale = 100.0
-
 // Client state constants.
 const (
-	ClientStatusRun       = "client-status-run"
-	ClientStateAssociated = 2
+	ClientStatusRun = "client-status-run"
 )
 
 // AP state constants.
@@ -34,18 +30,6 @@ const (
 	ProtocolAX
 	ProtocolBE
 )
-
-// MapClientState maps client operational state to numeric value.
-func MapClientState(state string) int {
-	switch state {
-	case ClientStatusRun:
-		return ClientStateAssociated // associated
-	case "client-status-authenticated":
-		return 1 // authenticated
-	default:
-		return 0 // disconnected
-	}
-}
 
 // MapWirelessProtocol maps WNC PHY type strings to WirelessProtocol enum values.
 //

@@ -161,7 +161,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			WLANMetrics{Traffic: true},
-			3, // client_count, rx_bytes, tx_bytes
+			1, // client_count
 		},
 		{
 			"Config module only",
@@ -181,7 +181,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			18, // 1+3+13+1
+			16, // 1+1+13+1
 		},
 	}
 
@@ -719,9 +719,7 @@ func TestWLANCollector_MetricNames(t *testing.T) {
 		expected string
 	}{
 		{collector.enabledDesc, "wnc_wlan_enabled"},
-		{collector.clientCountDesc, "wnc_wlan_clients_total"},
-		{collector.bytesRxDesc, "wnc_wlan_rx_bytes_total"},
-		{collector.bytesTxDesc, "wnc_wlan_tx_bytes_total"},
+		{collector.clientCountDesc, "wnc_wlan_clients"},
 		{collector.authPskDesc, "wnc_wlan_auth_psk_enabled"},
 		{collector.authDot1xDesc, "wnc_wlan_auth_dot1x_enabled"},
 		{collector.wpa2EnabledDesc, "wnc_wlan_wpa2_enabled"},
@@ -753,20 +751,17 @@ func TestWLANCollector_MetricNames(t *testing.T) {
 func TestWLANCollector_buildWLANStats(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name         string
-		clientData   []client.CommonOperData
-		trafficStats []client.TrafficStats
-		expected     map[int]wlanStats
+		name       string
+		clientData []client.CommonOperData
+		expected   map[int]wlanStats
 	}{
 		{
 			"Empty data",
 			[]client.CommonOperData{},
-			[]client.TrafficStats{},
 			map[int]wlanStats{},
 		},
 		{
 			"Nil data",
-			nil,
 			nil,
 			map[int]wlanStats{},
 		},
@@ -775,11 +770,8 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 			[]client.CommonOperData{
 				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
 			},
-			[]client.TrafficStats{
-				{MsMACAddress: "aa:bb:cc:dd:ee:ff", BytesRx: "1000", BytesTx: "2000"},
-			},
 			map[int]wlanStats{
-				1: {clientCount: 1, bytesRx: 1000, bytesTx: 2000},
+				1: {clientCount: 1},
 			},
 		},
 		{
@@ -788,12 +780,8 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
 				{ClientMAC: "11:22:33:44:55:66", WlanID: 1, CoState: ClientStatusRun},
 			},
-			[]client.TrafficStats{
-				{MsMACAddress: "aa:bb:cc:dd:ee:ff", BytesRx: "1000", BytesTx: "2000"},
-				{MsMACAddress: "11:22:33:44:55:66", BytesRx: "1500", BytesTx: "2500"},
-			},
 			map[int]wlanStats{
-				1: {clientCount: 2, bytesRx: 2500, bytesTx: 4500},
+				1: {clientCount: 2},
 			},
 		},
 		{
@@ -802,13 +790,9 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
 				{ClientMAC: "11:22:33:44:55:66", WlanID: 2, CoState: ClientStatusRun},
 			},
-			[]client.TrafficStats{
-				{MsMACAddress: "aa:bb:cc:dd:ee:ff", BytesRx: "1000", BytesTx: "2000"},
-				{MsMACAddress: "11:22:33:44:55:66", BytesRx: "1500", BytesTx: "2500"},
-			},
 			map[int]wlanStats{
-				1: {clientCount: 1, bytesRx: 1000, bytesTx: 2000},
-				2: {clientCount: 1, bytesRx: 1500, bytesTx: 2500},
+				1: {clientCount: 1},
+				2: {clientCount: 1},
 			},
 		},
 		{
@@ -817,12 +801,8 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
 				{ClientMAC: "11:22:33:44:55:66", WlanID: 1, CoState: "IDLE"},
 			},
-			[]client.TrafficStats{
-				{MsMACAddress: "aa:bb:cc:dd:ee:ff", BytesRx: "1000", BytesTx: "2000"},
-				{MsMACAddress: "11:22:33:44:55:66", BytesRx: "1500", BytesTx: "2500"},
-			},
 			map[int]wlanStats{
-				1: {clientCount: 1, bytesRx: 1000, bytesTx: 2000},
+				1: {clientCount: 1},
 			},
 		},
 		{
@@ -830,9 +810,17 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 			[]client.CommonOperData{
 				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
 			},
-			[]client.TrafficStats{},
 			map[int]wlanStats{
-				1: {clientCount: 1, bytesRx: 0, bytesTx: 0},
+				1: {clientCount: 1},
+			},
+		},
+		{
+			"Traffic stats unavailable",
+			[]client.CommonOperData{
+				{ClientMAC: "aa:bb:cc:dd:ee:ff", WlanID: 1, CoState: ClientStatusRun},
+			},
+			map[int]wlanStats{
+				1: {clientCount: 1},
 			},
 		},
 	}
@@ -841,7 +829,7 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			collector := &WLANCollector{}
-			got := collector.buildWLANStats(tt.clientData, tt.trafficStats)
+			got := collector.buildWLANStats(tt.clientData)
 
 			if len(got) != len(tt.expected) {
 				t.Errorf(
@@ -854,31 +842,13 @@ func TestWLANCollector_buildWLANStats(t *testing.T) {
 			for wlanID, expectedStats := range tt.expected {
 				if gotStats, exists := got[wlanID]; !exists {
 					t.Errorf("buildWLANStats() missing WLAN ID %d", wlanID)
-				} else {
-					if gotStats.clientCount != expectedStats.clientCount {
-						t.Errorf(
-							"buildWLANStats()[%d].clientCount = %d, want %d",
-							wlanID,
-							gotStats.clientCount,
-							expectedStats.clientCount,
-						)
-					}
-					if gotStats.bytesRx != expectedStats.bytesRx {
-						t.Errorf(
-							"buildWLANStats()[%d].bytesRx = %d, want %d",
-							wlanID,
-							gotStats.bytesRx,
-							expectedStats.bytesRx,
-						)
-					}
-					if gotStats.bytesTx != expectedStats.bytesTx {
-						t.Errorf(
-							"buildWLANStats()[%d].bytesTx = %d, want %d",
-							wlanID,
-							gotStats.bytesTx,
-							expectedStats.bytesTx,
-						)
-					}
+				} else if gotStats.clientCount != expectedStats.clientCount {
+					t.Errorf(
+						"buildWLANStats()[%d].clientCount = %d, want %d",
+						wlanID,
+						gotStats.clientCount,
+						expectedStats.clientCount,
+					)
 				}
 			}
 		})
@@ -990,7 +960,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 18
+	expectedDescs := 16
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1022,22 +992,10 @@ func TestWLANCollector_Collect_EarlyReturn(t *testing.T) {
 func TestWLANStats_Type(t *testing.T) {
 	t.Parallel()
 
-	stats := wlanStats{
-		clientCount: 10,
-		bytesRx:     1000,
-		bytesTx:     2000,
-		packetsRx:   100,
-		packetsTx:   200,
-	}
+	stats := wlanStats{clientCount: 10}
 
 	if stats.clientCount != 10 {
 		t.Errorf("wlanStats.clientCount = %d, want 10", stats.clientCount)
-	}
-	if stats.bytesRx != 1000 {
-		t.Errorf("wlanStats.bytesRx = %d, want 1000", stats.bytesRx)
-	}
-	if stats.bytesTx != 2000 {
-		t.Errorf("wlanStats.bytesTx = %d, want 2000", stats.bytesTx)
 	}
 }
 
@@ -1116,49 +1074,31 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 	}
 
 	statsMap := map[int]wlanStats{
-		1: {
-			clientCount: 10,
-			bytesRx:     1000000,
-			bytesTx:     2000000,
-			packetsRx:   10000,
-			packetsTx:   20000,
-		},
+		1: {clientCount: 10},
 	}
 
 	collector := &WLANCollector{
 		metrics:         WLANMetrics{Traffic: true},
 		clientCountDesc: prometheus.NewDesc("test_client_count", "test", []string{"id"}, nil),
-		bytesRxDesc:     prometheus.NewDesc("test_bytes_rx", "test", []string{"id"}, nil),
-		bytesTxDesc:     prometheus.NewDesc("test_bytes_tx", "test", []string{"id"}, nil),
 	}
 
 	tests := []struct {
-		name         string
-		statsMap     map[int]wlanStats
-		trafficKnown bool
-		want         int
-		reason       string
+		name     string
+		statsMap map[int]wlanStats
+		want     int
+		reason   string
 	}{
 		{
-			name:         "Client and traffic data available",
-			statsMap:     statsMap,
-			trafficKnown: true,
-			want:         3,
-			reason:       "client count plus both byte counters",
+			name:     "Client data available",
+			statsMap: statsMap,
+			want:     1,
+			reason:   "the client count",
 		},
 		{
-			name:         "Traffic statistics unavailable",
-			statsMap:     statsMap,
-			trafficKnown: false,
-			want:         1,
-			reason:       "zero byte counters would look like a counter reset to rate()",
-		},
-		{
-			name:         "Client data unavailable",
-			statsMap:     nil,
-			trafficKnown: false,
-			want:         0,
-			reason:       "a zero client count reads as an SSID with nobody on it",
+			name:     "Client data unavailable",
+			statsMap: nil,
+			want:     0,
+			reason:   "a zero client count reads as an SSID with nobody on it",
 		},
 	}
 
@@ -1169,7 +1109,7 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 			ch := make(chan prometheus.Metric, 10)
 			go func() {
 				defer close(ch)
-				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.trafficKnown)
+				collector.collectTrafficMetrics(ch, entry, tt.statsMap)
 			}()
 
 			metricCount := 0
@@ -1276,8 +1216,6 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 				collector := &WLANCollector{
 					metrics:         WLANMetrics{Traffic: true},
 					clientCountDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
-					bytesRxDesc:     prometheus.NewDesc("test", "test", []string{"id"}, nil),
-					bytesTxDesc:     prometheus.NewDesc("test", "test", []string{"id"}, nil),
 				}
 				ch := make(chan prometheus.Metric, 10)
 				defer func() {
@@ -1289,7 +1227,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				entry := wlan.WlanCfgEntry{WlanID: 1}
-				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{}, true)
+				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{})
 			},
 		},
 		{

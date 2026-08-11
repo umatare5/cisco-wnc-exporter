@@ -44,7 +44,6 @@ type ClientCollector struct {
 	bytesTxDesc                *prometheus.Desc
 	packetsRxDesc              *prometheus.Desc
 	packetsTxDesc              *prometheus.Desc
-	retryRatioDesc             *prometheus.Desc
 	policyErrorsDesc           *prometheus.Desc
 	duplicateReceivedDesc      *prometheus.Desc
 	decryptionFailedDesc       *prometheus.Desc
@@ -71,8 +70,8 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.General {
 		collector.stateDesc = prometheus.NewDesc(
 			"wnc_client_state",
-			"Client connection state",
-			labels, nil,
+			"Client connection state reported in the state label, always 1",
+			[]string{labelMAC, labelState}, nil,
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
@@ -149,11 +148,6 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	}
 
 	if metrics.Errors {
-		collector.retryRatioDesc = prometheus.NewDesc(
-			"wnc_client_retry_ratio_percent",
-			"Retry rate percentage",
-			labels, nil,
-		)
 		collector.policyErrorsDesc = prometheus.NewDesc(
 			"wnc_client_policy_errors_total",
 			"Policy errors",
@@ -185,8 +179,8 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 			labels, nil,
 		)
 		collector.rxGroupCounterDesc = prometheus.NewDesc(
-			"wnc_client_rx_group_counter_total",
-			"RX group counter",
+			"wnc_client_rx_group_total",
+			"RX group counter (rx-group-counter)",
 			labels, nil,
 		)
 		collector.txTotalDropsDesc = prometheus.NewDesc(
@@ -258,7 +252,6 @@ func (c *ClientCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.packetsTxDesc
 	}
 	if c.metrics.Errors {
-		ch <- c.retryRatioDesc
 		ch <- c.policyErrorsDesc
 		ch <- c.duplicateReceivedDesc
 		ch <- c.decryptionFailedDesc
@@ -333,6 +326,19 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, data := range clientData {
+		// A client the controller holds short of the run state is the failure an
+		// operator most needs to see, and the filter below would drop it. An empty
+		// leaf is not a state, and an empty label reads as no label at all.
+		if c.metrics.General && data.CoState != "" {
+			ch <- prometheus.MustNewConstMetric(
+				c.stateDesc,
+				prometheus.GaugeValue,
+				1,
+				data.ClientMAC,
+				data.CoState,
+			)
+		}
+
 		if data.CoState != ClientStatusRun {
 			continue
 		}
@@ -368,9 +374,7 @@ func (c *ClientCollector) collectGeneralMetrics(
 	// reported this client in that data set yet. Emitting the zero value would
 	// read as a measurement: an association uptime of roughly two millennia from
 	// a zero timestamp, or a power save state the client never reported.
-	metrics := []Float64Metric{
-		{c.stateDesc, float64(MapClientState(data.CoState))},
-	}
+	var metrics []Float64Metric
 	if dot11, ok := dot11Map[data.ClientMAC]; ok {
 		metrics = append(metrics,
 			Float64Metric{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()})
@@ -478,21 +482,6 @@ func (c *ClientCollector) collectErrorMetrics(
 	}
 
 	labels := []string{data.ClientMAC}
-
-	dataRetries := stringToUint64(traffic.DataRetries)
-	txRetries := stringToUint64(traffic.TxRetries)
-	packetsTx := stringToUint64(traffic.PktsTx)
-
-	// A client that has transmitted nothing yields 0/0. NaN propagates through
-	// avg() and max(), so it would poison those aggregations across the whole job.
-	if packetsTx > 0 {
-		ch <- prometheus.MustNewConstMetric(
-			c.retryRatioDesc,
-			prometheus.GaugeValue,
-			float64(dataRetries+txRetries)/float64(packetsTx)*percentScale,
-			labels...,
-		)
-	}
 
 	metrics := []StringMetric{
 		{c.policyErrorsDesc, traffic.PolicyErrs},

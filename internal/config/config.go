@@ -75,9 +75,9 @@ type APCollectorModules struct {
 	General bool `json:"general"`
 	// Radio: channel, power, noise, utilization
 	Radio bool `json:"radio"`
-	// Traffic: clients, bytes, packets, frames
+	// Traffic: frames
 	Traffic bool `json:"traffic"`
-	// Errors: errors, drops, retries, failures
+	// Errors: errors, retries, failures
 	Errors bool `json:"errors"`
 	// Info: info metric with labels
 	Info       bool     `json:"info"`
@@ -103,7 +103,7 @@ type ClientCollectorModules struct {
 type WLANCollectorModules struct {
 	// General: enabled
 	General bool `json:"general"`
-	// Traffic: clients, bytes
+	// Traffic: clients
 	Traffic bool `json:"traffic"`
 	// Config: auth, security, networking settings
 	Config bool `json:"config"`

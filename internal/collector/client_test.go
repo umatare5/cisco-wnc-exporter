@@ -8,7 +8,58 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
+
+// TestClientCollector_StateReportsSpellingInLabel pins the label encoding. Nothing
+// else in the suite reads the state label or the value, so folding the state back
+// into a number, dropping the label or moving the emit under the run filter would
+// all ship green.
+func TestClientCollector_StateReportsSpellingInLabel(t *testing.T) {
+	t.Parallel()
+
+	const heldState = "client-status-authenticating"
+
+	data := fullFixtureSnapshot()
+	data.CommonOperData = append(data.CommonOperData,
+		client.CommonOperData{ClientMAC: "22:33:44:55:66:77", CoState: heldState},
+		client.CommonOperData{ClientMAC: "33:44:55:66:77:88"},
+	)
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewClientCollector(
+		wnc.NewClientSource(fixtureSource{data: data}), ClientMetrics{General: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	states := make(map[string]float64)
+	for _, family := range families {
+		if family.GetName() != "wnc_client_state" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == labelState {
+					states[label.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+	}
+
+	if got := states[heldState]; got != 1 {
+		t.Errorf("wnc_client_state{state=%q} = %v, want 1 with the state in the label", heldState, got)
+	}
+	if _, ok := states[ClientStatusRun]; !ok {
+		t.Errorf("wnc_client_state has no series for %q, want every reported state", ClientStatusRun)
+	}
+	if _, ok := states[""]; ok {
+		t.Error("wnc_client_state carries an empty state label, want that series omitted")
+	}
+}
 
 func TestNewClientCollector(t *testing.T) {
 	t.Parallel()
@@ -182,7 +233,7 @@ func TestClientCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			ClientMetrics{Errors: true},
-			12, // retry_ratio, policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group_counter, tx_drops, data_retries, rts_retries, tx_retries
+			11, // policy_errors, duplicate_received, decryption_failed, mic_mismatch, mic_missing, excessive_retries, rx_group, tx_drops, data_retries, rts_retries, tx_retries
 		},
 		{
 			"Info module only",
@@ -198,7 +249,7 @@ func TestClientCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			27, // 4+6+4+12+1
+			26, // 4+6+4+11+1
 		},
 	}
 
@@ -836,7 +887,6 @@ func TestClientCollector_MetricNames(t *testing.T) {
 		{collector.bytesTxDesc, "wnc_client_tx_bytes_total"},
 		{collector.packetsRxDesc, "wnc_client_rx_packets_total"},
 		{collector.packetsTxDesc, "wnc_client_tx_packets_total"},
-		{collector.retryRatioDesc, "wnc_client_retry_ratio_percent"},
 		{collector.policyErrorsDesc, "wnc_client_policy_errors_total"},
 		{collector.infoDesc, "wnc_client_info"},
 	}
@@ -967,7 +1017,7 @@ func TestClientCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 27
+	expectedDescs := 26
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1228,7 +1278,6 @@ func TestClientCollector_collectErrorMetrics(t *testing.T) {
 
 	collector := &ClientCollector{
 		metrics:               ClientMetrics{Errors: true},
-		retryRatioDesc:        prometheus.NewDesc("test_retry_ratio", "test", []string{"mac"}, nil),
 		policyErrorsDesc:      prometheus.NewDesc("test_policy_errors", "test", []string{"mac"}, nil),
 		duplicateReceivedDesc: prometheus.NewDesc("test_duplicate_received", "test", []string{"mac"}, nil),
 		decryptionFailedDesc:  prometheus.NewDesc("test_decryption_failed", "test", []string{"mac"}, nil),
@@ -1356,7 +1405,6 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 				t.Helper()
 				collector := &ClientCollector{
 					metrics:               ClientMetrics{Errors: true},
-					retryRatioDesc:        prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					policyErrorsDesc:      prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					duplicateReceivedDesc: prometheus.NewDesc("test", "test", []string{"mac"}, nil),
 					decryptionFailedDesc:  prometheus.NewDesc("test", "test", []string{"mac"}, nil),

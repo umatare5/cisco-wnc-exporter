@@ -11,7 +11,66 @@ import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
+	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
+
+// TestAPCollector_StateReportsSpellingInLabel pins the AP-level encoding. The series
+// previously duplicated wnc_ap_radio_state, so it must now carry the CAPWAP state in a
+// label and must not carry a radio label.
+func TestAPCollector_StateReportsSpellingInLabel(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.CAPWAPData = append(data.CAPWAPData,
+		ap.CAPWAPData{WtpMAC: "22:33:44:55:66:77", ApState: ap.ApState{ApOperationState: "downloading"}},
+		ap.CAPWAPData{WtpMAC: "33:44:55:66:77:88"},
+	)
+	src := fixtureSource{data: data}
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{General: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	states := make(map[string]float64)
+	series := 0
+	for _, family := range families {
+		if family.GetName() != "wnc_ap_oper_state" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			series++
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == labelRadio {
+					t.Error("wnc_ap_oper_state carries a radio label, want one series per AP")
+				}
+				if label.GetName() == labelState {
+					states[label.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+	}
+
+	// Two of the three fixture APs report a state. A third series would mean the
+	// radio-level duplicate is back, since a per-radio emit reuses this descriptor
+	// and passes a slot number where the state belongs.
+	const wantSeries = 2
+	if series != wantSeries {
+		t.Errorf("wnc_ap_oper_state has %d series, want %d, one per AP reporting a state", series, wantSeries)
+	}
+	if got := states["downloading"]; got != 1 {
+		t.Errorf("wnc_ap_oper_state{state=downloading} = %v, want 1 with the state in the label", got)
+	}
+	if _, ok := states[""]; ok {
+		t.Error("wnc_ap_oper_state carries an empty state label, want that series omitted")
+	}
+}
 
 func TestNewAPCollector(t *testing.T) {
 	t.Parallel()
@@ -180,12 +239,12 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			APMetrics{Traffic: true},
-			14, // rx/tx packets/bytes, data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_success
+			10, // data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_success
 		},
 		{
 			"Errors module only",
 			APMetrics{Errors: true},
-			16, // rx/tx errors, drops, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
+			14, // rx errors, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
 		},
 		{
 			"Info module only",
@@ -201,7 +260,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			48, // 7+10+14+16+1
+			42, // 7+10+10+14+1
 		},
 	}
 
@@ -888,10 +947,7 @@ func TestAPCollector_MetricNames(t *testing.T) {
 		{collector.channelDesc, "wnc_ap_channel_number"},
 		{collector.txPowerDesc, "wnc_ap_tx_power_dbm"},
 		{collector.noiseFloorDesc, "wnc_ap_noise_floor_dbm"},
-		{collector.rxPacketsTotalDesc, "wnc_ap_rx_packets_total"},
-		{collector.txPacketsTotalDesc, "wnc_ap_tx_packets_total"},
 		{collector.rxErrorsTotalDesc, "wnc_ap_rx_errors_total"},
-		{collector.txErrorsTotalDesc, "wnc_ap_tx_errors_total"},
 		{collector.infoDesc, "wnc_ap_info"},
 	}
 
@@ -1021,7 +1077,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 48
+	expectedDescs := 42
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1174,30 +1230,34 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 		uptimeSecondsDesc:     prometheus.NewDesc("test_uptime", "test", []string{"mac"}, nil),
 		cpuUtilizationDesc:    prometheus.NewDesc("test_cpu", "test", []string{"mac"}, nil),
 		memoryUtilizationDesc: prometheus.NewDesc("test_memory", "test", []string{"mac"}, nil),
+		operStateDesc:         prometheus.NewDesc("test_oper_state", "test", []string{"mac", "state"}, nil),
 	}
 
-	capwapMap := map[string]ap.CAPWAPData{wtpMAC: {WtpMAC: wtpMAC}}
+	capwapMap := map[string]ap.CAPWAPData{
+		wtpMAC: {WtpMAC: wtpMAC, ApState: ap.ApState{ApOperationState: "registered"}},
+	}
 	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
 
 	tests := []struct {
 		name          string
 		apOperDataMap map[string]ap.OperData
-		expected      int // Config state and uptime are always emitted, CPU and memory only with ApSysStats.
+		// Oper state, config state and uptime are always emitted, CPU and memory only with ApSysStats.
+		expected int
 	}{
 		{
 			"ApSysStats present",
 			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC, ApSysStats: sysStats}},
-			4,
+			5,
 		},
 		{
 			"ApSysStats absent",
 			map[string]ap.OperData{wtpMAC: {WtpMAC: wtpMAC}},
-			2,
+			3,
 		},
 		{
 			"AP missing from oper data map",
 			map[string]ap.OperData{},
-			2,
+			3,
 		},
 	}
 
@@ -1238,7 +1298,6 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 		metrics:        APMetrics{General: true},
 		radioStateDesc: prometheus.NewDesc("test_radio_state", "test", []string{"mac", "radio"}, nil),
 		adminStateDesc: prometheus.NewDesc("test_admin_state", "test", []string{"mac", "radio"}, nil),
-		operStateDesc:  prometheus.NewDesc("test_oper_state", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 10)
@@ -1523,11 +1582,55 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
 	}
 }
 
+// TestAPCollector_collectRadioMetrics_ScalesUtilization pins the unit conversion.
+// The controller reports these leaves in whole percent, so a name that promises a
+// ratio without the division would report a value a hundred times too large, and
+// no other assertion in this suite reads their value.
+func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
+	t.Parallel()
+
+	source := radioMetricsOnly{
+		collector: &APCollector{
+			metrics: APMetrics{Radio: true},
+			channelUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_channel_utilization_ratio", "t", []string{"mac", "radio"}, nil),
+			rxUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_rx_utilization_ratio", "t", []string{"mac", "radio"}, nil),
+			txUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_tx_utilization_ratio", "t", []string{"mac", "radio"}, nil),
+			noiseUtilizationDesc: prometheus.NewDesc(
+				"wnc_ap_noise_utilization_ratio", "t", []string{"mac", "radio"}, nil),
+		},
+		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0},
+		rrmMap: map[string]*rrm.RRMMeasurement{
+			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{
+				CcaUtilPercentage: 30, RxUtilPercentage: 10,
+				TxUtilPercentage: 5, RxNoiseChannelUtilization: 15,
+			}},
+		},
+	}
+
+	values := gatherRadioValues(t, source)
+
+	if got := values["wnc_ap_channel_utilization_ratio"]; got != 0.3 {
+		t.Errorf("wnc_ap_channel_utilization_ratio = %v, want 0.3 from a leaf reporting whole percent", got)
+	}
+	if got := values["wnc_ap_rx_utilization_ratio"]; got != 0.1 {
+		t.Errorf("wnc_ap_rx_utilization_ratio = %v, want 0.1 from a leaf reporting whole percent", got)
+	}
+	if got := values["wnc_ap_tx_utilization_ratio"]; got != 0.05 {
+		t.Errorf("wnc_ap_tx_utilization_ratio = %v, want 0.05 from a leaf reporting whole percent", got)
+	}
+	if got := values["wnc_ap_noise_utilization_ratio"]; got != 0.15 {
+		t.Errorf("wnc_ap_noise_utilization_ratio = %v, want 0.15 from a leaf reporting whole percent", got)
+	}
+}
+
 func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 	t.Parallel()
 
 	clientsDesc := prometheus.NewDesc(
-		"wnc_ap_clients_total", "Number of associated clients", []string{"mac", "radio"}, nil,
+		"wnc_ap_clients", "Number of clients in the run state on this radio", []string{"mac", "radio"}, nil,
 	)
 
 	source := radioMetricsOnly{
@@ -1557,17 +1660,17 @@ func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 
 	found := false
 	for _, mf := range metricFamilies {
-		if mf.GetName() != "wnc_ap_clients_total" {
+		if mf.GetName() != "wnc_ap_clients" {
 			continue
 		}
 		found = true
 		if got := mf.GetMetric()[0].GetGauge().GetValue(); got != wantClientCount {
-			t.Errorf("wnc_ap_clients_total = %v, want %v", got, wantClientCount)
+			t.Errorf("wnc_ap_clients = %v, want %v", got, wantClientCount)
 		}
 	}
 
 	if !found {
-		t.Error("wnc_ap_clients_total was not emitted")
+		t.Error("wnc_ap_clients was not emitted")
 	}
 }
 
@@ -1593,10 +1696,6 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 
 	collector := &APCollector{
 		metrics:                     APMetrics{Traffic: true},
-		rxPacketsTotalDesc:          prometheus.NewDesc("test_rx_packets", "test", []string{"mac", "radio"}, nil),
-		txPacketsTotalDesc:          prometheus.NewDesc("test_tx_packets", "test", []string{"mac", "radio"}, nil),
-		rxBytesTotalDesc:            prometheus.NewDesc("test_rx_bytes", "test", []string{"mac", "radio"}, nil),
-		txBytesTotalDesc:            prometheus.NewDesc("test_tx_bytes", "test", []string{"mac", "radio"}, nil),
 		dataRxFramesTotalDesc:       prometheus.NewDesc("test_data_rx", "test", []string{"mac", "radio"}, nil),
 		dataTxFramesTotalDesc:       prometheus.NewDesc("test_data_tx", "test", []string{"mac", "radio"}, nil),
 		managementRxFramesTotalDesc: prometheus.NewDesc("test_mgmt_rx", "test", []string{"mac", "radio"}, nil),
@@ -1659,8 +1758,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	collector := &APCollector{
 		metrics:                   APMetrics{Errors: true},
 		rxErrorsTotalDesc:         prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
-		txErrorsTotalDesc:         prometheus.NewDesc("test_tx_errors", "test", []string{"mac", "radio"}, nil),
-		txDropsTotalDesc:          prometheus.NewDesc("test_tx_drops", "test", []string{"mac", "radio"}, nil),
 		txRetriesTotalDesc:        prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
 		ackFailuresTotalDesc:      prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
 		duplicateFramesTotalDesc:  prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),

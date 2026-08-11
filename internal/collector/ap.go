@@ -48,10 +48,6 @@ type APCollector struct {
 	operStateDesc               *prometheus.Desc
 	configStateDesc             *prometheus.Desc
 	txPowerMaxDesc              *prometheus.Desc
-	rxPacketsTotalDesc          *prometheus.Desc
-	txPacketsTotalDesc          *prometheus.Desc
-	rxBytesTotalDesc            *prometheus.Desc
-	txBytesTotalDesc            *prometheus.Desc
 	dataRxFramesTotalDesc       *prometheus.Desc
 	dataTxFramesTotalDesc       *prometheus.Desc
 	managementRxFramesTotalDesc *prometheus.Desc
@@ -63,8 +59,6 @@ type APCollector struct {
 	totalTxFramesTotalDesc      *prometheus.Desc
 	rtsSuccessTotalDesc         *prometheus.Desc
 	rxErrorsTotalDesc           *prometheus.Desc
-	txErrorsTotalDesc           *prometheus.Desc
-	txDropsTotalDesc            *prometheus.Desc
 	txRetriesTotalDesc          *prometheus.Desc
 	ackFailuresTotalDesc        *prometheus.Desc
 	duplicateFramesTotalDesc    *prometheus.Desc
@@ -124,8 +118,8 @@ func NewAPCollector(
 		)
 		collector.operStateDesc = prometheus.NewDesc(
 			"wnc_ap_oper_state",
-			"Operational state (0=down, 1=up)",
-			baseRadioLabels,
+			"AP operational state reported in the state label, always 1",
+			[]string{labelMAC, labelState},
 			nil,
 		)
 		collector.configStateDesc = prometheus.NewDesc(
@@ -171,26 +165,26 @@ func NewAPCollector(
 
 	if metrics.Radio {
 		collector.channelUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_channel_utilization_percent",
-			"Channel utilization percentage (CCA-based)",
+			"wnc_ap_channel_utilization_ratio",
+			"Channel utilization ratio (CCA-based, 0-1)",
 			baseRadioLabels,
 			nil,
 		)
 		collector.rxUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_rx_utilization_percent",
-			"RX utilization percentage",
+			"wnc_ap_rx_utilization_ratio",
+			"RX utilization ratio (0-1)",
 			baseRadioLabels,
 			nil,
 		)
 		collector.txUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_tx_utilization_percent",
-			"TX utilization percentage",
+			"wnc_ap_tx_utilization_ratio",
+			"TX utilization ratio (0-1)",
 			baseRadioLabels,
 			nil,
 		)
 		collector.noiseUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_noise_utilization_percent",
-			"Noise channel utilization percentage",
+			"wnc_ap_noise_utilization_ratio",
+			"Noise channel utilization ratio (0-1)",
 			baseRadioLabels,
 			nil,
 		)
@@ -201,8 +195,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.associatedClientsDesc = prometheus.NewDesc(
-			"wnc_ap_clients_total",
-			"Number of associated clients",
+			"wnc_ap_clients",
+			"Number of clients in the run state on this radio",
 			baseRadioLabels,
 			nil,
 		)
@@ -210,44 +204,20 @@ func NewAPCollector(
 
 	if metrics.General {
 		collector.cpuUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_cpu_utilization_percent",
-			"CPU utilization percentage",
+			"wnc_ap_cpu_utilization_ratio",
+			"CPU utilization ratio (0-1)",
 			baseAPLabels,
 			nil,
 		)
 		collector.memoryUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_memory_utilization_percent",
-			"Memory utilization percentage",
+			"wnc_ap_memory_utilization_ratio",
+			"Memory utilization ratio (0-1)",
 			baseAPLabels,
 			nil,
 		)
 	}
 
 	if metrics.Traffic {
-		collector.rxPacketsTotalDesc = prometheus.NewDesc(
-			"wnc_ap_rx_packets_total",
-			"Total received packets",
-			baseRadioLabels,
-			nil,
-		)
-		collector.txPacketsTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_packets_total",
-			"Total transmitted packets",
-			baseRadioLabels,
-			nil,
-		)
-		collector.rxBytesTotalDesc = prometheus.NewDesc(
-			"wnc_ap_rx_bytes_total",
-			"Total received bytes",
-			baseRadioLabels,
-			nil,
-		)
-		collector.txBytesTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_bytes_total",
-			"Total transmitted bytes",
-			baseRadioLabels,
-			nil,
-		)
 		collector.dataRxFramesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_data_rx_frames_total",
 			"Data RX frames",
@@ -298,7 +268,7 @@ func NewAPCollector(
 		)
 		collector.totalTxFramesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_total_tx_frames_total",
-			"Total TX frames",
+			"TX frames as the controller counts them, not the sum of the per-type series",
 			baseRadioLabels,
 			nil,
 		)
@@ -314,18 +284,6 @@ func NewAPCollector(
 		collector.rxErrorsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_rx_errors_total",
 			"Total RX errors (rx-error-frame-count)",
-			baseRadioLabels,
-			nil,
-		)
-		collector.txErrorsTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_errors_total",
-			"Total TX errors",
-			baseRadioLabels,
-			nil,
-		)
-		collector.txDropsTotalDesc = prometheus.NewDesc(
-			"wnc_ap_tx_drops_total",
-			"Total TX drops",
 			baseRadioLabels,
 			nil,
 		)
@@ -390,14 +348,14 @@ func NewAPCollector(
 			nil,
 		)
 		collector.coverageHoleEventsDesc = prometheus.NewDesc(
-			"wnc_ap_coverage_hole_events_total",
-			"Coverage hole events",
+			"wnc_ap_coverage_failed_clients",
+			"RRM coverage failed client count (current value, not cumulative)",
 			baseRadioLabels,
 			nil,
 		)
 		collector.lastRadarOnRadioAtDesc = prometheus.NewDesc(
-			"wnc_ap_last_radar_on_radio_at",
-			"Last radar detection timestamp (unix time, 0=never detected)",
+			"wnc_ap_last_radar_timestamp_seconds",
+			"Unix timestamp of the last radar detection on this radio",
 			baseRadioLabels,
 			nil,
 		)
@@ -435,10 +393,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.associatedClientsDesc
 	}
 	if c.metrics.Traffic {
-		ch <- c.rxPacketsTotalDesc
-		ch <- c.txPacketsTotalDesc
-		ch <- c.rxBytesTotalDesc
-		ch <- c.txBytesTotalDesc
 		ch <- c.dataRxFramesTotalDesc
 		ch <- c.dataTxFramesTotalDesc
 		ch <- c.managementRxFramesTotalDesc
@@ -452,8 +406,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Errors {
 		ch <- c.rxErrorsTotalDesc
-		ch <- c.txErrorsTotalDesc
-		ch <- c.txDropsTotalDesc
 		ch <- c.txRetriesTotalDesc
 		ch <- c.ackFailuresTotalDesc
 		ch <- c.duplicateFramesTotalDesc
@@ -603,6 +555,19 @@ func (c *APCollector) collectSystemMetrics(
 ) {
 	labels := []string{wtpMAC}
 
+	// The controller lists only APs that have joined, so an AP that leaves CAPWAP
+	// loses this series rather than reporting a state. An empty leaf is not a state,
+	// and an empty label reads as no label at all.
+	if operState := capwapMap[wtpMAC].ApState.ApOperationState; operState != "" {
+		ch <- prometheus.MustNewConstMetric(
+			c.operStateDesc,
+			prometheus.GaugeValue,
+			1,
+			wtpMAC,
+			operState,
+		)
+	}
+
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
@@ -610,8 +575,8 @@ func (c *APCollector) collectSystemMetrics(
 
 	if sysStats := apOperDataMap[wtpMAC].ApSysStats; sysStats != nil {
 		metrics = append(metrics,
-			Float64Metric{c.cpuUtilizationDesc, float64(sysStats.CPUUsage)},
-			Float64Metric{c.memoryUtilizationDesc, float64(sysStats.MemoryUsage)},
+			Float64Metric{c.cpuUtilizationDesc, float64(sysStats.CPUUsage) / 100},
+			Float64Metric{c.memoryUtilizationDesc, float64(sysStats.MemoryUsage) / 100},
 		)
 	}
 
@@ -630,7 +595,6 @@ func (c *APCollector) collectGeneralMetrics(
 	metrics := []Float64Metric{
 		{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 		{c.adminStateDesc, boolToFloat64(radio.AdminState == APAdminStateEnabled)},
-		{c.operStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 	}
 
 	for _, metric := range metrics {
@@ -671,10 +635,10 @@ func (c *APCollector) collectRadioMetrics(
 	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {
 		if rrmData.Load != nil {
 			metrics = append(metrics,
-				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage)},
-				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage)},
-				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage)},
-				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
+				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage) / 100},
+				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage) / 100},
+				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage) / 100},
+				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization) / 100},
 			)
 		}
 		if noise, found := noiseOnCurrentChannel(rrmData, radio); found {
@@ -707,13 +671,7 @@ func (c *APCollector) collectTrafficMetrics(
 	}
 
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
-	const averageFrameSize = 1500
-
 	trafficMetrics := []Float64Metric{
-		{c.rxPacketsTotalDesc, float64(stats.RxDataFrameCount)},
-		{c.txPacketsTotalDesc, float64(stats.TxDataFrameCount)},
-		{c.rxBytesTotalDesc, float64(stats.RxDataFrameCount * averageFrameSize)},
-		{c.txBytesTotalDesc, float64(stats.TxDataFrameCount * averageFrameSize)},
 		{c.dataRxFramesTotalDesc, float64(stats.RxDataFrameCount)},
 		{c.dataTxFramesTotalDesc, float64(stats.TxDataFrameCount)},
 		{c.managementRxFramesTotalDesc, float64(stats.RxMgmtFrameCount)},
@@ -752,13 +710,13 @@ func (c *APCollector) collectErrorMetrics(
 	}
 	if coverage, exists := rrmCoverageMap[radioID]; exists {
 		ch <- prometheus.MustNewConstMetric(
-			c.coverageHoleEventsDesc, prometheus.CounterValue,
+			c.coverageHoleEventsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
 	if radar, exists := apDot11RadarMap[radioID]; exists &&
 		!radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
 		ch <- prometheus.MustNewConstMetric(
-			c.lastRadarOnRadioAtDesc, prometheus.CounterValue,
+			c.lastRadarOnRadioAtDesc, prometheus.GaugeValue,
 			float64(radar.LastRadarOnRadio.Unix()), labels...)
 	}
 
@@ -769,8 +727,6 @@ func (c *APCollector) collectErrorMetrics(
 
 	errorMetrics := []Float64Metric{
 		{c.rxErrorsTotalDesc, float64(stats.RxErrorFrameCount)},
-		{c.txErrorsTotalDesc, float64(stats.FailedCount)},
-		{c.txDropsTotalDesc, float64(stats.AckFailureCount)},
 		{c.txRetriesTotalDesc, float64(stats.RetryCount)},
 		{c.ackFailuresTotalDesc, float64(stats.FailedCount)},
 		{c.duplicateFramesTotalDesc, float64(stats.FrameDuplicateCount)},
