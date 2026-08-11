@@ -189,8 +189,8 @@ func NewAPCollector(
 			nil,
 		)
 		collector.noiseUtilizationDesc = prometheus.NewDesc(
-			"wnc_ap_noise_utilization_percent",
-			"Noise channel utilization percentage",
+			"wnc_ap_noise_utilization_ratio",
+			"Noise channel utilization ratio (0-1)",
 			baseRadioLabels,
 			nil,
 		)
@@ -674,7 +674,7 @@ func (c *APCollector) collectRadioMetrics(
 				Float64Metric{c.channelUtilizationDesc, float64(rrmData.Load.CcaUtilPercentage) / 100},
 				Float64Metric{c.rxUtilizationDesc, float64(rrmData.Load.RxUtilPercentage) / 100},
 				Float64Metric{c.txUtilizationDesc, float64(rrmData.Load.TxUtilPercentage) / 100},
-				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization)},
+				Float64Metric{c.noiseUtilizationDesc, float64(rrmData.Load.RxNoiseChannelUtilization) / 100},
 			)
 		}
 		if noise, found := noiseOnCurrentChannel(rrmData, radio); found {
