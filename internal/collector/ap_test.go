@@ -1933,7 +1933,7 @@ func apSnapshotValues(t *testing.T, data *wnc.WNCDataCache) map[string]float64 {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAPCollector(
 		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
-		APMetrics{General: true, Radio: true},
+		APMetrics{General: true, Radio: true, Errors: true},
 	))
 
 	families, err := registry.Gather()
@@ -2018,6 +2018,44 @@ func TestAPCollector_ConfigStateReportsMisconfiguration(t *testing.T) {
 			if got := apSnapshotValues(t, data)["wnc_ap_config_state"]; got != tt.want {
 				t.Errorf("wnc_ap_config_state = %v, want %v with is-ap-misconfigured %v",
 					got, tt.want, tt.misconfigured)
+			}
+		})
+	}
+}
+
+// TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf pins when the radar series is
+// published at all. A controller that has never seen radar renders the leaf at the
+// Unix epoch, and reporting that as a detection would date every DFS event to 1970.
+//
+// The guard compares a calendar year rather than the epoch instant, so a genuine
+// detection inside 1970 is suppressed too. That case asserts today's behaviour and
+// records the defect; a fix flips its expectation.
+func TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf(t *testing.T) {
+	t.Parallel()
+
+	const metric = "wnc_ap_last_radar_timestamp_seconds"
+
+	tests := []struct {
+		name    string
+		last    time.Time
+		present bool
+	}{
+		{"leaf absent from the payload", time.Time{}, false},
+		{"rendered at the epoch", time.Unix(0, 0).UTC(), false},
+		{"after the epoch but inside 1970", time.Date(1970, 6, 1, 0, 0, 0, 0, time.UTC), false},
+		{"a detection this year", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.ApDot11RadarData[0].LastRadarOnRadio = tt.last
+
+			_, ok := apSnapshotValues(t, data)[metric]
+			if ok != tt.present {
+				t.Errorf("%s present = %v, want %v for %s", metric, ok, tt.present, tt.last)
 			}
 		})
 	}

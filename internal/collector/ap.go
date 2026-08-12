@@ -713,8 +713,7 @@ func (c *APCollector) collectErrorMetrics(
 			c.coverageHoleEventsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
-	if radar, exists := apDot11RadarMap[radioID]; exists &&
-		!radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
+	if radar, exists := apDot11RadarMap[radioID]; exists && radar.LastRadarOnRadio.Year() > 1970 {
 		ch <- prometheus.MustNewConstMetric(
 			c.lastRadarOnRadioAtDesc, prometheus.GaugeValue,
 			float64(radar.LastRadarOnRadio.Unix()), labels...)
