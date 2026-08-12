@@ -1762,21 +1762,21 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	apDot11RadarMap := map[string]*rrm.ApDot11RadarData{}
 
 	collector := &APCollector{
-		metrics:                   APMetrics{Errors: true},
-		rxErrorsTotalDesc:         prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
-		txRetriesTotalDesc:        prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
-		ackFailuresTotalDesc:      prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
-		duplicateFramesTotalDesc:  prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
-		fcsErrorsTotalDesc:        prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
-		fragmentationRxTotalDesc:  prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
-		fragmentationTxTotalDesc:  prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
-		rtsFailuresTotalDesc:      prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
-		decryptionErrorsTotalDesc: prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
-		micErrorsTotalDesc:        prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
-		wepUndecryptableTotalDesc: prometheus.NewDesc("test_wep_undecrypt", "test", []string{"mac", "radio"}, nil),
-		coverageHoleEventsDesc:    prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
-		lastRadarOnRadioAtDesc:    prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
-		radioResetTotalDesc:       prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
+		metrics:                       APMetrics{Errors: true},
+		rxErrorsTotalDesc:             prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
+		txRetriesTotalDesc:            prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
+		transmissionFailuresTotalDesc: prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
+		duplicateFramesTotalDesc:      prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
+		fcsErrorsTotalDesc:            prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
+		fragmentationRxTotalDesc:      prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
+		fragmentationTxTotalDesc:      prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
+		rtsFailuresTotalDesc:          prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
+		decryptionErrorsTotalDesc:     prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
+		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
+		wepUndecryptableTotalDesc:     prometheus.NewDesc("test_wep_undecrypt", "test", []string{"mac", "radio"}, nil),
+		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
+		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
+		radioResetTotalDesc:           prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 30)

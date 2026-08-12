@@ -308,12 +308,40 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 				},
 			}},
 		}},
+		// Every counter leaf carries a distinct value, including the ones no
+		// descriptor reads: those are the numbers a mis-wired or a summing
+		// descriptor would surface.
 		RadioOperStats: []ap.RadioOperStats{{
-			ApMAC:            fixtureAPMAC,
-			SlotID:           0,
-			RxDataFrameCount: 100,
-			TxDataFrameCount: 200,
-			FcsErrorCount:    1,
+			ApMAC:  fixtureAPMAC,
+			SlotID: 0,
+
+			RxDataFrameCount:    3101,
+			TxDataFrameCount:    3102,
+			RxMgmtFrameCount:    3103,
+			TxMgmtFrameCount:    3104,
+			RxCtrlFrameCount:    3105,
+			TxCtrlFrameCount:    3106,
+			MulticastRxFrameCnt: 3107,
+			MulticastTxFrameCnt: 3108,
+			TxFrameCount:        3109,
+			RtsSuccessCount:     3110,
+
+			RxErrorFrameCount:     3201,
+			RetryCount:            3202,
+			FailedCount:           3203,
+			FrameDuplicateCount:   3204,
+			FcsErrorCount:         3205,
+			RxFragmentCount:       3206,
+			TxFragmentCount:       3207,
+			RtsFailureCount:       3208,
+			MACDecryErrFrameCount: 3209,
+			MACMicErrFrameCount:   3210,
+			WepUndecryptableCount: 3211,
+
+			AckFailureCount:    3901,
+			MultipleRetryCount: 3902,
+			RxDataPktCount:     3903,
+			TxDataPktCount:     3904,
 		}},
 		// A controller returns several entries for one radio, which the collector
 		// totals. A single entry cannot tell a total from an overwrite.
@@ -342,13 +370,25 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		}},
 		SisfDBMac: []client.SisfDBMac{{MACAddr: fixtureClientMAC}},
 		TrafficStats: []client.TrafficStats{{
-			MsMACAddress:   fixtureClientMAC,
-			BytesRx:        "1000",
-			BytesTx:        "2000",
-			PktsRx:         "10",
-			PktsTx:         "20",
-			DataRetries:    "1",
-			TxRetries:      "2",
+			MsMACAddress: fixtureClientMAC,
+
+			BytesRx: "4101",
+			BytesTx: "4102",
+			PktsRx:  "4103",
+			PktsTx:  "4104",
+
+			PolicyErrs:         "4201",
+			DuplicateRcv:       "4202",
+			DecryptFailed:      "4203",
+			MicMismatch:        "4204",
+			MicMissing:         "4205",
+			TxExcessiveRetries: "4206",
+			RxGroupCounter:     "4207",
+			TxTotalDrops:       "4208",
+			DataRetries:        "4209",
+			RtsRetries:         "4210",
+			TxRetries:          "4211",
+
 			MostRecentRSSI: -55,
 			MostRecentSNR:  35,
 			Speed:          866,

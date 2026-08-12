@@ -107,6 +107,68 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 	assertValues(t, values, tests)
 }
 
+// TestAllCollectors_CounterValuesMatchLeaves pins every counter read from
+// radio-oper-stats and traffic-stats to its own leaf. A counter wired to a
+// neighbouring leaf reports a plausible rate forever, which no count and no label
+// assertion can see.
+func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
+	t.Parallel()
+
+	values := gatherFixtureValues(t)
+
+	tests := []struct {
+		name string
+		want float64
+	}{
+		{"wnc_ap_data_rx_frames_total", 3101},
+		{"wnc_ap_data_tx_frames_total", 3102},
+		{"wnc_ap_management_rx_frames_total", 3103},
+		{"wnc_ap_management_tx_frames_total", 3104},
+		{"wnc_ap_control_rx_frames_total", 3105},
+		{"wnc_ap_control_tx_frames_total", 3106},
+		{"wnc_ap_multicast_rx_frames_total", 3107},
+		{"wnc_ap_multicast_tx_frames_total", 3108},
+		// tx-frame-count, the controller's own total, which the HELP string
+		// promises is not the sum of the per-type series above.
+		{"wnc_ap_total_tx_frames_total", 3109},
+		{"wnc_ap_rts_success_total", 3110},
+
+		{"wnc_ap_rx_errors_total", 3201},
+		{"wnc_ap_tx_retries_total", 3202},
+		// failed-count, not ack-failure-count: docs/collector.ap.md note *2 records
+		// the Cisco bug that makes the latter unusable, so a one-token revert to it
+		// would leave every count and label intact.
+		{"wnc_ap_transmission_failures_total", 3203},
+		{"wnc_ap_duplicate_frames_total", 3204},
+		{"wnc_ap_fcs_errors_total", 3205},
+		{"wnc_ap_fragmentation_rx_total", 3206},
+		{"wnc_ap_fragmentation_tx_total", 3207},
+		{"wnc_ap_rts_failures_total", 3208},
+		{"wnc_ap_decryption_errors_total", 3209},
+		{"wnc_ap_mic_errors_total", 3210},
+		{"wnc_ap_wep_undecryptable_total", 3211},
+
+		{"wnc_client_rx_bytes_total", 4101},
+		{"wnc_client_tx_bytes_total", 4102},
+		{"wnc_client_rx_packets_total", 4103},
+		{"wnc_client_tx_packets_total", 4104},
+
+		{"wnc_client_policy_errors_total", 4201},
+		{"wnc_client_duplicate_received_total", 4202},
+		{"wnc_client_decryption_failed_total", 4203},
+		{"wnc_client_mic_mismatch_total", 4204},
+		{"wnc_client_mic_missing_total", 4205},
+		{"wnc_client_excessive_retries_total", 4206},
+		{"wnc_client_rx_group_total", 4207},
+		{"wnc_client_tx_drops_total", 4208},
+		{"wnc_client_data_retries_total", 4209},
+		{"wnc_client_rts_retries_total", 4210},
+		{"wnc_client_tx_retries_total", 4211},
+	}
+
+	assertValues(t, values, tests)
+}
+
 func assertValues(t *testing.T, values map[string]float64, tests []struct {
 	name string
 	want float64
