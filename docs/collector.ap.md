@@ -43,7 +43,6 @@ AP collector focuses on RF foundation and radio performance.
 | errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
 | errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
 | errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
-| errors  | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
 | errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
 | errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
 | errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
@@ -90,7 +89,6 @@ The following metrics consistently return zero values due to implementation limi
 - `wnc_ap_rts_(success|failures)_total`
 - `wnc_ap_rx_errors_total`
 - `wnc_ap_transmission_failures_total`
-- `wnc_ap_wep_undecryptable_total`
 
 This was verified through direct RESTCONF API access to the live WNC environment:
 

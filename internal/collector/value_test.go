@@ -146,7 +146,6 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_rts_failures_total", 3208},
 		{"wnc_ap_decryption_errors_total", 3209},
 		{"wnc_ap_mic_errors_total", 3210},
-		{"wnc_ap_wep_undecryptable_total", 3211},
 
 		{"wnc_client_rx_bytes_total", 4101},
 		{"wnc_client_tx_bytes_total", 4102},

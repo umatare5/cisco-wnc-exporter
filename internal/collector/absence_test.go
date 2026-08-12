@@ -310,7 +310,8 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		}},
 		// Every counter leaf carries a distinct value, including the ones no
 		// descriptor reads: those are the numbers a mis-wired or a summing
-		// descriptor would surface.
+		// descriptor would surface. wep-undecryptable-count stays for that reason
+		// after its series was withdrawn.
 		RadioOperStats: []ap.RadioOperStats{{
 			ApMAC:  fixtureAPMAC,
 			SlotID: 0,

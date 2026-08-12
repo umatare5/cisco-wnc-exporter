@@ -68,7 +68,6 @@ type APCollector struct {
 	rtsFailuresTotalDesc          *prometheus.Desc
 	decryptionErrorsTotalDesc     *prometheus.Desc
 	micErrorsTotalDesc            *prometheus.Desc
-	wepUndecryptableTotalDesc     *prometheus.Desc
 	coverageHoleEventsDesc        *prometheus.Desc
 	lastRadarOnRadioAtDesc        *prometheus.Desc
 	radioResetTotalDesc           *prometheus.Desc
@@ -341,12 +340,6 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.wepUndecryptableTotalDesc = prometheus.NewDesc(
-			"wnc_ap_wep_undecryptable_total",
-			"WEP undecryptable frames",
-			baseRadioLabels,
-			nil,
-		)
 		collector.coverageHoleEventsDesc = prometheus.NewDesc(
 			"wnc_ap_coverage_failed_clients",
 			"RRM coverage failed client count (current value, not cumulative)",
@@ -415,7 +408,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.rtsFailuresTotalDesc
 		ch <- c.decryptionErrorsTotalDesc
 		ch <- c.micErrorsTotalDesc
-		ch <- c.wepUndecryptableTotalDesc
 		ch <- c.coverageHoleEventsDesc
 		ch <- c.lastRadarOnRadioAtDesc
 		ch <- c.radioResetTotalDesc
@@ -735,7 +727,6 @@ func (c *APCollector) collectErrorMetrics(
 		{c.rtsFailuresTotalDesc, float64(stats.RtsFailureCount)},
 		{c.decryptionErrorsTotalDesc, float64(stats.MACDecryErrFrameCount)},
 		{c.micErrorsTotalDesc, float64(stats.MACMicErrFrameCount)},
-		{c.wepUndecryptableTotalDesc, float64(stats.WepUndecryptableCount)},
 	}
 
 	for _, metric := range errorMetrics {

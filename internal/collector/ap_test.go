@@ -244,7 +244,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			APMetrics{Errors: true},
-			14, // rx errors, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
+			13, // rx errors, retries, transmission_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, coverage_hole, radar, radio_reset
 		},
 		{
 			"Info module only",
@@ -260,7 +260,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			42, // 7+10+10+14+1
+			41, // 7+10+10+13+1
 		},
 	}
 
@@ -1077,7 +1077,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 42
+	expectedDescs := 41
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1753,7 +1753,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 				RtsFailureCount:       0,
 				MACDecryErrFrameCount: 0,
 				MACMicErrFrameCount:   0,
-				WepUndecryptableCount: 0,
 			},
 		},
 	}
@@ -1773,7 +1772,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		rtsFailuresTotalDesc:          prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
 		decryptionErrorsTotalDesc:     prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
 		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
-		wepUndecryptableTotalDesc:     prometheus.NewDesc("test_wep_undecrypt", "test", []string{"mac", "radio"}, nil),
 		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
 		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
 		radioResetTotalDesc:           prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
