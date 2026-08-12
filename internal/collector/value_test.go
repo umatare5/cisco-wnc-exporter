@@ -109,7 +109,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 
 // TestAllCollectors_CounterValuesMatchLeaves pins every counter read from
 // radio-oper-stats and traffic-stats to its own leaf. A counter wired to a
-// neighbouring leaf reports a plausible rate forever, which no count and no label
+// neighboring leaf reports a plausible rate forever, which no count and no label
 // assertion can see.
 func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 	t.Parallel()

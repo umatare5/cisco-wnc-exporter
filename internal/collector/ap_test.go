@@ -2026,7 +2026,7 @@ func TestAPCollector_ConfigStateReportsMisconfiguration(t *testing.T) {
 // Unix epoch, and reporting that as a detection would date every DFS event to 1970.
 //
 // The guard compares a calendar year rather than the epoch instant, so a genuine
-// detection inside 1970 is suppressed too. That case asserts today's behaviour and
+// detection inside 1970 is suppressed too. That case asserts today's behavior and
 // records the defect; a fix flips its expectation.
 func TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf(t *testing.T) {
 	t.Parallel()
