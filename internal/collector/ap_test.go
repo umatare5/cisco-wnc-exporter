@@ -1180,6 +1180,9 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-24ghz-radio",
+		// APRadioBand reads this leaf and nothing else, so leaving it unset makes the
+		// band label read "unknown" and any assertion on it a tautology.
+		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
 	}
 
 	capwapData := ap.CAPWAPData{
@@ -1291,7 +1294,10 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
 		OperState:   "radio-up",
-		AdminState:  "admin-enabled",
+		// A controller returns "disabled" here, never "admin-enabled". The two leaves
+		// are kept deliberately unequal so that swapping them at ap.go:596-597 changes
+		// what this fixture publishes.
+		AdminState: "disabled",
 	}
 
 	collector := &APCollector{

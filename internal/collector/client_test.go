@@ -1053,7 +1053,7 @@ func TestClientCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		ClientMAC:   "aa:bb:cc:dd:ee:ff",
 		ApName:      "AP-01",
 		Username:    "user@example.com",
-		MsRadioType: "dot11-5ghz-radio",
+		MsRadioType: "client-dot11ax-5ghz-prot",
 	}
 
 	dot11Map := map[string]client.Dot11OperData{
@@ -1117,7 +1117,7 @@ func TestClientCollector_collectGeneralMetrics(t *testing.T) {
 		ClientMAC:   "aa:bb:cc:dd:ee:ff",
 		ApName:      "AP-01",
 		CoState:     "associated",
-		MsRadioType: "dot11-5ghz-radio",
+		MsRadioType: "client-dot11ax-5ghz-prot",
 	}
 
 	trafficMap := map[string]client.TrafficStats{
@@ -1164,14 +1164,14 @@ func TestClientCollector_collectRadioMetrics(t *testing.T) {
 
 	data := client.CommonOperData{
 		ClientMAC:   "aa:bb:cc:dd:ee:ff",
-		MsRadioType: "dot11-5ghz-radio",
+		MsRadioType: "client-dot11ax-5ghz-prot",
 	}
 
 	trafficMap := map[string]client.TrafficStats{
 		"aa:bb:cc:dd:ee:ff": {
 			Speed:          866,
 			SpatialStream:  2,
-			CurrentRate:    "mcs9",
+			CurrentRate:    "m9 ss2",
 			MostRecentRSSI: -45,
 			MostRecentSNR:  35,
 		},
@@ -1180,8 +1180,8 @@ func TestClientCollector_collectRadioMetrics(t *testing.T) {
 	dot11Map := map[string]client.Dot11OperData{
 		"aa:bb:cc:dd:ee:ff": {
 			MsMACAddress:  "aa:bb:cc:dd:ee:ff",
-			EwlcMsPhyType: "ax",
-			RadioType:     "dot11-5ghz-radio",
+			EwlcMsPhyType: "client-dot11ax-5ghz-prot",
+			RadioType:     "dot11-radio-type-a",
 			Is11GClient:   false,
 		},
 	}
