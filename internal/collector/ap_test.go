@@ -1295,8 +1295,8 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 		RadioType:   "dot11-5ghz-radio",
 		OperState:   "radio-up",
 		// A controller returns "disabled" here, never "admin-enabled". The two leaves
-		// are kept deliberately unequal so that swapping them at ap.go:596-597 changes
-		// what this fixture publishes.
+		// are kept deliberately unequal so that swapping the comparisons in
+		// collectGeneralMetrics changes what this fixture publishes.
 		AdminState: "disabled",
 	}
 
@@ -1917,6 +1917,108 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			tt.testFunc(t)
+		})
+	}
+}
+
+// apSnapshotValues gathers the AP collector over a caller-supplied snapshot and
+// indexes the first sample of every family by name.
+//
+// fullFixtureSnapshot returns a fresh struct on every call, so a subtest may
+// rewrite a leaf without affecting the others.
+func apSnapshotValues(t *testing.T, data *wnc.WNCDataCache) map[string]float64 {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{General: true, Radio: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]float64, len(families))
+	for _, family := range families {
+		metrics := family.GetMetric()
+		if len(metrics) == 0 || metrics[0].GetGauge() == nil {
+			continue
+		}
+		values[family.GetName()] = metrics[0].GetGauge().GetValue()
+	}
+	return values
+}
+
+// TestAPCollector_RadioAndAdminStateReportTheirOwnLeaf pins both polarities of the
+// two radio state gauges. One case per polarity is not enough: with both leaves
+// high, and with both low, swapping the two comparisons or replacing either with a
+// constant leaves every sample unchanged. Mixing the polarities is what separates
+// them. The test asserts only that a spelling other than the enabled constant
+// reports zero, not that the leaf has a closed value domain.
+func TestAPCollector_RadioAndAdminStateReportTheirOwnLeaf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		operState  string
+		adminState string
+		wantRadio  float64
+		wantAdmin  float64
+	}{
+		{"radio up while administratively disabled", APRadioStateUp, "disabled", 1, 0},
+		{"radio down while administratively enabled", "radio-down", APAdminStateEnabled, 0, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.RadioOperData[0].OperState = tt.operState
+			data.RadioOperData[0].AdminState = tt.adminState
+
+			values := apSnapshotValues(t, data)
+			if got := values["wnc_ap_radio_state"]; got != tt.wantRadio {
+				t.Errorf("wnc_ap_radio_state = %v, want %v from oper-state %q", got, tt.wantRadio, tt.operState)
+			}
+			if got := values["wnc_ap_admin_state"]; got != tt.wantAdmin {
+				t.Errorf("wnc_ap_admin_state = %v, want %v from admin-state %q", got, tt.wantAdmin, tt.adminState)
+			}
+		})
+	}
+}
+
+// TestAPCollector_ConfigStateReportsMisconfiguration pins the polarity that runs
+// opposite to its siblings: radio_state, admin_state and wlan_enabled report one
+// when healthy, while this one reports one when the AP is misconfigured. The
+// asymmetry is deliberate and documented in the HELP string, so both directions
+// are asserted here to keep a later "correction" from passing silently.
+func TestAPCollector_ConfigStateReportsMisconfiguration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		misconfigured bool
+		want          float64
+	}{
+		{"configuration valid", false, 0},
+		{"configuration invalid", true, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].TagInfo.IsApMisconfigured = tt.misconfigured
+
+			if got := apSnapshotValues(t, data)["wnc_ap_config_state"]; got != tt.want {
+				t.Errorf("wnc_ap_config_state = %v, want %v with is-ap-misconfigured %v",
+					got, tt.want, tt.misconfigured)
+			}
 		})
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
+	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
 
 func TestNewWLANCollector(t *testing.T) {
@@ -1269,6 +1270,62 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			tt.testFunc(t)
+		})
+	}
+}
+
+// TestWLANCollector_EnabledReportsBothLowCauses pins both polarities of
+// wnc_wlan_enabled, and both structural causes of the low one. The status lives in
+// an optional container, so the series reports zero either because the container is
+// absent or because the flag inside it is false. A guard that only checks the flag
+// panics on the first cause; one that only checks the container reports one for a
+// disabled WLAN.
+func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		vapIDData *wlan.APFVapIDData
+		want      float64
+	}{
+		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, 1},
+		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, 0},
+		{"container absent", nil, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.WLANConfigEntries[0].APFVapIDData = tt.vapIDData
+			src := fixtureSource{data: data}
+
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{General: true},
+			))
+
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+
+			var got float64
+			found := false
+			for _, family := range families {
+				if family.GetName() != "wnc_wlan_enabled" {
+					continue
+				}
+				got = family.GetMetric()[0].GetGauge().GetValue()
+				found = true
+			}
+			if !found {
+				t.Fatal("wnc_wlan_enabled has no series, want one per configured WLAN")
+			}
+			if got != tt.want {
+				t.Errorf("wnc_wlan_enabled = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
