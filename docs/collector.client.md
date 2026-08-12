@@ -8,10 +8,10 @@ Client collector focuses on user experience quality and connection performance.
 | :------ | :------------------------------------ | :------ | :----------------------------------- |
 | general | `wnc_client_state`                    | Gauge   | Connection state in `state` label    |
 | general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
-| general | `wnc_client_power_save_state`         | Gauge   | Power save state (0=active, 1=save)  |
+| general | `wnc_client_power_save_state`         | Gauge   | Power save state **(\*6)**           |
 | radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
 | general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
-| radio   | `wnc_client_mcs_index`                | Gauge   | MCS index (-1=legacy, 0-11)          |
+| radio   | `wnc_client_mcs_index`                | Gauge   | MCS index **(\*5)**                  |
 | radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
 | radio   | `wnc_client_speed_mbps`               | Gauge   | Connection throughput                |
 | radio   | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)                |
@@ -55,9 +55,13 @@ wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
 
 ## Notes
 
-<details><summary><b>*3</b> Client error metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
+<details><summary><b>*3</b> Client error metrics observed to stay at zero on the access points this exporter was measured against</summary><br/>
 
-The following client error metrics consistently return zero values due to implementation limitations. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
+The client error metrics below were observed at zero on every client of the access
+points this exporter was measured against. Whether a counter is maintained depends on
+the access point model and the release, so read the list as an observation rather than
+as a property of the platform. That applies while the fetch succeeds: a data type whose
+fetch failed makes its series absent rather than zero.
 
 - `wnc_client_duplicate_received_total`
 - `wnc_client_excessive_retries_total`
@@ -86,5 +90,32 @@ This was verified through direct RESTCONF API access to the live WNC environment
   "tx_retries": "0"
 }
 ```
+
+</details>
+
+<details><summary><b>*5</b> MCS index range, and what -1 means</summary><br/>
+
+The index is parsed out of the rate string the controller reports for the client, which
+spells it as `m<index>` followed by the stream count. The value is not bounded at 11:
+
+- 802.11n encodes the stream count in the index itself, so a two-stream client reports
+  8 through 15, and observed values already exceed 11.
+- 802.11ac indexes 0 through 9 and 802.11ax 0 through 11, both with the stream count in
+  a separate leaf, so the same number means a different rate depending on the protocol.
+  Read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
+- 802.11be adds indexes 12 and 13 for the standard rate set.
+
+`-1` is reported whenever no index can be parsed. That covers a legacy client whose
+rate carries none, and equally a rate string that is empty or spelled in a form the
+parser does not recognise; the two are not distinguished.
+
+</details>
+
+<details><summary><b>*6</b> Power save state value domain</summary><br/>
+
+The controller reports this leaf as an integer and the exporter publishes it unchanged.
+Values of 0 and 1 have been observed, with 0 on a client that was awake. The full domain
+is not documented, so treat a value above 1 as a state this exporter has not seen rather
+than as an error.
 
 </details>
