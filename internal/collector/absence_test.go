@@ -280,9 +280,15 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			ApState:    ap.ApState{ApOperationState: "registered"},
 		}},
 		ApOperData: []ap.OperData{{
-			WtpMAC:     fixtureAPMAC,
-			RadioID:    0,
-			ApSysStats: &ap.ApSystemStats{CPUUsage: 12, MemoryUsage: 34},
+			WtpMAC:  fixtureAPMAC,
+			RadioID: 0,
+			// The averaged siblings carry their own values so that a descriptor
+			// reading them, or summing them into the current reading, reports a
+			// number the value assertions do not expect.
+			ApSysStats: &ap.ApSystemStats{
+				CPUUsage: 12, MemoryUsage: 34,
+				AvgCPUUsage: 56, AvgMemoryUsage: 78,
+			},
 		}},
 		RadioOperData: []ap.RadioOperData{{
 			WtpMAC:            fixtureAPMAC,
