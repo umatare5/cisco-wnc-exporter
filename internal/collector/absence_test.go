@@ -298,7 +298,9 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			CurrentActiveBand: "dot11-2-dot-4-ghz-band",
 			AdminState:        APAdminStateEnabled,
 			OperState:         APRadioStateUp,
-			PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: fixtureChannel, ChanWidth: 20}},
+			// The width differs from every transmit power level below so that a
+			// descriptor reading another leaf of this radio reports another number.
+			PhyHtCfg: &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: fixtureChannel, ChanWidth: 40}},
 			RadioBandInfo: []ap.RadioBandInfo{{
 				BandID: fixtureBandID,
 				PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{
@@ -313,8 +315,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			TxDataFrameCount: 200,
 			FcsErrorCount:    1,
 		}},
-		RadioResetStats: []ap.RadioResetStats{{ApMAC: fixtureAPMAC, RadioID: 0, Count: 2}},
-		NameMACMaps:     []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
+		// A controller returns several entries for one radio, which the collector
+		// totals. A single entry cannot tell a total from an overwrite.
+		RadioResetStats: []ap.RadioResetStats{
+			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-1", Count: 3},
+			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-2", Count: 5},
+		},
+		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 
 		CommonOperData: []client.CommonOperData{{
 			ClientMAC:   fixtureClientMAC,
@@ -354,7 +361,10 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		RRMMeasurements: []rrm.RRMMeasurement{{
 			WtpMAC:      fixtureAPMAC,
 			RadioSlotID: 0,
-			Load:        &rrm.Load{CcaUtilPercentage: 30, RxUtilPercentage: 10, TxUtilPercentage: 5},
+			Load: &rrm.Load{
+				CcaUtilPercentage: 30, RxUtilPercentage: 10,
+				TxUtilPercentage: 5, RxNoiseChannelUtilization: 22,
+			},
 			Noise: &rrm.Noise{
 				Noise: rrm.NoiseData{NoiseData: []rrm.NoiseDataItem{
 					{Chan: 1, Noise: -95},
@@ -363,7 +373,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			},
 		}},
 		RRMCoverage: []rrm.RRMCoverage{{
-			WtpMAC: fixtureAPMAC, RadioSlotID: 0, FailedClientCount: 1,
+			WtpMAC: fixtureAPMAC, RadioSlotID: 0, FailedClientCount: 7,
 		}},
 		ApDot11RadarData: []rrm.ApDot11RadarData{{
 			WtpMAC:           fixtureAPMAC,
@@ -381,6 +391,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		WLANPolicies: []wlan.WlanPolicy{{
 			PolicyProfileName:   fixturePolicy,
 			WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{CentralSwitching: true},
+			WlanTimeout:         &wlan.WlanTimeout{SessionTimeout: 1800},
 		}},
 		WLANPolicyListEntries: []wlan.PolicyListEntry{{
 			TagName: "test-tag",
