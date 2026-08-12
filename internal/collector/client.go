@@ -85,7 +85,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		)
 		collector.powerSaveStateDesc = prometheus.NewDesc(
 			"wnc_client_power_save_state",
-			"Power save state (0=active, 1=power-save)",
+			"Power save state as reported, 0 while awake",
 			labels, nil,
 		)
 	}
@@ -99,7 +99,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		)
 		collector.mcsIndexDesc = prometheus.NewDesc(
 			"wnc_client_mcs_index",
-			"Client MCS index (-1=legacy, 0-11=802.11n/ac/ax MCS values)",
+			"Client MCS index, -1 when the rate carries none",
 			labels, nil,
 		)
 		collector.spatialStreamsDesc = prometheus.NewDesc(

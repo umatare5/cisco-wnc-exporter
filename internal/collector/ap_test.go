@@ -244,7 +244,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Errors module only",
 			APMetrics{Errors: true},
-			14, // rx errors, retries, ack_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, wep, coverage_hole, radar, radio_reset
+			13, // rx errors, retries, transmission_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, coverage_hole, radar, radio_reset
 		},
 		{
 			"Info module only",
@@ -260,7 +260,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			42, // 7+10+10+14+1
+			41, // 7+10+10+13+1
 		},
 	}
 
@@ -1077,7 +1077,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 42
+	expectedDescs := 41
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1180,6 +1180,9 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-24ghz-radio",
+		// APRadioBand reads this leaf and nothing else, so leaving it unset makes the
+		// band label read "unknown" and any assertion on it a tautology.
+		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
 	}
 
 	capwapData := ap.CAPWAPData{
@@ -1291,7 +1294,10 @@ func TestAPCollector_collectGeneralMetrics(t *testing.T) {
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
 		OperState:   "radio-up",
-		AdminState:  "admin-enabled",
+		// A controller returns "disabled" here, never "admin-enabled". The two leaves
+		// are kept deliberately unequal so that swapping the comparisons in
+		// collectGeneralMetrics changes what this fixture publishes.
+		AdminState: "disabled",
 	}
 
 	collector := &APCollector{
@@ -1747,7 +1753,6 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 				RtsFailureCount:       0,
 				MACDecryErrFrameCount: 0,
 				MACMicErrFrameCount:   0,
-				WepUndecryptableCount: 0,
 			},
 		},
 	}
@@ -1756,21 +1761,20 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 	apDot11RadarMap := map[string]*rrm.ApDot11RadarData{}
 
 	collector := &APCollector{
-		metrics:                   APMetrics{Errors: true},
-		rxErrorsTotalDesc:         prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
-		txRetriesTotalDesc:        prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
-		ackFailuresTotalDesc:      prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
-		duplicateFramesTotalDesc:  prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
-		fcsErrorsTotalDesc:        prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
-		fragmentationRxTotalDesc:  prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
-		fragmentationTxTotalDesc:  prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
-		rtsFailuresTotalDesc:      prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
-		decryptionErrorsTotalDesc: prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
-		micErrorsTotalDesc:        prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
-		wepUndecryptableTotalDesc: prometheus.NewDesc("test_wep_undecrypt", "test", []string{"mac", "radio"}, nil),
-		coverageHoleEventsDesc:    prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
-		lastRadarOnRadioAtDesc:    prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
-		radioResetTotalDesc:       prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
+		metrics:                       APMetrics{Errors: true},
+		rxErrorsTotalDesc:             prometheus.NewDesc("test_rx_errors", "test", []string{"mac", "radio"}, nil),
+		txRetriesTotalDesc:            prometheus.NewDesc("test_tx_retries", "test", []string{"mac", "radio"}, nil),
+		transmissionFailuresTotalDesc: prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
+		duplicateFramesTotalDesc:      prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
+		fcsErrorsTotalDesc:            prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
+		fragmentationRxTotalDesc:      prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
+		fragmentationTxTotalDesc:      prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
+		rtsFailuresTotalDesc:          prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
+		decryptionErrorsTotalDesc:     prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
+		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
+		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
+		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
+		radioResetTotalDesc:           prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 30)
@@ -1911,6 +1915,146 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			tt.testFunc(t)
+		})
+	}
+}
+
+// apSnapshotValues gathers the AP collector over a caller-supplied snapshot and
+// indexes the first sample of every family by name.
+//
+// fullFixtureSnapshot returns a fresh struct on every call, so a subtest may
+// rewrite a leaf without affecting the others.
+func apSnapshotValues(t *testing.T, data *wnc.WNCDataCache) map[string]float64 {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{General: true, Radio: true, Errors: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]float64, len(families))
+	for _, family := range families {
+		metrics := family.GetMetric()
+		if len(metrics) == 0 || metrics[0].GetGauge() == nil {
+			continue
+		}
+		values[family.GetName()] = metrics[0].GetGauge().GetValue()
+	}
+	return values
+}
+
+// TestAPCollector_RadioAndAdminStateReportTheirOwnLeaf pins both polarities of the
+// two radio state gauges. One case per polarity is not enough: with both leaves
+// high, and with both low, swapping the two comparisons or replacing either with a
+// constant leaves every sample unchanged. Mixing the polarities is what separates
+// them. The test asserts only that a spelling other than the enabled constant
+// reports zero, not that the leaf has a closed value domain.
+func TestAPCollector_RadioAndAdminStateReportTheirOwnLeaf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		operState  string
+		adminState string
+		wantRadio  float64
+		wantAdmin  float64
+	}{
+		{"radio up while administratively disabled", APRadioStateUp, "disabled", 1, 0},
+		{"radio down while administratively enabled", "radio-down", APAdminStateEnabled, 0, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.RadioOperData[0].OperState = tt.operState
+			data.RadioOperData[0].AdminState = tt.adminState
+
+			values := apSnapshotValues(t, data)
+			if got := values["wnc_ap_radio_state"]; got != tt.wantRadio {
+				t.Errorf("wnc_ap_radio_state = %v, want %v from oper-state %q", got, tt.wantRadio, tt.operState)
+			}
+			if got := values["wnc_ap_admin_state"]; got != tt.wantAdmin {
+				t.Errorf("wnc_ap_admin_state = %v, want %v from admin-state %q", got, tt.wantAdmin, tt.adminState)
+			}
+		})
+	}
+}
+
+// TestAPCollector_ConfigStateReportsMisconfiguration pins the polarity that runs
+// opposite to its siblings: radio_state, admin_state and wlan_enabled report one
+// when healthy, while this one reports one when the AP is misconfigured. The
+// asymmetry is deliberate and documented in the HELP string, so both directions
+// are asserted here to keep a later "correction" from passing silently.
+func TestAPCollector_ConfigStateReportsMisconfiguration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		misconfigured bool
+		want          float64
+	}{
+		{"configuration valid", false, 0},
+		{"configuration invalid", true, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].TagInfo.IsApMisconfigured = tt.misconfigured
+
+			if got := apSnapshotValues(t, data)["wnc_ap_config_state"]; got != tt.want {
+				t.Errorf("wnc_ap_config_state = %v, want %v with is-ap-misconfigured %v",
+					got, tt.want, tt.misconfigured)
+			}
+		})
+	}
+}
+
+// TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf pins when the radar series is
+// published at all. A controller that has never seen radar renders the leaf at the
+// Unix epoch, and reporting that as a detection would date every DFS event to 1970.
+//
+// The guard compares a calendar year rather than the epoch instant, so a genuine
+// detection inside 1970 is suppressed too. That case asserts today's behavior and
+// records the defect; a fix flips its expectation.
+func TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf(t *testing.T) {
+	t.Parallel()
+
+	const metric = "wnc_ap_last_radar_timestamp_seconds"
+
+	tests := []struct {
+		name    string
+		last    time.Time
+		present bool
+	}{
+		{"leaf absent from the payload", time.Time{}, false},
+		{"rendered at the epoch", time.Unix(0, 0).UTC(), false},
+		{"after the epoch but inside 1970", time.Date(1970, 6, 1, 0, 0, 0, 0, time.UTC), false},
+		{"a detection this year", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.ApDot11RadarData[0].LastRadarOnRadio = tt.last
+
+			_, ok := apSnapshotValues(t, data)[metric]
+			if ok != tt.present {
+				t.Errorf("%s present = %v, want %v for %s", metric, ok, tt.present, tt.last)
+			}
 		})
 	}
 }

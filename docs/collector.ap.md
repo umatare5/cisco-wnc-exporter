@@ -43,7 +43,6 @@ AP collector focuses on RF foundation and radio performance.
 | errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
 | errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
 | errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
-| errors  | `wnc_ap_wep_undecryptable_total`      | Counter | WEP undecryptable frames **(\*1)**               |
 | errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
 | errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
 | errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
@@ -78,19 +77,34 @@ wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
 
 ## Notes
 
-<details><summary><b>*1</b> Metrics consistently returning zero values on Cisco IOS-XE 17.12.6a with FlexConnect AP</summary><br/>
+<details><summary><b>*1</b> Metrics observed to stay at zero on the AP models this exporter was measured against</summary><br/>
 
-The following metrics consistently return zero values due to implementation limitations. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
+The metrics below were observed at zero on every radio of the access points this
+exporter was measured against, while their neighbours in the same container advanced.
+That applies while the fetch succeeds: a data type whose fetch failed makes its series
+absent rather than zero.
 
-- `wnc_ap_control_(rx|tx)_frames_total`
-- `wnc_ap_decryption_errors_total`
-- `wnc_ap_fragmentation_(rx|tx)_total`
-- `wnc_ap_mic_errors_total`
-- `wnc_ap_multicast_(rx|tx)_frames_total`
-- `wnc_ap_rts_(success|failures)_total`
-- `wnc_ap_rx_errors_total`
-- `wnc_ap_transmission_failures_total`
-- `wnc_ap_wep_undecryptable_total`
+**Whether a counter is maintained depends on the access point model and the release.**
+One model reported FCS errors while another returned zero for them on every band, and
+the reverse held for multicast transmit frames. Read the list as an observation, not as
+a property of the platform, and confirm it against your own access points before
+building an alert on the absence of a value.
+
+| Metric                                   | What the zero means here                                                                                                    |
+| :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| `wnc_ap_control_(rx\|tx)_frames_total`   | Observed at zero while data and management frames advanced.                                                                 |
+| `wnc_ap_multicast_(rx\|tx)_frames_total` | Receive observed at zero; transmit advanced on one model and not on another.                                                |
+| `wnc_ap_rx_errors_total`                 | Observed at zero while FCS errors advanced on the same radio.                                                               |
+| `wnc_ap_transmission_failures_total`     | Observed at zero while retries advanced. See note *2.                                                                       |
+| `wnc_ap_duplicate_frames_total`          | Observed at zero. A duplicate is counted on receive, so client retransmissions drive it.                                    |
+| `wnc_ap_rts_(success\|failures)_total`   | The RTS threshold sits at its maximum, so length-triggered RTS never happens.                                               |
+| `wnc_ap_fragmentation_(rx\|tx)_total`    | The fragmentation threshold sits at its maximum, and the controller labels the receive side an incomplete-fragment counter. |
+| `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Whether the counter would report a failure has not been confirmed.                             |
+| `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                                                                          |
+
+Sampling the container twice separated by an interval showed the same leaves at zero
+while their neighbours advanced, and the controller CLI reported the same values, so
+the zeros are in the data the controller holds rather than in this exporter.
 
 This was verified through direct RESTCONF API access to the live WNC environment:
 

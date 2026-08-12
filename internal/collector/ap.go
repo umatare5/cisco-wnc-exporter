@@ -34,47 +34,46 @@ type APCollector struct {
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
 
-	channelUtilizationDesc      *prometheus.Desc
-	rxUtilizationDesc           *prometheus.Desc
-	txUtilizationDesc           *prometheus.Desc
-	noiseUtilizationDesc        *prometheus.Desc
-	noiseFloorDesc              *prometheus.Desc
-	txPowerDesc                 *prometheus.Desc
-	channelDesc                 *prometheus.Desc
-	channelWidthDesc            *prometheus.Desc
-	associatedClientsDesc       *prometheus.Desc
-	radioStateDesc              *prometheus.Desc
-	adminStateDesc              *prometheus.Desc
-	operStateDesc               *prometheus.Desc
-	configStateDesc             *prometheus.Desc
-	txPowerMaxDesc              *prometheus.Desc
-	dataRxFramesTotalDesc       *prometheus.Desc
-	dataTxFramesTotalDesc       *prometheus.Desc
-	managementRxFramesTotalDesc *prometheus.Desc
-	managementTxFramesTotalDesc *prometheus.Desc
-	controlRxFramesTotalDesc    *prometheus.Desc
-	controlTxFramesTotalDesc    *prometheus.Desc
-	multicastRxFramesTotalDesc  *prometheus.Desc
-	multicastTxFramesTotalDesc  *prometheus.Desc
-	totalTxFramesTotalDesc      *prometheus.Desc
-	rtsSuccessTotalDesc         *prometheus.Desc
-	rxErrorsTotalDesc           *prometheus.Desc
-	txRetriesTotalDesc          *prometheus.Desc
-	ackFailuresTotalDesc        *prometheus.Desc
-	duplicateFramesTotalDesc    *prometheus.Desc
-	fcsErrorsTotalDesc          *prometheus.Desc
-	fragmentationRxTotalDesc    *prometheus.Desc
-	fragmentationTxTotalDesc    *prometheus.Desc
-	rtsFailuresTotalDesc        *prometheus.Desc
-	decryptionErrorsTotalDesc   *prometheus.Desc
-	micErrorsTotalDesc          *prometheus.Desc
-	wepUndecryptableTotalDesc   *prometheus.Desc
-	coverageHoleEventsDesc      *prometheus.Desc
-	lastRadarOnRadioAtDesc      *prometheus.Desc
-	radioResetTotalDesc         *prometheus.Desc
-	cpuUtilizationDesc          *prometheus.Desc
-	memoryUtilizationDesc       *prometheus.Desc
-	uptimeSecondsDesc           *prometheus.Desc
+	channelUtilizationDesc        *prometheus.Desc
+	rxUtilizationDesc             *prometheus.Desc
+	txUtilizationDesc             *prometheus.Desc
+	noiseUtilizationDesc          *prometheus.Desc
+	noiseFloorDesc                *prometheus.Desc
+	txPowerDesc                   *prometheus.Desc
+	channelDesc                   *prometheus.Desc
+	channelWidthDesc              *prometheus.Desc
+	associatedClientsDesc         *prometheus.Desc
+	radioStateDesc                *prometheus.Desc
+	adminStateDesc                *prometheus.Desc
+	operStateDesc                 *prometheus.Desc
+	configStateDesc               *prometheus.Desc
+	txPowerMaxDesc                *prometheus.Desc
+	dataRxFramesTotalDesc         *prometheus.Desc
+	dataTxFramesTotalDesc         *prometheus.Desc
+	managementRxFramesTotalDesc   *prometheus.Desc
+	managementTxFramesTotalDesc   *prometheus.Desc
+	controlRxFramesTotalDesc      *prometheus.Desc
+	controlTxFramesTotalDesc      *prometheus.Desc
+	multicastRxFramesTotalDesc    *prometheus.Desc
+	multicastTxFramesTotalDesc    *prometheus.Desc
+	totalTxFramesTotalDesc        *prometheus.Desc
+	rtsSuccessTotalDesc           *prometheus.Desc
+	rxErrorsTotalDesc             *prometheus.Desc
+	txRetriesTotalDesc            *prometheus.Desc
+	transmissionFailuresTotalDesc *prometheus.Desc
+	duplicateFramesTotalDesc      *prometheus.Desc
+	fcsErrorsTotalDesc            *prometheus.Desc
+	fragmentationRxTotalDesc      *prometheus.Desc
+	fragmentationTxTotalDesc      *prometheus.Desc
+	rtsFailuresTotalDesc          *prometheus.Desc
+	decryptionErrorsTotalDesc     *prometheus.Desc
+	micErrorsTotalDesc            *prometheus.Desc
+	coverageHoleEventsDesc        *prometheus.Desc
+	lastRadarOnRadioAtDesc        *prometheus.Desc
+	radioResetTotalDesc           *prometheus.Desc
+	cpuUtilizationDesc            *prometheus.Desc
+	memoryUtilizationDesc         *prometheus.Desc
+	uptimeSecondsDesc             *prometheus.Desc
 }
 
 // NewAPCollector creates a new AP collector.
@@ -293,7 +292,7 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.ackFailuresTotalDesc = prometheus.NewDesc(
+		collector.transmissionFailuresTotalDesc = prometheus.NewDesc(
 			"wnc_ap_transmission_failures_total",
 			"Failed transmission attempts",
 			baseRadioLabels,
@@ -338,12 +337,6 @@ func NewAPCollector(
 		collector.micErrorsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_mic_errors_total",
 			"MIC errors",
-			baseRadioLabels,
-			nil,
-		)
-		collector.wepUndecryptableTotalDesc = prometheus.NewDesc(
-			"wnc_ap_wep_undecryptable_total",
-			"WEP undecryptable frames",
 			baseRadioLabels,
 			nil,
 		)
@@ -407,7 +400,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	if c.metrics.Errors {
 		ch <- c.rxErrorsTotalDesc
 		ch <- c.txRetriesTotalDesc
-		ch <- c.ackFailuresTotalDesc
+		ch <- c.transmissionFailuresTotalDesc
 		ch <- c.duplicateFramesTotalDesc
 		ch <- c.fcsErrorsTotalDesc
 		ch <- c.fragmentationRxTotalDesc
@@ -415,7 +408,6 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.rtsFailuresTotalDesc
 		ch <- c.decryptionErrorsTotalDesc
 		ch <- c.micErrorsTotalDesc
-		ch <- c.wepUndecryptableTotalDesc
 		ch <- c.coverageHoleEventsDesc
 		ch <- c.lastRadarOnRadioAtDesc
 		ch <- c.radioResetTotalDesc
@@ -713,8 +705,7 @@ func (c *APCollector) collectErrorMetrics(
 			c.coverageHoleEventsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
-	if radar, exists := apDot11RadarMap[radioID]; exists &&
-		!radar.LastRadarOnRadio.IsZero() && radar.LastRadarOnRadio.Year() > 1970 {
+	if radar, exists := apDot11RadarMap[radioID]; exists && radar.LastRadarOnRadio.Year() > 1970 {
 		ch <- prometheus.MustNewConstMetric(
 			c.lastRadarOnRadioAtDesc, prometheus.GaugeValue,
 			float64(radar.LastRadarOnRadio.Unix()), labels...)
@@ -728,7 +719,7 @@ func (c *APCollector) collectErrorMetrics(
 	errorMetrics := []Float64Metric{
 		{c.rxErrorsTotalDesc, float64(stats.RxErrorFrameCount)},
 		{c.txRetriesTotalDesc, float64(stats.RetryCount)},
-		{c.ackFailuresTotalDesc, float64(stats.FailedCount)},
+		{c.transmissionFailuresTotalDesc, float64(stats.FailedCount)},
 		{c.duplicateFramesTotalDesc, float64(stats.FrameDuplicateCount)},
 		{c.fcsErrorsTotalDesc, float64(stats.FcsErrorCount)},
 		{c.fragmentationRxTotalDesc, float64(stats.RxFragmentCount)},
@@ -736,7 +727,6 @@ func (c *APCollector) collectErrorMetrics(
 		{c.rtsFailuresTotalDesc, float64(stats.RtsFailureCount)},
 		{c.decryptionErrorsTotalDesc, float64(stats.MACDecryErrFrameCount)},
 		{c.micErrorsTotalDesc, float64(stats.MACMicErrFrameCount)},
-		{c.wepUndecryptableTotalDesc, float64(stats.WepUndecryptableCount)},
 	}
 
 	for _, metric := range errorMetrics {
