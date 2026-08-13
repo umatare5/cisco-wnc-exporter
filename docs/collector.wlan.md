@@ -20,6 +20,15 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_central_dhcp_enabled`           | Gauge | Central DHCP enabled                 |
 | config  | `wnc_wlan_central_association_enabled`    | Gauge | Central association enabled          |
 
+## Notes
+
+The `config` module reads `wlan-cfg-entries` and `wlan-policies`. The controller
+omits leaves left at their default values from these responses — observed on
+IOS-XE 17.12, which answers RESTCONF with the `with-defaults` basic mode
+`explicit`. A boolean series therefore reports `0`, and
+`wnc_wlan_session_timeout_seconds` reports `0`, for any leaf the controller did
+not send, even when the operative default is enabled or non-zero.
+
 ## Labels
 
 `info` module provides `wnc_wlan_info` contains following labels to join with other metrics:

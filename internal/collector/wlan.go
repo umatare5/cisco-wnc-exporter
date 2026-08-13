@@ -74,57 +74,57 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 	if metrics.Config {
 		collector.authPskDesc = prometheus.NewDesc(
 			"wnc_wlan_auth_psk_enabled",
-			"PSK authentication enabled (0=disabled, 1=enabled)",
+			"PSK authentication enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.authDot1xDesc = prometheus.NewDesc(
 			"wnc_wlan_auth_dot1x_enabled",
-			"802.1x authentication enabled (0=disabled, 1=enabled)",
+			"802.1x authentication enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.authDot1xSha256Desc = prometheus.NewDesc(
 			"wnc_wlan_auth_dot1x_sha256_enabled",
-			"802.1x SHA256 authentication enabled (0=disabled, 1=enabled)",
+			"802.1x SHA256 authentication enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.wpa3EnabledDesc = prometheus.NewDesc(
 			"wnc_wlan_wpa3_enabled",
-			"WPA3 support enabled (0=disabled, 1=enabled)",
+			"WPA3 support enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.sessionTimeoutDesc = prometheus.NewDesc(
 			"wnc_wlan_session_timeout_seconds",
-			"Session timeout duration in seconds",
+			"Session timeout duration in seconds, 0 when the controller omits it",
 			labels, nil,
 		)
 		collector.loadBalanceDesc = prometheus.NewDesc(
 			"wnc_wlan_load_balance_enabled",
-			"Load balancing enabled (0=disabled, 1=enabled)",
+			"Load balancing enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.clientSteeringDesc = prometheus.NewDesc(
 			"wnc_wlan_client_steering_enabled",
-			"6GHz client steering enabled (0=disabled, 1=enabled)",
+			"6GHz client steering enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.centralSwitchingDesc = prometheus.NewDesc(
 			"wnc_wlan_central_switching_enabled",
-			"Central switching enabled (0=disabled, 1=enabled)",
+			"Central switching enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.centralAuthenticationDesc = prometheus.NewDesc(
 			"wnc_wlan_central_authentication_enabled",
-			"Central authentication enabled (0=disabled, 1=enabled)",
+			"Central authentication enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.centralDHCPDesc = prometheus.NewDesc(
 			"wnc_wlan_central_dhcp_enabled",
-			"Central DHCP enabled (0=disabled, 1=enabled)",
+			"Central DHCP enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.centralAssocEnableDesc = prometheus.NewDesc(
 			"wnc_wlan_central_association_enabled",
-			"Central association enabled (0=disabled, 1=enabled)",
+			"Central association enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 	}
@@ -288,7 +288,9 @@ func (c *WLANCollector) collectConfigMetrics(
 ) {
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
-	// Everything derived from the WLAN config entry itself is always available.
+	// The controller omits entry leaves left at their default values, and the
+	// value-typed decode turns an omitted leaf into zero. These series report
+	// that zero even when the operative default is enabled.
 	metrics := []Float64Metric{
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
 		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
