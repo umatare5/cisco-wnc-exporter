@@ -22,7 +22,7 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 
 ### Info metric caching (`--collector.info-cache-ttl`)
 
-- Info metrics are served from a snapshot up to 1800 seconds (30 minutes) old, and the collector behind them still runs on every scrape, so no controller request is saved
+- Info metrics are served from a snapshot up to the flag value old, and the collector behind them still runs on every scrape, so no controller request is saved
 - A client that roamed keeps its previous `ap` label until the cache expires
 - A newly associated client is missing from the info metric for up to that long, so `group_left` joins on it return nothing
 - Caching does not reduce cardinality: every `ap` label value a client has held remains its own series
