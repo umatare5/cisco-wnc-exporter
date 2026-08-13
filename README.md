@@ -67,11 +67,13 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 > [!Tip]
 > If you prefer using binaries, download them from the [release page](https://github.com/umatare5/cisco-wnc-exporter/releases).
 >
-> - Supported Platforms: `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
+> Supported Platforms are: `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
 
 ## Syntax
 
-`cisco-wnc-exporter --help` prints every flag, and [docs/configuration.md](docs/configuration.md) carries the same list. Each collector is enabled per module:
+`cisco-wnc-exporter --help` prints every flag, and [docs/configuration.md](docs/configuration.md) carries the same list.
+
+Each collector is enabled per module:
 
 - `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.info`
 - `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`
@@ -93,11 +95,11 @@ This exporter supports following environment variables:
 
 This exporter collects wireless network metrics from Cisco C9800 WNC using three collectors:
 
-| Collector                          | Focus                                              |
-| :--------------------------------- | :------------------------------------------------- |
-| [AP](docs/collector.ap.md)         | RF foundation and radio performance                |
-| [Client](docs/collector.client.md) | User experience quality and connection performance |
-| [WLAN](docs/collector.wlan.md)     | Logical SSID performance and parameter checks      |
+| Collector                              | Focus                                              |
+| :------------------------------------- | :------------------------------------------------- |
+| **[AP](docs/collector.ap.md)**         | RF foundation and radio performance                |
+| **[Client](docs/collector.client.md)** | User experience quality and connection performance |
+| **[WLAN](docs/collector.wlan.md)**     | Logical SSID performance and parameter checks      |
 
 Each page lists every metric its collector publishes, the labels its `_info` metric carries, and the counters the controller may report as a constant zero. The `Module` column on those pages names the flag suffix that enables a metric, as in `--collector.ap.radio`.
 

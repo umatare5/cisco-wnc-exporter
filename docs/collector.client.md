@@ -9,8 +9,8 @@ Client collector focuses on user experience quality and connection performance.
 | general | `wnc_client_state`                    | Gauge   | Connection state in `state` label    |
 | general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
 | general | `wnc_client_power_save_state`         | Gauge   | Power save state **(\*1)**           |
-| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
 | general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
+| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
 | radio   | `wnc_client_mcs_index`                | Gauge   | MCS index **(\*2)**                  |
 | radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
 | radio   | `wnc_client_speed_mbps`               | Gauge   | Connection throughput                |
