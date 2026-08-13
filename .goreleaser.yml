@@ -107,6 +107,11 @@ release:
 
     This release contains the Prometheus Exporter for Cisco WNC.
 
+    > [!IMPORTANT]
+    > This project is pre-1.0 and a minor release may rename or remove a metric.
+    > Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md)
+    > before upgrading.
+
     ### 🐳 Container Images
 
     ```bash
@@ -122,9 +127,7 @@ release:
 
     ### 📦 Binary Installation
 
-    ```bash
-    go install github.com/umatare5/cisco-wnc-exporter@v{{ .Version }}
-    ```
+    Download a prebuilt binary for your platform from the release assets below.
 
   footer: |
     **Full Changelog**: https://github.com/umatare5/cisco-wnc-exporter/compare/{{ .PreviousTag }}...{{ .Tag }}
@@ -132,6 +135,7 @@ release:
     ### 📚 Documentation
 
     - [README](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/README.md)
+    - [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md)
     - [Container Registry](https://github.com/umatare5/cisco-wnc-exporter/pkgs/container/cisco-wnc-exporter)
 
 # Generate checksums for source archives

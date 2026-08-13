@@ -11,13 +11,13 @@ AP collector focuses on RF foundation and radio performance.
 | general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
 | general | `wnc_ap_config_state`                 | Gauge   | Tag config state (0=valid, 1=invalid)            |
 | general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
-| general | `wnc_ap_cpu_utilization_ratio`        | Gauge   | CPU utilization ratio (0-1)                      |
-| general | `wnc_ap_memory_utilization_ratio`     | Gauge   | Memory utilization ratio (0-1)                   |
-| radio   | `wnc_ap_channel_number`               | Gauge   | Operating channel number **(\*4)**               |
+| general | `wnc_ap_cpu_utilization_ratio`        | Gauge   | CPU utilization ratio (0-1) **(\*1)**            |
+| general | `wnc_ap_memory_utilization_ratio`     | Gauge   | Memory utilization ratio (0-1) **(\*1)**         |
+| radio   | `wnc_ap_channel_number`               | Gauge   | Operating channel number **(\*2)**               |
 | radio   | `wnc_ap_channel_width_mhz`            | Gauge   | Channel bandwidth (MHz)                          |
 | radio   | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
 | radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
-| radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Noise on the operating channel (dBm) **(\*4)**   |
+| radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Noise on the operating channel (dBm) **(\*2)**   |
 | radio   | `wnc_ap_channel_utilization_ratio`    | Gauge   | Channel utilization ratio (CCA), 0-1             |
 | radio   | `wnc_ap_rx_utilization_ratio`         | Gauge   | RX utilization ratio (0-1)                       |
 | radio   | `wnc_ap_tx_utilization_ratio`         | Gauge   | TX utilization ratio (0-1)                       |
@@ -28,21 +28,21 @@ AP collector focuses on RF foundation and radio performance.
 | traffic | `wnc_ap_data_tx_frames_total`         | Counter | Data TX frames                                   |
 | traffic | `wnc_ap_management_rx_frames_total`   | Counter | Management RX frames                             |
 | traffic | `wnc_ap_management_tx_frames_total`   | Counter | Management TX frames                             |
-| traffic | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*1)**                      |
-| traffic | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*1)**                      |
-| traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*1)**                    |
-| traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*1)**                    |
-| traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*1)**           |
-| errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*1)**                        |
-| errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries (calculated)                    |
-| errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*1)** **(\*2)** |
+| traffic | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*3)**                      |
+| traffic | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*3)**                      |
+| traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*3)**                    |
+| traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*3)**                    |
+| traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*3)**           |
+| errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*3)**                        |
+| errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries                                 |
+| errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*3)** **(\*4)** |
 | errors  | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |
 | errors  | `wnc_ap_fcs_errors_total`             | Counter | Frame Check Sequence errors                      |
-| errors  | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*1)**                  |
-| errors  | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*1)**                  |
-| errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*1)**                           |
-| errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*1)**                      |
-| errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*1)**                             |
+| errors  | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*3)**                  |
+| errors  | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*3)**                  |
+| errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*3)**                           |
+| errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*3)**                      |
+| errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*3)**                             |
 | errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
 | errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
 | errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
@@ -77,7 +77,39 @@ wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
 
 ## Notes
 
-<details><summary><b>*1</b> Metrics observed to stay at zero on the AP models this exporter was measured against</summary><br/>
+<details><summary><b>*1</b> CPU and memory need AP system monitoring enabled, and read zero until it is</summary><br/>
+
+Both values come from the AP system statistics the controller collects, and that collection is disabled by default. Enable it on the AP join profile the access point uses:
+
+```plaintext
+configure terminal
+ ap profile <profile-name>
+  statistics ap-system-monitoring enable
+ end
+write memory
+```
+
+While it is disabled the statistics block is still present in the controller's response and both leaves read zero, so the exporter publishes `0` rather than omitting the series. A zero therefore cannot be told apart from an idle access point. Both leaves were observed at zero on every access point before the collection was enabled, and reporting a value afterwards.
+
+</details>
+
+<details><summary><b>*2</b> Channel numbers do not identify the band, and noise is reported per channel</summary><br/>
+
+6 GHz channel numbering restarts at 1, so a 6 GHz channel number collides with a 2.4 GHz one and overlaps the 5 GHz range as well. `wnc_ap_channel_number` reports the number the controller gives, without a band.
+
+Join `wnc_ap_info` to disambiguate, which requires `band` in `--collector.ap.info-labels` because it is not enabled by default:
+
+```bash
+wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
+```
+
+The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
+
+`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
+
+</details>
+
+<details><summary><b>*3</b> Metrics observed to stay at zero on the AP models this exporter was measured against</summary><br/>
 
 The metrics below were observed at zero on every radio of the access points this
 exporter was measured against, while their neighbours in the same container advanced.
@@ -95,7 +127,7 @@ building an alert on the absence of a value.
 | `wnc_ap_control_(rx\|tx)_frames_total`   | Observed at zero while data and management frames advanced.                                                                 |
 | `wnc_ap_multicast_(rx\|tx)_frames_total` | Receive observed at zero; transmit advanced on one model and not on another.                                                |
 | `wnc_ap_rx_errors_total`                 | Observed at zero while FCS errors advanced on the same radio.                                                               |
-| `wnc_ap_transmission_failures_total`     | Observed at zero while retries advanced. See note *2.                                                                       |
+| `wnc_ap_transmission_failures_total`     | Observed at zero while retries advanced. See note *4.                                                                       |
 | `wnc_ap_duplicate_frames_total`          | Observed at zero. A duplicate is counted on receive, so client retransmissions drive it.                                    |
 | `wnc_ap_rts_(success\|failures)_total`   | The RTS threshold sits at its maximum, so length-triggered RTS never happens.                                               |
 | `wnc_ap_fragmentation_(rx\|tx)_total`    | The fragmentation threshold sits at its maximum, and the controller labels the receive side an incomplete-fragment counter. |
@@ -192,7 +224,7 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 </details>
 
-<details><summary><b>*2</b> Cisco Bug CSCwn96363 - AckFailureCount vs FailedCount</summary><br/>
+<details><summary><b>*4</b> Cisco Bug CSCwn96363 - AckFailureCount vs FailedCount</summary><br/>
 
 According to [Cisco Bug CSCwn96363](https://bst.cloudapps.cisco.com/bugsearch/bug/CSCwn96363), there are redundant counters in the wireless statistics:
 
@@ -201,21 +233,5 @@ According to [Cisco Bug CSCwn96363](https://bst.cloudapps.cisco.com/bugsearch/bu
 - **Solution**: Use `FailedCount` instead of `AckFailureCount` for accurate transmission failure statistics
 
 This exporter implements the recommended workaround by using `failed-count` from the RESTCONF API for the `wnc_ap_transmission_failures_total` metric.
-
-</details>
-
-<details><summary><b>*4</b> Channel numbers do not identify the band, and noise is reported per channel</summary><br/>
-
-6 GHz channel numbering restarts at 1, so a 6 GHz channel number collides with a 2.4 GHz one and overlaps the 5 GHz range as well. `wnc_ap_channel_number` reports the number the controller gives, without a band.
-
-Join `wnc_ap_info` to disambiguate, which requires `band` in `--collector.ap.info-labels` because it is not enabled by default:
-
-```bash
-wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
-```
-
-The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
-
-`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
 
 </details>

@@ -167,7 +167,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Config module only",
 			WLANMetrics{Config: true},
-			13, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k, steering, central_switching, central_auth, central_dhcp, central_assoc
+			11, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa3, session_timeout, load_balance, steering, central_switching, central_auth, central_dhcp, central_assoc
 		},
 		{
 			"Info module only",
@@ -182,7 +182,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			16, // 1+1+13+1
+			14, // 1+1+11+1
 		},
 	}
 
@@ -723,7 +723,6 @@ func TestWLANCollector_MetricNames(t *testing.T) {
 		{collector.clientCountDesc, "wnc_wlan_clients"},
 		{collector.authPskDesc, "wnc_wlan_auth_psk_enabled"},
 		{collector.authDot1xDesc, "wnc_wlan_auth_dot1x_enabled"},
-		{collector.wpa2EnabledDesc, "wnc_wlan_wpa2_enabled"},
 		{collector.wpa3EnabledDesc, "wnc_wlan_wpa3_enabled"},
 		{collector.sessionTimeoutDesc, "wnc_wlan_session_timeout_seconds"},
 		{collector.infoDesc, "wnc_wlan_info"},
@@ -961,7 +960,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 16
+	expectedDescs := 14
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1154,11 +1153,9 @@ func TestWLANCollector_collectConfigMetrics(t *testing.T) {
 		authPskDesc:               prometheus.NewDesc("test_auth_psk", "test", []string{"id"}, nil),
 		authDot1xDesc:             prometheus.NewDesc("test_auth_dot1x", "test", []string{"id"}, nil),
 		authDot1xSha256Desc:       prometheus.NewDesc("test_auth_dot1x_sha256", "test", []string{"id"}, nil),
-		wpa2EnabledDesc:           prometheus.NewDesc("test_wpa2_enabled", "test", []string{"id"}, nil),
 		wpa3EnabledDesc:           prometheus.NewDesc("test_wpa3_enabled", "test", []string{"id"}, nil),
 		sessionTimeoutDesc:        prometheus.NewDesc("test_session_timeout", "test", []string{"id"}, nil),
 		loadBalanceDesc:           prometheus.NewDesc("test_load_balance", "test", []string{"id"}, nil),
-		wlan11kNeighDesc:          prometheus.NewDesc("test_11k_neigh", "test", []string{"id"}, nil),
 		clientSteeringDesc:        prometheus.NewDesc("test_client_steering", "test", []string{"id"}, nil),
 		centralSwitchingDesc:      prometheus.NewDesc("test_central_switching", "test", []string{"id"}, nil),
 		centralAuthenticationDesc: prometheus.NewDesc("test_central_auth", "test", []string{"id"}, nil),
@@ -1240,11 +1237,9 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					authPskDesc:               prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					authDot1xDesc:             prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					authDot1xSha256Desc:       prometheus.NewDesc("test", "test", []string{"id"}, nil),
-					wpa2EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					wpa3EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					sessionTimeoutDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					loadBalanceDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
-					wlan11kNeighDesc:          prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					clientSteeringDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralSwitchingDesc:      prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralAuthenticationDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
