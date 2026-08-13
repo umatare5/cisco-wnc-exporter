@@ -102,52 +102,15 @@ release:
   prerelease: auto
   draft: false
   replace_existing_draft: true
-  # The header carries a static v0.2.0 -> v0.3.0 breaking-changes section.
-  # Remove that section when cutting v0.4.0.
   header: |
     ## {{ .ProjectName }} v{{ .Version }}
 
     This release contains the Prometheus Exporter for Cisco WNC.
 
-    ### ⚠️ Breaking changes since v0.2.0
-
-    Renamed and rescaled — values are now ratios in `0-1`, so divide alert
-    thresholds written for the old `0-100` percentages by 100:
-
-    | v0.2.0 | v0.3.0 |
-    | :--- | :--- |
-    | `wnc_ap_channel_utilization_percent` | `wnc_ap_channel_utilization_ratio` |
-    | `wnc_ap_cpu_utilization_percent` | `wnc_ap_cpu_utilization_ratio` |
-    | `wnc_ap_memory_utilization_percent` | `wnc_ap_memory_utilization_ratio` |
-    | `wnc_ap_noise_utilization_percent` | `wnc_ap_noise_utilization_ratio` |
-    | `wnc_ap_rx_utilization_percent` | `wnc_ap_rx_utilization_ratio` |
-    | `wnc_ap_tx_utilization_percent` | `wnc_ap_tx_utilization_ratio` |
-
-    Renamed:
-
-    | v0.2.0 | v0.3.0 |
-    | :--- | :--- |
-    | `wnc_ap_clients_total` | `wnc_ap_clients` |
-    | `wnc_ap_coverage_hole_events_total` | `wnc_ap_coverage_failed_clients` (now a Gauge) |
-    | `wnc_ap_last_radar_on_radio_at` | `wnc_ap_last_radar_timestamp_seconds` (now a Gauge) |
-    | `wnc_client_rx_group_counter_total` | `wnc_client_rx_group_total` |
-    | `wnc_wlan_clients_total` | `wnc_wlan_clients` |
-
-    Removed without replacement: `wnc_ap_rx_bytes_total`, `wnc_ap_rx_packets_total`,
-    `wnc_ap_tx_bytes_total`, `wnc_ap_tx_packets_total`, `wnc_ap_tx_drops_total`,
-    `wnc_ap_tx_errors_total`, `wnc_ap_wep_undecryptable_total`,
-    `wnc_client_retry_ratio_percent`, `wnc_wlan_rx_bytes_total`,
-    `wnc_wlan_tx_bytes_total`, `wnc_wlan_wpa2_enabled`,
-    `wnc_wlan_11k_neighbor_list_enabled`.
-
-    Same name, new meaning — `wnc_ap_oper_state` and `wnc_client_state` are now
-    always `1` and report the state in a `state` label. `wnc_ap_oper_state`
-    also drops its `radio` label and becomes one series per AP, tracking the
-    AP registration state. An alert such as `wnc_ap_oper_state == 0` silently
-    never fires; per-radio down detection is `wnc_ap_radio_state == 0`, which
-    is unchanged, and the label rewrites are
-    `wnc_ap_oper_state{state!="registered"}` and
-    `wnc_client_state{state!="client-status-run"}`.
+    > [!IMPORTANT]
+    > This project is pre-1.0 and a minor release may rename or remove a metric.
+    > Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md)
+    > before upgrading.
 
     ### 🐳 Container Images
 
@@ -172,6 +135,7 @@ release:
     ### 📚 Documentation
 
     - [README](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/README.md)
+    - [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md)
     - [Container Registry](https://github.com/umatare5/cisco-wnc-exporter/pkgs/container/cisco-wnc-exporter)
 
 # Generate checksums for source archives
