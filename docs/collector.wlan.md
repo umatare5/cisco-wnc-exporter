@@ -11,11 +11,9 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_auth_psk_enabled`               | Gauge | PSK authentication enabled           |
 | config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge | 802.1x authentication enabled        |
 | config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge | 802.1x SHA256 auth enabled           |
-| config  | `wnc_wlan_wpa2_enabled`                   | Gauge | WPA2 support enabled                 |
 | config  | `wnc_wlan_wpa3_enabled`                   | Gauge | WPA3 support enabled                 |
 | config  | `wnc_wlan_session_timeout_seconds`        | Gauge | Session timeout duration             |
 | config  | `wnc_wlan_load_balance_enabled`           | Gauge | Load balancing enabled               |
-| config  | `wnc_wlan_11k_neighbor_list_enabled`      | Gauge | 802.11k neighbor list enabled        |
 | config  | `wnc_wlan_client_steering_enabled`        | Gauge | 6GHz client steering enabled         |
 | config  | `wnc_wlan_central_switching_enabled`      | Gauge | Central switching enabled            |
 | config  | `wnc_wlan_central_authentication_enabled` | Gauge | Central authentication enabled       |
