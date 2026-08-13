@@ -102,6 +102,8 @@ release:
   prerelease: auto
   draft: false
   replace_existing_draft: true
+  # The header carries a static v0.2.0 -> v0.3.0 breaking-changes section.
+  # Remove that section when cutting v0.4.0.
   header: |
     ## {{ .ProjectName }} v{{ .Version }}
 
@@ -127,7 +129,7 @@ release:
     | :--- | :--- |
     | `wnc_ap_clients_total` | `wnc_ap_clients` |
     | `wnc_ap_coverage_hole_events_total` | `wnc_ap_coverage_failed_clients` (now a Gauge) |
-    | `wnc_ap_last_radar_on_radio_at` | `wnc_ap_last_radar_timestamp_seconds` |
+    | `wnc_ap_last_radar_on_radio_at` | `wnc_ap_last_radar_timestamp_seconds` (now a Gauge) |
     | `wnc_client_rx_group_counter_total` | `wnc_client_rx_group_total` |
     | `wnc_wlan_clients_total` | `wnc_wlan_clients` |
 
@@ -139,9 +141,12 @@ release:
     `wnc_wlan_11k_neighbor_list_enabled`.
 
     Same name, new meaning — `wnc_ap_oper_state` and `wnc_client_state` are now
-    always `1` and report the state in a `state` label. An alert such as
-    `wnc_ap_oper_state == 0` keeps its series and silently never fires; rewrite
-    it as `wnc_ap_oper_state{state!="registered"}` and
+    always `1` and report the state in a `state` label. `wnc_ap_oper_state`
+    also drops its `radio` label and becomes one series per AP, tracking the
+    AP registration state. An alert such as `wnc_ap_oper_state == 0` silently
+    never fires; per-radio down detection is `wnc_ap_radio_state == 0`, which
+    is unchanged, and the label rewrites are
+    `wnc_ap_oper_state{state!="registered"}` and
     `wnc_client_state{state!="client-status-run"}`.
 
     ### 🐳 Container Images
