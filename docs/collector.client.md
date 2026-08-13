@@ -53,6 +53,10 @@ Use this info metric to add contextual labels to other metrics in PromQL queries
 wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
 ```
 
+`wnc_client_info` exists only for clients that reached `client-status-run`, so
+this join silently drops a client held short of it. Keep an alert on stuck
+clients join-free, as shown in [States](README.md#states).
+
 ## Notes
 
 <details><summary><b>*3</b> Client error metrics observed to stay at zero on the access points this exporter was measured against</summary><br/>
