@@ -1,11 +1,8 @@
 # Changelog
 
-Notable changes to the metric surface, one section per release. Release dates,
-downloads and the full commit list live on the
-[releases page](https://github.com/umatare5/cisco-wnc-exporter/releases).
+Notable changes to the metric surface, one section per release. Release dates, downloads and the full commit list live on the [releases page](https://github.com/umatare5/cisco-wnc-exporter/releases).
 
-This project is pre-1.0, so a minor release may rename or remove a metric. Read
-the section for the version you are upgrading to before you upgrade.
+This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
 ## v0.3.0
 
@@ -30,8 +27,7 @@ These series are gone with no replacement.
 
 ### Renamed and rescaled
 
-Values are now ratios in `0-1`. Divide any threshold written for the old
-`0-100` percentages by 100.
+Values are now ratios in `0-1`. Divide any threshold written for the old `0-100` percentages by 100.
 
 | v0.2.0                               | v0.3.0                             |
 | :----------------------------------- | :--------------------------------- |
@@ -54,23 +50,13 @@ Values are now ratios in `0-1`. Divide any threshold written for the old
 
 ### Same name, new meaning
 
-`wnc_ap_oper_state` and `wnc_client_state` are always `1` and carry the state in
-a `state` label. An alert such as `wnc_ap_oper_state == 0` keeps returning
-samples and silently stops firing.
+`wnc_ap_oper_state` and `wnc_client_state` are always `1` and carry the state in a `state` label. An alert such as `wnc_ap_oper_state == 0` keeps returning samples and silently stops firing.
 
-- `wnc_ap_oper_state` also drops its `radio` label and is one series per AP,
-  tracking the AP registration state. Per-radio down detection is
-  `wnc_ap_radio_state == 0`, which is unchanged.
-- Rewrite label matches as `wnc_ap_oper_state{state!="registered"}` and
-  `wnc_client_state{state!="client-status-run"}`.
+- `wnc_ap_oper_state` also drops its `radio` label and is one series per AP, tracking the AP registration state. Per-radio down detection is `wnc_ap_radio_state == 0`, which is unchanged.
+- Rewrite label matches as `wnc_ap_oper_state{state!="registered"}` and `wnc_client_state{state!="client-status-run"}`.
 
 ### Notes
 
-The two WLAN config booleans were removed because the controller omits config
-leaves left at their default values, and an omitted leaf decodes to `0`. Both
-series therefore reported `0` on WLANs where the feature was in fact enabled.
-The remaining `config` series carry the same caveat, now stated in their HELP
-text and in [docs/collector.wlan.md](docs/collector.wlan.md).
+The two WLAN config booleans were removed because the controller omits config leaves left at their default values, and an omitted leaf decodes to `0`. Both series therefore reported `0` on WLANs where the feature was in fact enabled. The remaining `config` series carry the same caveat, now stated in their HELP text and in [docs/collector.wlan.md](docs/collector.wlan.md).
 
-Binaries are published as release assets. `go install` on the module root has
-never worked, because the main package lives in `cmd/`.
+Binaries are published as release assets. `go install` on the module root has never worked, because the main package lives in `cmd/`.
