@@ -61,10 +61,7 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 <details><summary><b>*1</b> Power save state value domain</summary><br/>
 
-The controller reports this leaf as an integer and the exporter publishes it unchanged.
-Values of 0 and 1 have been observed, with 0 on a client that was awake. The full domain
-is not documented, so treat a value above 1 as a state this exporter has not seen rather
-than as an error.
+The exporter decodes this leaf as an integer and publishes it unchanged, so a fractional reading would fail the fetch that carries it rather than arrive rounded. Zero was observed, and so was a non-zero reading of at most 1 whose exact value the measurement did not record. The full domain is not documented, so treat any other value as a state this exporter has not seen rather than as an error.
 
 </details>
 

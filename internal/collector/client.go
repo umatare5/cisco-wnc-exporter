@@ -85,7 +85,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		)
 		collector.powerSaveStateDesc = prometheus.NewDesc(
 			"wnc_client_power_save_state",
-			"Power save state as reported, 0 while awake",
+			"Power save state as reported",
 			labels, nil,
 		)
 	}
