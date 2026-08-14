@@ -4,7 +4,7 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
-## Unreleased
+## v0.4.0
 
 ### Added
 
