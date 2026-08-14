@@ -294,9 +294,10 @@ func (c *WLANCollector) collectConfigMetrics(
 ) {
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
-	// The controller omits entry leaves left at their default values, and the
-	// value-typed decode turns an omitted leaf into zero, which no query can
-	// tell apart from a configured false.
+	// The read asks for the values in force, so an entry leaf is omitted here only
+	// when the controller rejected that request or ignored it. The value-typed
+	// decode then turns the omitted leaf into zero, which nothing distinguishes
+	// from a configured false.
 	metrics := []Float64Metric{
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
 		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
