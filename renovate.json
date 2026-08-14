@@ -4,5 +4,12 @@
     "github>umatare5/common//renovate/default.json",
     "github>umatare5/common//renovate/github-actions.json"
   ],
-  "dependencyDashboard": false
+  "dependencyDashboard": false,
+  "packageRules": [
+    {
+      "description": "Hold the WNC SDK for human review: a bump can change metric values",
+      "matchPackageNames": ["github.com/umatare5/cisco-ios-xe-wireless-go"],
+      "automerge": false
+    }
+  ]
 }
