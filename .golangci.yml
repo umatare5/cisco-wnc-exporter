@@ -227,6 +227,7 @@ linters:
           - mnd          # Allow magic numbers for HTTP server configuration
       - path: ^internal/cli/
         linters:
+          - goconst      # Flag category labels repeat once per flag in a group
           - mnd          # Allow magic numbers for CLI configuration
           - revive       # Allow long main functions for CLI setup
 
