@@ -15,11 +15,12 @@ import (
 type RefreshCollector struct {
 	stats wnc.StatsProvider
 
-	upDesc        *prometheus.Desc
-	durationDesc  *prometheus.Desc
-	timestampDesc *prometheus.Desc
-	errorsDesc    *prometheus.Desc
-	itemsDesc     *prometheus.Desc
+	upDesc               *prometheus.Desc
+	durationDesc         *prometheus.Desc
+	timestampDesc        *prometheus.Desc
+	errorsDesc           *prometheus.Desc
+	itemsDesc            *prometheus.Desc
+	defaultsFallbackDesc *prometheus.Desc
 }
 
 // NewRefreshCollector creates a collector reporting WNC data refresh health.
@@ -58,6 +59,13 @@ func NewRefreshCollector(stats wnc.StatsProvider) *RefreshCollector {
 				"Recorded on success only, so an absent series means the fetch failed",
 			dataLabels, nil,
 		),
+		defaultsFallbackDesc: prometheus.NewDesc(
+			"wnc_refresh_defaults_fallback_total",
+			"WLAN configuration fetches that fell back to a plain read since "+
+				"process start. The controller rejected the request for the values "+
+				"in force, so a config leaf it omits reads as 0",
+			nil, nil,
+		),
 	}
 }
 
@@ -68,6 +76,7 @@ func (c *RefreshCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.timestampDesc
 	ch <- c.errorsDesc
 	ch <- c.itemsDesc
+	ch <- c.defaultsFallbackDesc
 }
 
 // Collect implements prometheus.Collector by reporting the refresh outcome.
@@ -91,6 +100,9 @@ func (c *RefreshCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.RefreshedAt.UnixNano())/float64(time.Second),
 		)
 	}
+
+	ch <- prometheus.MustNewConstMetric(
+		c.defaultsFallbackDesc, prometheus.CounterValue, float64(stats.DefaultsFallbacks))
 
 	for name, count := range stats.Errors {
 		ch <- prometheus.MustNewConstMetric(c.errorsDesc, prometheus.CounterValue, float64(count), name)
