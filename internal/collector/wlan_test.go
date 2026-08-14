@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -1270,22 +1271,23 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 }
 
 // TestWLANCollector_EnabledReportsBothLowCauses pins both polarities of
-// wnc_wlan_enabled, and both structural causes of the low one. The status lives in
-// an optional container, so the series reports zero either because the container is
-// absent or because the flag inside it is false. A guard that only checks the flag
-// panics on the first cause; one that only checks the container reports one for a
-// disabled WLAN.
+// wnc_wlan_enabled and the fate of an absent container. The status lives in an
+// optional container, so a guard that only checks the flag panics when the
+// container is absent, one that only checks the container reports one for a
+// disabled WLAN, and publishing zero for an absent container asserts that the
+// operator disabled the WLAN.
 func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		vapIDData *wlan.APFVapIDData
-		want      float64
+		name       string
+		vapIDData  *wlan.APFVapIDData
+		wantSeries bool
+		want       float64
 	}{
-		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, 1},
-		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, 0},
-		{"container absent", nil, 0},
+		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, true, 1},
+		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, true, 0},
+		{"container absent", nil, false, 0},
 	}
 
 	for _, tt := range tests {
@@ -1315,11 +1317,88 @@ func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
 				got = family.GetMetric()[0].GetGauge().GetValue()
 				found = true
 			}
-			if !found {
-				t.Fatal("wnc_wlan_enabled has no series, want one per configured WLAN")
+			if found != tt.wantSeries {
+				t.Fatalf("wnc_wlan_enabled has a series = %v, want %v", found, tt.wantSeries)
 			}
-			if got != tt.want {
+			if found && got != tt.want {
 				t.Errorf("wnc_wlan_enabled = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent pins the contract that a
+// policy-derived series is not published when the controller omits the container
+// its leaf lives in. Zero is a legal value for all five, so a fabricated zero is
+// indistinguishable from a measured one once it reaches Prometheus. The rows with
+// zero leaves inside a present container pin the other half of the contract, where
+// an omitted leaf and a configured zero decode alike and the series stays present.
+// The entry-derived series are the control. Their leaves sit on the entry itself,
+// so they are published either way.
+func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
+	t.Parallel()
+
+	timeoutDerived := []string{"wnc_wlan_session_timeout_seconds"}
+	switchingDerived := []string{
+		"wnc_wlan_central_switching_enabled",
+		"wnc_wlan_central_authentication_enabled",
+		"wnc_wlan_central_dhcp_enabled",
+		"wnc_wlan_central_association_enabled",
+	}
+	entryDerived := []string{
+		"wnc_wlan_auth_psk_enabled",
+		"wnc_wlan_auth_dot1x_enabled",
+		"wnc_wlan_auth_dot1x_sha256_enabled",
+		"wnc_wlan_wpa3_enabled",
+		"wnc_wlan_load_balance_enabled",
+		"wnc_wlan_client_steering_enabled",
+	}
+
+	timeout := &wlan.WlanTimeout{SessionTimeout: 1800}
+	switching := &wlan.WlanSwitchingPolicy{CentralSwitching: true}
+
+	tests := []struct {
+		name      string
+		timeout   *wlan.WlanTimeout
+		switching *wlan.WlanSwitchingPolicy
+		absent    []string
+	}{
+		{"both containers present", timeout, switching, nil},
+		{"both containers present with zero leaves", &wlan.WlanTimeout{}, &wlan.WlanSwitchingPolicy{}, nil},
+		{"timeout container absent", nil, switching, timeoutDerived},
+		{"switching container absent", timeout, nil, switchingDerived},
+		{"both containers absent", nil, nil, slices.Concat(timeoutDerived, switchingDerived)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.WLANPolicies[0].WlanTimeout = tt.timeout
+			data.WLANPolicies[0].WlanSwitchingPolicy = tt.switching
+			src := fixtureSource{data: data}
+
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+			))
+
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+
+			present := make(map[string]bool, len(families))
+			for _, family := range families {
+				present[family.GetName()] = len(family.GetMetric()) > 0
+			}
+
+			for _, name := range slices.Concat(entryDerived, timeoutDerived, switchingDerived) {
+				want := !slices.Contains(tt.absent, name)
+				if present[name] != want {
+					t.Errorf("%s has a series = %v, want %v", name, present[name], want)
+				}
 			}
 		})
 	}
