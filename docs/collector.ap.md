@@ -19,7 +19,7 @@ AP collector focuses on RF foundation and radio performance.
 | radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
 | radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Noise on the operating channel (dBm) **(\*2)**   |
 | radio   | `wnc_ap_channel_utilization_ratio`    | Gauge   | Channel utilization ratio (CCA), 0-1             |
-| radio   | `wnc_ap_rx_utilization_ratio`         | Gauge   | RX utilization ratio (0-1)                       |
+| radio   | `wnc_ap_rx_utilization_ratio`         | Gauge   | RX utilization ratio (0-1) **(\*3)**             |
 | radio   | `wnc_ap_tx_utilization_ratio`         | Gauge   | TX utilization ratio (0-1)                       |
 | radio   | `wnc_ap_noise_utilization_ratio`      | Gauge   | Noise channel utilization ratio (0-1)            |
 | radio   | `wnc_ap_clients`                      | Gauge   | Run-state clients count (calculated)             |
@@ -112,11 +112,11 @@ The `radio` label is not a substitute. A dual band radio keeps its slot while it
 <details><summary><b>*3</b> Metrics observed to stay at zero on the AP models this exporter was measured against</summary><br/>
 
 The metrics below were observed at zero on every radio of the access points this
-exporter was measured against, while their neighbours in the same container advanced.
+exporter was measured against, while their neighbours in the same container were not.
 That applies while the fetch succeeds: a data type whose fetch failed makes its series
 absent rather than zero.
 
-**Whether a counter is maintained depends on the access point model and the release.**
+**Whether a leaf is maintained depends on the access point model and the release.**
 One model reported FCS errors while another returned zero for them on every band, and
 the reverse held for multicast transmit frames. Read the list as an observation, not as
 a property of the platform, and confirm it against your own access points before
@@ -124,6 +124,7 @@ building an alert on the absence of a value.
 
 | Metric                                   | What the zero means here                                                                                                    |
 | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| `wnc_ap_rx_utilization_ratio`            | Observed at zero while channel and noise utilization on the same radio read non-zero. Cause not established.                |
 | `wnc_ap_control_(rx\|tx)_frames_total`   | Observed at zero while data and management frames advanced.                                                                 |
 | `wnc_ap_multicast_(rx\|tx)_frames_total` | Receive observed at zero; transmit advanced on one model and not on another.                                                |
 | `wnc_ap_rx_errors_total`                 | Observed at zero while FCS errors advanced on the same radio.                                                               |
