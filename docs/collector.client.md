@@ -59,6 +59,8 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 ## Notes
 
+Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module, and the ratio series removed in v0.3.0 sat in the errors module alone. Both flags default off.
+
 <details><summary><b>*1</b> Power save state value domain</summary><br/>
 
 The exporter decodes this leaf as an integer and publishes it unchanged, so a fractional reading would fail the fetch that carries it rather than arrive rounded. Zero was observed, and so was a non-zero reading of at most 1 whose exact value the measurement did not record. The full domain is not documented, so treat any other value as a state this exporter has not seen rather than as an error.

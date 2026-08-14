@@ -54,22 +54,24 @@ Separately, the HELP text of `wnc_ap_admin_state` and `wnc_wlan_enabled` no long
 
 ### Removed
 
-These series are gone with no replacement.
+These series are gone. Where a substitute exists, the reason names it.
 
 | Metric                               | Reason                                                                         |
 | :----------------------------------- | :----------------------------------------------------------------------------- |
-| `wnc_ap_rx_bytes_total`              | Frame counter times a constant 1500; the frame counters remain                 |
-| `wnc_ap_tx_bytes_total`              | Same                                                                           |
-| `wnc_ap_rx_packets_total`            | Read the same leaf as the data-frame counter                                   |
-| `wnc_ap_tx_packets_total`            | Same                                                                           |
-| `wnc_ap_tx_drops_total`              | Read `ack-failure-count`, which Cisco bug CSCwn96363 says not to use           |
+| `wnc_ap_rx_bytes_total`              | A frame counter times a constant 1500; use `wnc_ap_data_rx_frames_total`       |
+| `wnc_ap_tx_bytes_total`              | Same, against `wnc_ap_data_tx_frames_total`                                    |
+| `wnc_ap_rx_packets_total`            | Read the leaf `wnc_ap_data_rx_frames_total` reads; substitute that name        |
+| `wnc_ap_tx_packets_total`            | Same, against `wnc_ap_data_tx_frames_total`                                    |
+| `wnc_ap_tx_drops_total`              | Named a drop count but read `ack-failure-count` — see AP note \*4              |
 | `wnc_ap_tx_errors_total`             | Read `failed-count`, already published as `wnc_ap_transmission_failures_total` |
 | `wnc_ap_wep_undecryptable_total`     | Cannot leave zero unless a WLAN is configured for static WEP                   |
-| `wnc_client_retry_ratio_percent`     | A quotient of two counters the controller reports no retry rate for            |
-| `wnc_wlan_rx_bytes_total`            | Summing a varying member set does not yield a counter                          |
+| `wnc_client_retry_ratio_percent`     | Summed two retry counters over a packet counter, all three still published raw |
+| `wnc_wlan_rx_bytes_total`            | A sum over a changing client set is not a counter — see the note below         |
 | `wnc_wlan_tx_bytes_total`            | Same                                                                           |
 | `wnc_wlan_wpa2_enabled`              | Reported `0` on WLANs whose operative value is enabled — see the note below    |
 | `wnc_wlan_11k_neighbor_list_enabled` | Same                                                                           |
+
+**Per-WLAN throughput.** No series replaces the two WLAN byte counters directly. Sum the rate of the per-client counters and carry the WLAN identity from the client info metric: `sum by (wlan) (rate(wnc_client_tx_bytes_total[15m]) * on (mac) group_left (wlan) wnc_client_info)`. That needs the client collector's traffic and info modules, and `wlan` in `--collector.client.info-labels`, which the default set omits. It groups by SSID name rather than the `id` the WLAN series carried, so joining back to a WLAN series takes a second hop through `wnc_wlan_info`.
 
 ### Renamed and rescaled
 
