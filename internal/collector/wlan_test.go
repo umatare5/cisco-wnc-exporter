@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -1125,57 +1126,98 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 	}
 }
 
-func TestWLANCollector_collectConfigMetrics(t *testing.T) {
+// TestWLANCollector_ConfigBooleansMatchLeaves binds each config boolean series to
+// its own leaf. The ten series share one value domain, so a swapped descriptor, or a
+// leaf swapped where the emit list reads it, keeps every count, every label and every
+// value in range: only a fixture that raises one leaf at a time separates them, and
+// only the registry route shows which descriptor carried the value.
+//
+// Raising one leaf at a time need not describe a WLAN anyone would deploy. The
+// subject here is the wiring, not a deployable configuration.
+func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 	t.Parallel()
 
-	entry := wlan.WlanCfgEntry{
-		WlanID:                 1,
-		ProfileName:            "test-profile",
-		AuthKeyMgmtPsk:         true,
-		AuthKeyMgmtDot1x:       false,
-		AuthKeyMgmtDot1xSha256: false,
-		WPA2Enabled:            true,
-		WPA3Enabled:            false,
-		LoadBalance:            true,
-		Wlan11kNeighList:       true,
-		ClientSteering:         true,
-		APFVapIDData: &wlan.APFVapIDData{
-			SSID: "TestWLAN",
-		},
+	tests := []struct {
+		name  string
+		raise func(*wnc.WNCDataCache)
+	}{
+		{"wnc_wlan_auth_psk_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtPsk = true
+		}},
+		{"wnc_wlan_auth_dot1x_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1x = true
+		}},
+		{"wnc_wlan_auth_dot1x_sha256_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1xSha256 = true
+		}},
+		{"wnc_wlan_wpa3_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].WPA3Enabled = true
+		}},
+		{"wnc_wlan_load_balance_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].LoadBalance = true
+		}},
+		{"wnc_wlan_client_steering_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].ClientSteering = true
+		}},
+		{"wnc_wlan_central_switching_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = true
+		}},
+		{"wnc_wlan_central_authentication_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAuthentication = true
+		}},
+		{"wnc_wlan_central_dhcp_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralDHCP = true
+		}},
+		{"wnc_wlan_central_association_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = true
+		}},
 	}
 
-	policyMap := map[string]*wlan.WlanPolicy{
-		"test-profile": {},
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	collector := &WLANCollector{
-		metrics:                   WLANMetrics{Config: true},
-		authPskDesc:               prometheus.NewDesc("test_auth_psk", "test", []string{"id"}, nil),
-		authDot1xDesc:             prometheus.NewDesc("test_auth_dot1x", "test", []string{"id"}, nil),
-		authDot1xSha256Desc:       prometheus.NewDesc("test_auth_dot1x_sha256", "test", []string{"id"}, nil),
-		wpa3EnabledDesc:           prometheus.NewDesc("test_wpa3_enabled", "test", []string{"id"}, nil),
-		sessionTimeoutDesc:        prometheus.NewDesc("test_session_timeout", "test", []string{"id"}, nil),
-		loadBalanceDesc:           prometheus.NewDesc("test_load_balance", "test", []string{"id"}, nil),
-		clientSteeringDesc:        prometheus.NewDesc("test_client_steering", "test", []string{"id"}, nil),
-		centralSwitchingDesc:      prometheus.NewDesc("test_central_switching", "test", []string{"id"}, nil),
-		centralAuthenticationDesc: prometheus.NewDesc("test_central_auth", "test", []string{"id"}, nil),
-		centralDHCPDesc:           prometheus.NewDesc("test_central_dhcp", "test", []string{"id"}, nil),
-		centralAssocEnableDesc:    prometheus.NewDesc("test_central_assoc", "test", []string{"id"}, nil),
-	}
+			data := fullFixtureSnapshot()
+			// The shared fixture raises the first two leaves, so the one-hot pattern has
+			// to lower them. wlan-11k-neigh-list is raised and left unread: a descriptor
+			// folded onto a withdrawn leaf then reports one where this table wants zero.
+			data.WLANConfigEntries[0].AuthKeyMgmtPsk = false
+			data.WLANConfigEntries[0].Wlan11kNeighList = true
+			data.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = false
+			tt.raise(data)
+			src := fixtureSource{data: data}
 
-	ch := make(chan prometheus.Metric, 20)
-	go func() {
-		defer close(ch)
-		collector.collectConfigMetrics(ch, entry, policyMap)
-	}()
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+			))
 
-	metricCount := 0
-	for range ch {
-		metricCount++
-	}
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
 
-	if metricCount == 0 {
-		t.Error("collectConfigMetrics() emitted 0 metrics, want > 0")
+			values := make(map[string]float64, len(families))
+			for _, family := range families {
+				if metrics := family.GetMetric(); len(metrics) == 1 {
+					values[family.GetName()] = metrics[0].GetGauge().GetValue()
+				}
+			}
+
+			for _, other := range tests {
+				want := 0.0
+				if other.name == tt.name {
+					want = 1.0
+				}
+				got, ok := values[other.name]
+				if !ok {
+					t.Fatalf("%s carries no single series, so the raised leaf proves nothing", other.name)
+				}
+				if got != want {
+					t.Errorf("%s = %v, want %v while only %s is raised", other.name, got, want, tt.name)
+				}
+			}
+		})
 	}
 }
 
@@ -1270,22 +1312,23 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 }
 
 // TestWLANCollector_EnabledReportsBothLowCauses pins both polarities of
-// wnc_wlan_enabled, and both structural causes of the low one. The status lives in
-// an optional container, so the series reports zero either because the container is
-// absent or because the flag inside it is false. A guard that only checks the flag
-// panics on the first cause; one that only checks the container reports one for a
-// disabled WLAN.
+// wnc_wlan_enabled and the fate of an absent container. The status lives in an
+// optional container, so a guard that only checks the flag panics when the
+// container is absent, one that only checks the container reports one for a
+// disabled WLAN, and publishing zero for an absent container asserts that the
+// operator disabled the WLAN.
 func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		vapIDData *wlan.APFVapIDData
-		want      float64
+		name       string
+		vapIDData  *wlan.APFVapIDData
+		wantSeries bool
+		want       float64
 	}{
-		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, 1},
-		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, 0},
-		{"container absent", nil, 0},
+		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, true, 1},
+		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, true, 0},
+		{"container absent", nil, false, 0},
 	}
 
 	for _, tt := range tests {
@@ -1315,11 +1358,88 @@ func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
 				got = family.GetMetric()[0].GetGauge().GetValue()
 				found = true
 			}
-			if !found {
-				t.Fatal("wnc_wlan_enabled has no series, want one per configured WLAN")
+			if found != tt.wantSeries {
+				t.Fatalf("wnc_wlan_enabled has a series = %v, want %v", found, tt.wantSeries)
 			}
-			if got != tt.want {
+			if found && got != tt.want {
 				t.Errorf("wnc_wlan_enabled = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent pins the contract that a
+// policy-derived series is not published when the controller omits the container
+// its leaf lives in. Zero is a legal value for all five, so a fabricated zero is
+// indistinguishable from a measured one once it reaches Prometheus. The rows with
+// zero leaves inside a present container pin the other half of the contract, where
+// an omitted leaf and a configured zero decode alike and the series stays present.
+// The entry-derived series are the control. Their leaves sit on the entry itself,
+// so they are published either way.
+func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
+	t.Parallel()
+
+	timeoutDerived := []string{"wnc_wlan_session_timeout_seconds"}
+	switchingDerived := []string{
+		"wnc_wlan_central_switching_enabled",
+		"wnc_wlan_central_authentication_enabled",
+		"wnc_wlan_central_dhcp_enabled",
+		"wnc_wlan_central_association_enabled",
+	}
+	entryDerived := []string{
+		"wnc_wlan_auth_psk_enabled",
+		"wnc_wlan_auth_dot1x_enabled",
+		"wnc_wlan_auth_dot1x_sha256_enabled",
+		"wnc_wlan_wpa3_enabled",
+		"wnc_wlan_load_balance_enabled",
+		"wnc_wlan_client_steering_enabled",
+	}
+
+	timeout := &wlan.WlanTimeout{SessionTimeout: 1800}
+	switching := &wlan.WlanSwitchingPolicy{CentralSwitching: true}
+
+	tests := []struct {
+		name      string
+		timeout   *wlan.WlanTimeout
+		switching *wlan.WlanSwitchingPolicy
+		absent    []string
+	}{
+		{"both containers present", timeout, switching, nil},
+		{"both containers present with zero leaves", &wlan.WlanTimeout{}, &wlan.WlanSwitchingPolicy{}, nil},
+		{"timeout container absent", nil, switching, timeoutDerived},
+		{"switching container absent", timeout, nil, switchingDerived},
+		{"both containers absent", nil, nil, slices.Concat(timeoutDerived, switchingDerived)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.WLANPolicies[0].WlanTimeout = tt.timeout
+			data.WLANPolicies[0].WlanSwitchingPolicy = tt.switching
+			src := fixtureSource{data: data}
+
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+			))
+
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+
+			present := make(map[string]bool, len(families))
+			for _, family := range families {
+				present[family.GetName()] = len(family.GetMetric()) > 0
+			}
+
+			for _, name := range slices.Concat(entryDerived, timeoutDerived, switchingDerived) {
+				want := !slices.Contains(tt.absent, name)
+				if present[name] != want {
+					t.Errorf("%s has a series = %v, want %v", name, present[name], want)
+				}
 			}
 		})
 	}

@@ -30,8 +30,9 @@ This cross-compiles a Linux binary into `./tmp/image`, then builds from that dir
 
 To release a new version, follow these steps:
 
-1. Update the version in the `VERSION` file.
-2. Submit a pull request with the updated `VERSION` file.
+1. Rename the `## Unreleased` heading in `CHANGELOG.md` to `## vX.Y.Z`, matching the `VERSION` file exactly.
+2. Update the version in the `VERSION` file.
+3. Submit a pull request with both files.
 
 Merging that pull request is the whole release. A push to `main` touching `VERSION` runs the [release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml), which tags the commit and publishes the release in the same run. The workflow has no manual trigger, so there is no step to perform by hand.
 
@@ -40,5 +41,6 @@ Merging that pull request is the whole release. A push to `main` touching `VERSI
 1. Fork ([https://github.com/umatare5/cisco-wnc-exporter/fork](https://github.com/umatare5/cisco-wnc-exporter/fork))
 2. Create a feature branch
 3. Commit your changes
-4. Rebase your local changes against the `main` branch
-5. Create a new Pull Request
+4. Record any change to the metric surface under `## Unreleased` in `CHANGELOG.md`
+5. Rebase your local changes against the `main` branch
+6. Create a new Pull Request

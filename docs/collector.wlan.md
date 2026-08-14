@@ -22,12 +22,11 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 
 ## Notes
 
-The `config` module reads `wlan-cfg-entries` and `wlan-policies`. The controller
-omits leaves left at their default values from these responses — observed on
-IOS-XE 17.12, which answers RESTCONF with the `with-defaults` basic mode
-`explicit`. A boolean series therefore reports `0`, and
-`wnc_wlan_session_timeout_seconds` reports `0`, for any leaf the controller did
-not send, even when the operative default is enabled or non-zero.
+The `general` and `config` modules read `wlan-cfg-entries`, and `config` also reads `wlan-policies`. The controller omits every leaf the profile never set from these responses — observed on IOS-XE 17.12, which answers RESTCONF with the `with-defaults` basic mode `explicit`. The same leaf can therefore arrive for one policy profile and be missing for another on one controller.
+
+`wnc_wlan_enabled`, `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*` series read their leaf from an optional container, and are not published for a WLAN whose response omits that container. A container the controller does send may still omit individual leaves, which decode to `0`, so a `0` on these series can still mean that the controller did not report the leaf.
+
+The remaining `config` boolean series read a leaf on the entry itself, where an omitted leaf and a configured `false` decode alike. They report `0` for any leaf the controller did not send, so a leaf whose default is enabled would report `0` while the feature is in force. Every default measured behind these series on IOS-XE 17.12 was disabled — the two series that did read a default-enabled leaf were removed in v0.3.0.
 
 ## Labels
 

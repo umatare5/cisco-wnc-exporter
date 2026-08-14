@@ -1,11 +1,40 @@
 # Changelog
 
-Notable changes to the metric surface, one section per release. Release dates,
-downloads and the full commit list live on the
-[releases page](https://github.com/umatare5/cisco-wnc-exporter/releases).
+Notable changes to the metric surface, one section per release. Release dates, downloads and the full commit list live on the [releases page](https://github.com/umatare5/cisco-wnc-exporter/releases).
 
-This project is pre-1.0, so a minor release may rename or remove a metric. Read
-the section for the version you are upgrading to before you upgrade.
+This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
+
+## Unreleased
+
+### Removed
+
+- The floating container tag `ghcr.io/umatare5/cisco-wnc-exporter:v0` is no longer published. It moved on every 0.x release, so a deployment pinned to `:v0` adopted the metric renames and removals of v0.3.0 without any notice.
+- Pin `:v0.4` to follow the current minor line, or `:v0.4.0` for an immutable tag. A deployment still pinned to `:v0` keeps running the image that tag last pointed at and stops receiving updates.
+
+### Changed
+
+Six WLAN series are now emitted only when the controller returned the container they are read from. A `0` from one of them no longer stands in for a container the controller never sent.
+
+| Metric                                    | Emitted only when this container is present |
+| :---------------------------------------- | :------------------------------------------ |
+| `wnc_wlan_enabled`                        | `apf-vap-id-data`                           |
+| `wnc_wlan_session_timeout_seconds`        | `wlan-timeout`                              |
+| `wnc_wlan_central_switching_enabled`      | `wlan-switching-policy`                     |
+| `wnc_wlan_central_authentication_enabled` | `wlan-switching-policy`                     |
+| `wnc_wlan_central_dhcp_enabled`           | `wlan-switching-policy`                     |
+| `wnc_wlan_central_association_enabled`    | `wlan-switching-policy`                     |
+
+A rule that treats one of these series as always present needs `absent()` or `or vector(0)`, the same guard v0.3.0 introduced for a failed fetch.
+
+**Known limitation.** A container that carries only some of its leaves is still reported, and the leaves it omits still decode to `0`. On IOS-XE 17.12 the two leaves behind `wnc_wlan_central_authentication_enabled` and `wnc_wlan_central_association_enabled` can be missing from a `wlan-switching-policy` the controller did send, and `show running-config all` need not print them either. A policy profile is read only through a WLAN bound to it, so a WLAN bound to a profile in that state reports `0` on both series whatever the operative value is.
+
+Separately, the HELP text of `wnc_ap_admin_state` and `wnc_wlan_enabled` no longer equates a `0` with disabled. A `0` means the controller reported something other than the enabled spelling, or reported nothing at all.
+
+### Fixed
+
+- A whitespace-only `--wnc.controller` or `--wnc.access-token` is now rejected during validation instead of panicking at start-up.
+- Surrounding whitespace is trimmed from `--wnc.controller` and `--wnc.access-token`, so a value read from a file or a secret no longer breaks every RESTCONF request.
+- Release archives now carry `docs/*.md`, so the README links that moved into `docs/` in v0.3.0 resolve inside the tarball. The unused `*.go` entry, which matched nothing in the repository root, is gone.
 
 ## v0.3.0
 
@@ -30,8 +59,7 @@ These series are gone with no replacement.
 
 ### Renamed and rescaled
 
-Values are now ratios in `0-1`. Divide any threshold written for the old
-`0-100` percentages by 100.
+Values are now ratios in `0-1`. Divide any threshold written for the old `0-100` percentages by 100.
 
 | v0.2.0                               | v0.3.0                             |
 | :----------------------------------- | :--------------------------------- |
@@ -52,25 +80,40 @@ Values are now ratios in `0-1`. Divide any threshold written for the old
 | `wnc_client_rx_group_counter_total` | `wnc_client_rx_group_total`                        |
 | `wnc_wlan_clients_total`            | `wnc_wlan_clients`                                 |
 
-### Same name, new meaning
+### Changed
 
-`wnc_ap_oper_state` and `wnc_client_state` are always `1` and carry the state in
-a `state` label. An alert such as `wnc_ap_oper_state == 0` keeps returning
-samples and silently stops firing.
+These names are unchanged, so a query keeps working and returns something different.
 
-- `wnc_ap_oper_state` also drops its `radio` label and is one series per AP,
-  tracking the AP registration state. Per-radio down detection is
-  `wnc_ap_radio_state == 0`, which is unchanged.
-- Rewrite label matches as `wnc_ap_oper_state{state!="registered"}` and
-  `wnc_client_state{state!="client-status-run"}`.
+- A series whose source data type failed to fetch is now absent instead of `0`. Queries that relied on the zero being present need `or vector(0)` or an `absent()` guard.
+- `--wnc.cache-ttl` is the minimum interval between refresh completions, not a snapshot expiry. The first scrape after start-up reports `wnc_up 0` and carries no data series.
+- `wnc_ap_radio_reset_total` sums every reset cause per radio, so the value steps up instead of tracking whichever cause the controller listed last.
+- The `band` label on `wnc_ap_info` and `wnc_client_info` changes value and gains `unknown`. A rule that filters or groups by `band` does not error, it covers a different set.
+- `wnc_ap_tx_power_dbm` and `wnc_ap_tx_power_max_dbm` are read from the record matching the operating band, so they change value on a radio supporting more than one band and are absent when no record matches.
+- `wnc_ap_noise_floor_dbm` is read from the entry matching the radio's channel, so it changes value and is absent when the channel has no measurement, including a radio in monitor or sniffer mode.
+- `wnc_client_protocol` returns 802.11b where it returned `unknown` or 802.11g, and no longer guesses a generation from `is-11g-client`.
+- `wnc_ap_oper_state` and `wnc_client_state` are always `1` and carry the state in a `state` label. An alert such as `wnc_ap_oper_state == 0` keeps returning samples and silently stops firing.
+- `wnc_ap_oper_state` also drops its `radio` label and is one series per AP, tracking the AP registration state. Per-radio down detection is `wnc_ap_radio_state == 0`, which is unchanged.
+- Rewrite label matches as `wnc_ap_oper_state{state!="registered"}` and `wnc_client_state{state!="client-status-run"}`.
+- A non-default `--web.telemetry-path` now moves the endpoint, so a scrape config still pointing at `/metrics` gets the landing page instead of metrics.
+- Values that were accepted and then ignored are now rejected at start-up: whitespace, `{`, `?`, `#`, `%`, a path needing cleaning such as a trailing slash, and the health path.
+- Setting the path to `/` replaces the landing page rather than adding a second handler to the root.
+
+### Added
+
+Five series report the health of the WNC data refresh itself. Without them a refresh that reached nothing yields a successful scrape carrying no series, which no alert can detect.
+
+| Metric                                  | Reports                                                   |
+| :-------------------------------------- | :-------------------------------------------------------- |
+| `wnc_up`                                | Whether the last completed refresh reached the controller |
+| `wnc_refresh_duration_seconds`          | Duration of the last refresh attempt                      |
+| `wnc_refresh_success_timestamp_seconds` | Start time of the refresh behind the served snapshot      |
+| `wnc_refresh_errors_total`              | Fetch failures per `data` type since process start        |
+| `wnc_refresh_items`                     | Items the last refresh returned per `data` type           |
+
+The other eleven names that appear in v0.3.0 are the new names in the two Renamed tables above.
 
 ### Notes
 
-The two WLAN config booleans were removed because the controller omits config
-leaves left at their default values, and an omitted leaf decodes to `0`. Both
-series therefore reported `0` on WLANs where the feature was in fact enabled.
-The remaining `config` series carry the same caveat, now stated in their HELP
-text and in [docs/collector.wlan.md](docs/collector.wlan.md).
+The two WLAN config booleans were removed because the controller omits config leaves left at their default values, and an omitted leaf decodes to `0`. Both series therefore reported `0` on WLANs where the feature was in fact enabled. The remaining `config` series carry the same caveat, now stated in their HELP text and in [docs/collector.wlan.md](docs/collector.wlan.md).
 
-Binaries are published as release assets. `go install` on the module root has
-never worked, because the main package lives in `cmd/`.
+Binaries are published as release assets. `go install` on the module root has never worked, because the main package lives in `cmd/`.

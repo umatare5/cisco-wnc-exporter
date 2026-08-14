@@ -33,7 +33,9 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 
 - The controller updates AP and client counters, RSSI and SNR on its own schedule rather than on scrape
 - The AP profile `stats-timer` governs that schedule and defaults to 180 seconds
-- RRM noise and coverage update every 180 seconds, and RRM load every 60 seconds
+- RRM coverage updates every 180 seconds and RRM load every 60 seconds
+- The RRM measurement interval is per band — 180 seconds on 2.4 and 5 GHz and 600 seconds on 6 GHz on the controller this exporter was measured against
+- `show ap dot11 {24ghz | 5ghz | 6ghz} monitor` reports the coverage, load, measurement and reporting intervals in force
 - Use a range of **15 minutes or more** for `rate()` and `increase()`
 - A shorter range spans too few controller updates to be meaningful
 

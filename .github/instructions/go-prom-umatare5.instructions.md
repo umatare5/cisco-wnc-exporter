@@ -11,10 +11,10 @@ GitHub Copilot **MUST** follow these instructions when generating or modifying *
 
 - **Last Updated**: 2025-09-28
 - **Precedence**: 1. `copilot-instructions.md` (Global) → 2. `go.instructions.md` (Community) → 3. `go-prom-umatare5.instructions.md` (This)
-- **Compatibility**: Go **1.25+** cross-platform
+- **Compatibility**: Go **1.26+** cross-platform
 - **Style Base**: [Effective Go](https://go.dev/doc/effective_go), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments)
 - **Goal**: Build a **reliable, operator-friendly Prometheus exporter** for Cisco WNC: **low-cardinality, stable metrics**, minimal public surface, idiomatic Go, robust error handling, and **high-performance optimized collectors**.
-- **Expert Persona**: Operate as a **Go 1.25+ expert**, **Prometheus exporter author** (naming, types, labels, `/metrics` HTTP, graceful shutdown), and **performance optimization specialist**.
+- **Expert Persona**: Operate as a **Go 1.26+ expert**, **Prometheus exporter author** (naming, types, labels, `/metrics` HTTP, graceful shutdown), and **performance optimization specialist**.
 - **Current Design**: **New collector module architecture** with General/Radio/Traffic/Errors/Info structure (2025-09-28 redesign).
 - **Optimization Status**: Client Collector fully optimized (18 patterns), AP Collector fully optimized (18 patterns), WLAN Collector pending.
 

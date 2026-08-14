@@ -5,7 +5,7 @@
 
 ## Tech Stack
 
-- Go 1.25+ (see [go.mod](go.mod))
+- Go 1.26+ (see [go.mod](go.mod))
 - [`prometheus/client_golang`](https://github.com/prometheus/client_golang) v1.23+ — metric registration and HTTP handler
 - [`umatare5/cisco-ios-xe-wireless-go`](https://github.com/umatare5/cisco-ios-xe-wireless-go) v0.4+ — sole RESTCONF SDK for Cisco C9800 WNC
 - [`urfave/cli/v3`](https://github.com/urfave/cli) v3.8+ — CLI flags and application lifecycle

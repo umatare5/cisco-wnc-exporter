@@ -124,6 +124,33 @@ func TestRegisterWNCFlags(t *testing.T) {
 	}
 }
 
+// TestRegisterWNCFlags_TrimSpace pins that the connection settings are trimmed at
+// the flag, so a value taken from a file or a secret cannot carry a trailing newline
+// into the Authorization header or the RESTCONF URL.
+func TestRegisterWNCFlags_TrimSpace(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]bool{"wnc.controller": true, "wnc.access-token": true}
+
+	for _, flag := range registerWNCFlags() {
+		stringFlag, ok := flag.(*cli.StringFlag)
+		if !ok {
+			continue
+		}
+		if _, tracked := want[stringFlag.Name]; !tracked {
+			continue
+		}
+		if !stringFlag.Config.TrimSpace {
+			t.Errorf("flag %s Config.TrimSpace = false, want true", stringFlag.Name)
+		}
+		delete(want, stringFlag.Name)
+	}
+
+	for name := range want {
+		t.Errorf("flag %s not found in registerWNCFlags()", name)
+	}
+}
+
 // TestRegisterCollectorFlags verifies collector-wide configuration flags.
 func TestRegisterCollectorFlags(t *testing.T) {
 	t.Parallel()

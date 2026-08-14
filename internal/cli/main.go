@@ -91,6 +91,9 @@ func registerWNCFlags() []cli.Flag {
 			Required:    true,
 			Sources:     cli.EnvVars("WNC_CONTROLLER"),
 			DefaultText: "<required>",
+			Config: cli.StringConfig{
+				TrimSpace: true,
+			},
 		},
 		&cli.StringFlag{
 			Name:        "wnc.access-token",
@@ -98,6 +101,9 @@ func registerWNCFlags() []cli.Flag {
 			Required:    true,
 			Sources:     cli.EnvVars("WNC_ACCESS_TOKEN"),
 			DefaultText: "<required>",
+			Config: cli.StringConfig{
+				TrimSpace: true,
+			},
 		},
 		&cli.DurationFlag{
 			Name:  "wnc.timeout",

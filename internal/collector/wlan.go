@@ -58,7 +58,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 	if metrics.General {
 		collector.enabledDesc = prometheus.NewDesc(
 			"wnc_wlan_enabled",
-			"WLAN status (0=disabled, 1=enabled)",
+			"WLAN status (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 	}
@@ -94,7 +94,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.sessionTimeoutDesc = prometheus.NewDesc(
 			"wnc_wlan_session_timeout_seconds",
-			"Session timeout duration in seconds, 0 when the controller omits it",
+			"Session timeout duration in seconds, 0 when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.loadBalanceDesc = prometheus.NewDesc(
@@ -237,6 +237,12 @@ func (c *WLANCollector) collectGeneralMetrics(
 	ch chan<- prometheus.Metric,
 	entry wlan.WlanCfgEntry,
 ) {
+	// The status lives in an optional container. Reporting zero for an absent
+	// container would assert that the operator disabled the WLAN.
+	if entry.APFVapIDData == nil {
+		return
+	}
+
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
 	metrics := []Float64Metric{
@@ -289,8 +295,8 @@ func (c *WLANCollector) collectConfigMetrics(
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
 	// The controller omits entry leaves left at their default values, and the
-	// value-typed decode turns an omitted leaf into zero. These series report
-	// that zero even when the operative default is enabled.
+	// value-typed decode turns an omitted leaf into zero, which no query can
+	// tell apart from a configured false.
 	metrics := []Float64Metric{
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
 		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
@@ -300,17 +306,25 @@ func (c *WLANCollector) collectConfigMetrics(
 		{c.clientSteeringDesc, boolToFloat64(entry.ClientSteering)},
 	}
 
-	// The policy-derived series need a resolved policy profile. A WLAN not bound
-	// to a policy tag has no policy, and reporting zero would assert that central
-	// switching is deliberately disabled and that no session timeout is set.
+	// The policy-derived series need a resolved policy profile and the container
+	// each leaf lives in. A WLAN not bound to a policy tag has no policy, an absent
+	// container is not a disabled feature, and reporting zero would assert that
+	// central switching is deliberately disabled and that no session timeout is set.
 	if profile, ok := policyMap[entry.ProfileName]; ok {
-		metrics = append(metrics,
-			Float64Metric{c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
-			Float64Metric{c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
-			Float64Metric{c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
-			Float64Metric{c.centralDHCPDesc, determineCentralDHCPValue(profile)},
-			Float64Metric{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
-		)
+		if profile.WlanTimeout != nil {
+			metrics = append(metrics,
+				Float64Metric{c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
+			)
+		}
+
+		if profile.WlanSwitchingPolicy != nil {
+			metrics = append(metrics,
+				Float64Metric{c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
+				Float64Metric{c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
+				Float64Metric{c.centralDHCPDesc, determineCentralDHCPValue(profile)},
+				Float64Metric{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
+			)
+		}
 	}
 
 	for _, metric := range metrics {

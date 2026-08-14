@@ -7,7 +7,7 @@ run:
   timeout: 5m                      # Keep the original timeout
   tests: true                      # Analyze *_test.go files as well
   issues-exit-code: 1              # Fail CI if any issue is found
-  go: "1.25"                       # Ensure 1.22+ analyses (intrange, copyloopvar) run with new semantics
+  go: "1.26"                       # Ensure 1.22+ analyses (intrange, copyloopvar) run with new semantics
 
 ########################
 # 2. Issues quota
@@ -227,6 +227,7 @@ linters:
           - mnd          # Allow magic numbers for HTTP server configuration
       - path: ^internal/cli/
         linters:
+          - goconst      # Flag category labels repeat once per flag in a group
           - mnd          # Allow magic numbers for CLI configuration
           - revive       # Allow long main functions for CLI setup
 
