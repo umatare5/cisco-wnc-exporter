@@ -60,6 +60,13 @@ Make targets ([Makefile](Makefile)):
 
 ## Domain Knowledge
 
+### Verifying Values
+
+- **A YANG model is a design document, not the implementation.** Units, ranges, enum spellings, and even the presence of a leaf can differ on a live controller, so confirm every value against a RESTCONF response from a real WNC before relying on it.
+- **A configuration leaf missing from a response means its default is in force, not that nothing set it.** The default is often `true`, so decoding an omitted boolean as `false` inverts the reading: on a plain read of `wlan-cfg-entries`, `wpa2-enabled` and `wlan-11k-neigh-list` are absent from exactly the WLANs where they are enabled, and present only where they were explicitly switched off. Two series were withdrawn in v0.3.0 for publishing that inversion, and restored in v0.4.0 once the read asked for the values in force.
+- **Ask for the values in force, and expect omission to be per leaf rather than per container.** Appending `?with-defaults=report-all` returns the omitted leaves — a policy profile a plain read shows with a handful of them comes back with an order of magnitude more — and a `wlan-switching-policy` container can arrive with two of its four `central-*` leaves present and the other two omitted at `true`. A controller that rejects the parameter answers `400`, which is why a rejected read falls back to a plain one and counts that in `wnc_refresh_defaults_fallback_total`.
+- **Arbitrate on the device with `show running-config all`, and only for configuration.** It prints the negated form for a feature that is off, so a WLAN with no such line has it on. Every operational route this exporter reads was byte-identical plain and with `report-all`, so do not add the parameter to an operational read: materialising defaults there would defeat the absence guards that keep a fabricated zero out of the metrics.
+
 ### RESTCONF Access Patterns
 
 GET a collection:
