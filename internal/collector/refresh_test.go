@@ -18,8 +18,9 @@ func (s stubStatsProvider) Stats() wnc.RefreshStats { return s.stats }
 
 // refreshSample is one gathered series reduced to what these assertions need.
 type refreshSample struct {
-	labels map[string]string
-	value  float64
+	labels    map[string]string
+	value     float64
+	isCounter bool
 }
 
 // gatherRefresh registers the collector and indexes the samples by metric name.
@@ -49,7 +50,11 @@ func gatherRefresh(t *testing.T, stats wnc.RefreshStats) map[string][]refreshSam
 				labels[label.GetName()] = label.GetValue()
 			}
 
-			samples = append(samples, refreshSample{labels: labels, value: value})
+			samples = append(samples, refreshSample{
+				labels:    labels,
+				value:     value,
+				isCounter: metric.Counter != nil,
+			})
 		}
 		byName[family.GetName()] = samples
 	}
@@ -178,6 +183,10 @@ func TestRefreshCollector_AfterSuccessfulRefresh(t *testing.T) {
 	if len(fallback[0].labels) != 0 {
 		t.Errorf("wnc_refresh_defaults_fallback_total carries %d labels, want none",
 			len(fallback[0].labels))
+	}
+	// A Gauge under a _total name would tell Prometheus the value can fall.
+	if !fallback[0].isCounter {
+		t.Error("wnc_refresh_defaults_fallback_total is not a counter, want one")
 	}
 }
 
