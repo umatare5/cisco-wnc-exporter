@@ -111,7 +111,7 @@ func NewAPCollector(
 		)
 		collector.adminStateDesc = prometheus.NewDesc(
 			"wnc_ap_admin_state",
-			"Admin state (0=disabled, 1=enabled)",
+			"Admin state (1=enabled, 0=any other value)",
 			baseRadioLabels,
 			nil,
 		)

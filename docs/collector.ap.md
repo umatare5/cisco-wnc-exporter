@@ -6,7 +6,7 @@ AP collector focuses on RF foundation and radio performance.
 
 | Module  | Metric                                | Type    | Description                                      |
 | :------ | :------------------------------------ | :------ | :----------------------------------------------- |
-| general | `wnc_ap_admin_state`                  | Gauge   | Admin state (0=disabled, 1=enabled)              |
+| general | `wnc_ap_admin_state`                  | Gauge   | Admin state (1=enabled, 0=any other value)       |
 | general | `wnc_ap_oper_state`                   | Gauge   | Operational state in `state` label               |
 | general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
 | general | `wnc_ap_config_state`                 | Gauge   | Tag config state (0=valid, 1=invalid)            |
