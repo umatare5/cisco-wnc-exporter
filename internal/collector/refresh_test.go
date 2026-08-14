@@ -18,8 +18,9 @@ func (s stubStatsProvider) Stats() wnc.RefreshStats { return s.stats }
 
 // refreshSample is one gathered series reduced to what these assertions need.
 type refreshSample struct {
-	labels map[string]string
-	value  float64
+	labels    map[string]string
+	value     float64
+	isCounter bool
 }
 
 // gatherRefresh registers the collector and indexes the samples by metric name.
@@ -49,7 +50,11 @@ func gatherRefresh(t *testing.T, stats wnc.RefreshStats) map[string][]refreshSam
 				labels[label.GetName()] = label.GetValue()
 			}
 
-			samples = append(samples, refreshSample{labels: labels, value: value})
+			samples = append(samples, refreshSample{
+				labels:    labels,
+				value:     value,
+				isCounter: metric.Counter != nil,
+			})
 		}
 		byName[family.GetName()] = samples
 	}
@@ -68,8 +73,8 @@ func TestRefreshCollector_Describe(t *testing.T) {
 		count++
 	}
 
-	if count != 5 {
-		t.Errorf("Describe() sent %d descriptors, want 5", count)
+	if count != 6 {
+		t.Errorf("Describe() sent %d descriptors, want 6", count)
 	}
 }
 
@@ -110,6 +115,15 @@ func TestRefreshCollector_ColdStart(t *testing.T) {
 	if _, ok := samples["wnc_refresh_items"]; ok {
 		t.Error("wnc_refresh_items is present with nothing fetched, want it absent")
 	}
+
+	fallback, ok := samples["wnc_refresh_defaults_fallback_total"]
+	if !ok {
+		t.Fatal("wnc_refresh_defaults_fallback_total is absent on the first scrape, " +
+			"want it present so an alert can fire the moment it rises")
+	}
+	if fallback[0].value != 0 {
+		t.Errorf("wnc_refresh_defaults_fallback_total = %v, want 0", fallback[0].value)
+	}
 }
 
 func TestRefreshCollector_AfterSuccessfulRefresh(t *testing.T) {
@@ -123,6 +137,8 @@ func TestRefreshCollector_AfterSuccessfulRefresh(t *testing.T) {
 		Duration:    1500 * time.Millisecond,
 		Errors:      map[string]int{"ap_capwap_data": 0},
 		Items:       map[string]int{"ap_capwap_data": 4},
+		// Two, so the assertion fails for a descriptor wired to the wrong counter.
+		DefaultsFallbacks: 2,
 	})
 
 	if got := samples["wnc_up"][0].value; got != 1 {
@@ -155,6 +171,22 @@ func TestRefreshCollector_AfterSuccessfulRefresh(t *testing.T) {
 	}
 	if got := items[0].labels[labelData]; got != "ap_capwap_data" {
 		t.Errorf("wnc_refresh_items{%s} = %q, want ap_capwap_data", labelData, got)
+	}
+
+	fallback, ok := samples["wnc_refresh_defaults_fallback_total"]
+	if !ok {
+		t.Fatal("wnc_refresh_defaults_fallback_total is absent after a completed refresh")
+	}
+	if fallback[0].value != 2 {
+		t.Errorf("wnc_refresh_defaults_fallback_total = %v, want 2", fallback[0].value)
+	}
+	if len(fallback[0].labels) != 0 {
+		t.Errorf("wnc_refresh_defaults_fallback_total carries %d labels, want none",
+			len(fallback[0].labels))
+	}
+	// A Gauge under a _total name would tell Prometheus the value can fall.
+	if !fallback[0].isCounter {
+		t.Error("wnc_refresh_defaults_fallback_total is not a counter, want one")
 	}
 }
 

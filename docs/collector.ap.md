@@ -44,7 +44,7 @@ AP collector focuses on RF foundation and radio performance.
 | errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*3)**                      |
 | errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*3)**                             |
 | errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
-| errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Last radar detection unix timestamp              |
+| errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Unix timestamp of the last radar **(\*5)**       |
 | errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
 
 ## Labels
@@ -129,6 +129,8 @@ The metrics below were observed at zero on every radio of the access points this
 | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                                                                          |
 
 Sampling the container twice separated by an interval showed the same leaves at zero while their neighbours advanced, and the controller CLI reported the same values, so the zeros are in the data the controller holds rather than in this exporter.
+
+The container also carries `rx-data-pkt-count` and `tx-data-pkt-count`, which no series reads. Both were observed at zero on every radio measured, through RESTCONF and through the CLI, including radios whose data-frame counters advanced over the same interval. v0.2.0 published a pair of packet series that read the data-frame leaves rather than these, and v0.3.0 removed those series as duplicates. Re-pointing a series at these leaves would publish a constant zero on a radio carrying traffic.
 
 This was verified through direct RESTCONF API access to the live WNC environment:
 
@@ -216,14 +218,22 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 </details>
 
-<details><summary><b>*4</b> Cisco Bug CSCwn96363 - AckFailureCount vs FailedCount</summary><br/>
+<details><summary><b>*4</b> Why <code>failed-count</code> is read and <code>ack-failure-count</code> is not</summary><br/>
 
-According to [Cisco Bug CSCwn96363](https://bst.cloudapps.cisco.com/bugsearch/bug/CSCwn96363), there are redundant counters in the wireless statistics:
+[Cisco Bug CSCwn96363](https://bst.cloudapps.cisco.com/bugsearch/bug/CSCwn96363) reports `ack-failure-count` as a counter that never increments and calls it redundant with `failed-count`. That record is the vendor's and this repository has not read it, so the choice below does not rest on it.
 
-- **Issue**: `AckFailureCount` always returns 0 and does not increment
-- **Root Cause**: `AckFailureCount` and `FailedCount` represent the same counter
-- **Solution**: Use `FailedCount` instead of `AckFailureCount` for accurate transmission failure statistics
+What was measured on every radio measured, through RESTCONF and through the controller CLI:
 
-This exporter implements the recommended workaround by using `failed-count` from the RESTCONF API for the `wnc_ap_transmission_failures_total` metric.
+- `ack-failure-count` held at zero, including on radios whose `retry-count` advanced over the same interval.
+- `failed-count` held at zero as well. A retry that eventually succeeds produces no terminal failure, so zero is also the reading a healthy radio gives.
+- The CLI reports a per-radio transmit-drop counter that was non-zero where both leaves above read zero. Enumerating the whole access point operational tree found drop leaves only for the Ethernet interface, so **no series can read that counter**.
+
+`wnc_ap_transmission_failures_total` reads `failed-count`, and nothing reads `ack-failure-count`. Read a zero on the surviving series as unconfirmed rather than as a healthy radio. That a maintained ack-failure counter would have advanced alongside the retries is an inference from the protocol, not a measurement.
+
+</details>
+
+<details><summary><b>*5</b> When the radar timestamp series is absent</summary><br/>
+
+The series is published only for a radio whose last-radar leaf carries a real instant. A radio that has recorded no radar carries the epoch, which is withheld rather than published as a timestamp in 1970. In the bands measured the leaf was populated on 5 GHz radios only, which is where the regulator requires the detection, so absence is the ordinary reading rather than a fault. Use `time() - series` for the age, and treat absence as no radar on record.
 
 </details>

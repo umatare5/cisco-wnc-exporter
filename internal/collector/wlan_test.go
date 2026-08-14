@@ -168,7 +168,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Config module only",
 			WLANMetrics{Config: true},
-			11, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa3, session_timeout, load_balance, steering, central_switching, central_auth, central_dhcp, central_assoc
+			13, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k_neighbor_list, steering, central_switching, central_auth, central_dhcp, central_assoc
 		},
 		{
 			"Info module only",
@@ -183,7 +183,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			14, // 1+1+11+1
+			16, // 1+1+13+1
 		},
 	}
 
@@ -961,7 +961,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 14
+	expectedDescs := 16
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1150,11 +1150,17 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 		{"wnc_wlan_auth_dot1x_sha256_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].AuthKeyMgmtDot1xSha256 = true
 		}},
+		{"wnc_wlan_wpa2_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].WPA2Enabled = true
+		}},
 		{"wnc_wlan_wpa3_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].WPA3Enabled = true
 		}},
 		{"wnc_wlan_load_balance_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].LoadBalance = true
+		}},
+		{"wnc_wlan_11k_neighbor_list_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].Wlan11kNeighList = true
 		}},
 		{"wnc_wlan_client_steering_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].ClientSteering = true
@@ -1178,11 +1184,12 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 			t.Parallel()
 
 			data := fullFixtureSnapshot()
-			// The shared fixture raises the first two leaves, so the one-hot pattern has
-			// to lower them. wlan-11k-neigh-list is raised and left unread: a descriptor
-			// folded onto a withdrawn leaf then reports one where this table wants zero.
+			// The shared fixture raises three of these leaves, so the one-hot pattern
+			// has to lower all three. No unread boolean is left on the entry to raise
+			// as a decoy, so a descriptor folded onto one is caught by the pairwise
+			// zeros this table asserts rather than by a decoy.
 			data.WLANConfigEntries[0].AuthKeyMgmtPsk = false
-			data.WLANConfigEntries[0].Wlan11kNeighList = true
+			data.WLANConfigEntries[0].WPA2Enabled = false
 			data.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = false
 			tt.raise(data)
 			src := fixtureSource{data: data}
@@ -1279,9 +1286,11 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					authPskDesc:               prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					authDot1xDesc:             prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					authDot1xSha256Desc:       prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					wpa2EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					wpa3EnabledDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					sessionTimeoutDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					loadBalanceDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					wlan11kNeighDesc:          prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					clientSteeringDesc:        prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralSwitchingDesc:      prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralAuthenticationDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -110,6 +111,9 @@ type RefreshStats struct {
 	Errors map[string]int
 	// Items counts what each data type returned, recorded on success only.
 	Items map[string]int
+	// DefaultsFallbacks counts WLAN configuration fetches that asked for the
+	// values in force and had to settle for a plain read, since process start.
+	DefaultsFallbacks int64
 }
 
 // StatsProvider is implemented by data sources that report refresh statistics.
@@ -127,6 +131,10 @@ type dataSource struct {
 	// than mu-protected: Stats holds mu and calls serving, and sync.Mutex is not
 	// reentrant.
 	failures atomic.Int64
+
+	// defaultsFallbacks counts WLAN configuration fetches that fell back to a
+	// plain read. It is written by the refresh goroutine and read by a scrape.
+	defaultsFallbacks atomic.Int64
 
 	mu        sync.Mutex
 	errors    map[string]int
@@ -210,6 +218,7 @@ func (s *dataSource) Stats() RefreshStats {
 		Errors:    maps.Clone(s.errors),
 		Items:     maps.Clone(s.items),
 	}
+	st.DefaultsFallbacks = s.defaultsFallbacks.Load()
 	if snap != nil {
 		st.RefreshedAt = snap.RefreshedAt
 	}
@@ -297,4 +306,32 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 	}
 
 	return data, nil
+}
+
+// readEffective asks the controller to report the value in force on every leaf,
+// so a leaf left at its default is reported instead of omitted. A controller
+// that rejects the parameter answers 400, and the plain re-read then keeps the
+// WLAN series alive at the cost of reading an omitted leaf as its zero value.
+// A controller that accepts the parameter and ignores it answers 200, so the
+// fallback counter cannot report that case.
+func readEffective[T any](
+	ctx context.Context,
+	fallbacks *atomic.Int64,
+	list func(context.Context, ...wnc.GetOption) (*T, error),
+) (*T, error) {
+	data, err := list(ctx, wnc.WithDefaults(wnc.ReportAll))
+	if err == nil {
+		return data, nil
+	}
+
+	var apiErr *wnc.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+		return nil, err
+	}
+
+	fallbacks.Add(1)
+	slog.Warn("controller rejected the request for values in force, re-reading without it",
+		"status", apiErr.StatusCode)
+
+	return list(ctx)
 }

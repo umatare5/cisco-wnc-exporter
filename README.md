@@ -145,6 +145,7 @@ These series describe the exporter itself rather than the wireless network. They
 | `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot   |
 | `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up          |
 | `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type        |
+| `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read     |
 
 `wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled. The refresh series appear as soon as one collector is enabled.
 

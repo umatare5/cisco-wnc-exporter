@@ -72,7 +72,7 @@ func (s *dataSource) fetchers() []dataFetcher {
 			return len(c.RRMMeasurements), nil
 		}},
 		{dataWLANCfgEntries, func(ctx context.Context, c *WNCDataCache) (int, error) {
-			data, err := s.client.WLAN().ListWlanCfgEntries(ctx)
+			data, err := readEffective(ctx, &s.defaultsFallbacks, s.client.WLAN().ListWlanCfgEntries)
 			if err != nil {
 				return 0, err
 			}
@@ -82,7 +82,7 @@ func (s *dataSource) fetchers() []dataFetcher {
 			return len(c.WLANConfigEntries), nil
 		}},
 		{dataWLANPolicies, func(ctx context.Context, c *WNCDataCache) (int, error) {
-			data, err := s.client.WLAN().ListWlanPolicies(ctx)
+			data, err := readEffective(ctx, &s.defaultsFallbacks, s.client.WLAN().ListWlanPolicies)
 			if err != nil {
 				return 0, err
 			}
