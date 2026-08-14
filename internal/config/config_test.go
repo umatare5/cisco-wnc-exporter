@@ -342,6 +342,28 @@ func TestConfig_Validate(t *testing.T) {
 			"WNC access token is required",
 		},
 		{
+			// The SDK trims before its own non-empty check, so a whitespace-only
+			// value reaches NewClient as empty and createWNCClient panics on the error.
+			"Whitespace-only controller",
+			func() *Config {
+				cfg := *validConfig
+				cfg.WNC.Controller = "   "
+				return &cfg
+			}(),
+			true,
+			"WNC controller is required",
+		},
+		{
+			"Whitespace-only access token",
+			func() *Config {
+				cfg := *validConfig
+				cfg.WNC.AccessToken = "\t\n"
+				return &cfg
+			}(),
+			true,
+			"WNC access token is required",
+		},
+		{
 			"Invalid port - too low",
 			func() *Config {
 				cfg := *validConfig

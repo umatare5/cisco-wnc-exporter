@@ -194,10 +194,12 @@ func (c *Config) Validate() error {
 		message   string
 	}{
 		{
-			c.WNC.Controller == "", "WNC controller is required (--wnc.controller or WNC_CONTROLLER)",
+			strings.TrimSpace(c.WNC.Controller) == "",
+			"WNC controller is required (--wnc.controller or WNC_CONTROLLER)",
 		},
 		{
-			c.WNC.AccessToken == "", "WNC access token is required (--wnc.access-token or WNC_ACCESS_TOKEN)",
+			strings.TrimSpace(c.WNC.AccessToken) == "",
+			"WNC access token is required (--wnc.access-token or WNC_ACCESS_TOKEN)",
 		},
 		{
 			c.Web.ListenPort < 1 || c.Web.ListenPort > 65535,
