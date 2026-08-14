@@ -67,29 +67,19 @@ The exporter decodes this leaf as an integer and publishes it unchanged, so a fr
 
 <details><summary><b>*2</b> MCS index range, and what -1 means</summary><br/>
 
-The index is parsed out of the rate string the controller reports for the client, which
-spells it as `m<index>` followed by the stream count. The value is not bounded at 11:
+The index is parsed out of the rate string the controller reports for the client, which spells it as `m<index>` followed by the stream count. The value is not bounded at 11:
 
-- 802.11n encodes the stream count in the index itself, so a two-stream client reports
-  8 through 15, and observed values already exceed 11.
-- 802.11ac indexes 0 through 9 and 802.11ax 0 through 11, both with the stream count in
-  a separate leaf, so the same number means a different rate depending on the protocol.
-  Read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
+- 802.11n encodes the stream count in the index itself, so a two-stream client reports 8 through 15, and observed values already exceed 11.
+- 802.11ac indexes 0 through 9 and 802.11ax 0 through 11, both with the stream count in a separate leaf, so the same number means a different rate depending on the protocol. Read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
 - 802.11be adds indexes 12 and 13 for the standard rate set.
 
-`-1` is reported whenever no index can be parsed. That covers a legacy client whose
-rate carries none, and equally a rate string that is empty or spelled in a form the
-parser does not recognise. The two are not distinguished.
+`-1` is reported whenever no index can be parsed. That covers a legacy client whose rate carries none, and equally a rate string that is empty or spelled in a form the parser does not recognise. The two are not distinguished.
 
 </details>
 
 <details><summary><b>*3</b> Client error metrics observed to stay at zero on the access points this exporter was measured against</summary><br/>
 
-The client error metrics below were observed at zero on every client of the access
-points this exporter was measured against. Whether a counter is maintained depends on
-the access point model and the release, so read the list as an observation rather than
-as a property of the platform. That applies while the fetch succeeds: a data type whose
-fetch failed makes its series absent rather than zero.
+The client error metrics below were observed at zero on every client of the access points this exporter was measured against. Whether a counter is maintained depends on the access point model and the release, so read the list as an observation rather than as a property of the platform. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
 
 - `wnc_client_duplicate_received_total`
 - `wnc_client_excessive_retries_total`

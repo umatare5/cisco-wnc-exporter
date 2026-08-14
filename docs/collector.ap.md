@@ -111,16 +111,9 @@ The `radio` label is not a substitute. A dual band radio keeps its slot while it
 
 <details><summary><b>*3</b> Metrics observed to stay at zero on the AP models this exporter was measured against</summary><br/>
 
-The metrics below were observed at zero on every radio of the access points this
-exporter was measured against, while their neighbours in the same container were not.
-That applies while the fetch succeeds: a data type whose fetch failed makes its series
-absent rather than zero.
+The metrics below were observed at zero on every radio of the access points this exporter was measured against, while their neighbours in the same container were not. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
 
-**Whether a leaf is maintained depends on the access point model and the release.**
-One model reported FCS errors while another returned zero for them on every band, and
-the reverse held for multicast transmit frames. Read the list as an observation, not as
-a property of the platform, and confirm it against your own access points before
-building an alert on the absence of a value.
+**Whether a leaf is maintained depends on the access point model and the release.** One model reported FCS errors while another returned zero for them on every band, and the reverse held for multicast transmit frames. Read the list as an observation, not as a property of the platform, and confirm it against your own access points before building an alert on the absence of a value.
 
 | Metric                                   | What the zero means here                                                                                                    |
 | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
@@ -135,9 +128,7 @@ building an alert on the absence of a value.
 | `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Whether the counter would report a failure has not been confirmed.                             |
 | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                                                                          |
 
-Sampling the container twice separated by an interval showed the same leaves at zero
-while their neighbours advanced, and the controller CLI reported the same values, so
-the zeros are in the data the controller holds rather than in this exporter.
+Sampling the container twice separated by an interval showed the same leaves at zero while their neighbours advanced, and the controller CLI reported the same values, so the zeros are in the data the controller holds rather than in this exporter.
 
 This was verified through direct RESTCONF API access to the live WNC environment:
 
