@@ -35,9 +35,11 @@ type WLANCollector struct {
 	authPskDesc               *prometheus.Desc
 	authDot1xDesc             *prometheus.Desc
 	authDot1xSha256Desc       *prometheus.Desc
+	wpa2EnabledDesc           *prometheus.Desc
 	wpa3EnabledDesc           *prometheus.Desc
 	sessionTimeoutDesc        *prometheus.Desc
 	loadBalanceDesc           *prometheus.Desc
+	wlan11kNeighDesc          *prometheus.Desc
 	clientSteeringDesc        *prometheus.Desc
 	centralSwitchingDesc      *prometheus.Desc
 	centralAuthenticationDesc *prometheus.Desc
@@ -87,6 +89,11 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			"802.1x SHA256 authentication enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
+		collector.wpa2EnabledDesc = prometheus.NewDesc(
+			"wnc_wlan_wpa2_enabled",
+			"WPA2 support enabled (0=disabled or not reported, 1=enabled)",
+			labels, nil,
+		)
 		collector.wpa3EnabledDesc = prometheus.NewDesc(
 			"wnc_wlan_wpa3_enabled",
 			"WPA3 support enabled (0=disabled or not reported, 1=enabled)",
@@ -100,6 +107,11 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		collector.loadBalanceDesc = prometheus.NewDesc(
 			"wnc_wlan_load_balance_enabled",
 			"Load balancing enabled (0=disabled or not reported, 1=enabled)",
+			labels, nil,
+		)
+		collector.wlan11kNeighDesc = prometheus.NewDesc(
+			"wnc_wlan_11k_neighbor_list_enabled",
+			"802.11k neighbor list enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
 		collector.clientSteeringDesc = prometheus.NewDesc(
@@ -156,9 +168,11 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.authPskDesc
 		ch <- c.authDot1xDesc
 		ch <- c.authDot1xSha256Desc
+		ch <- c.wpa2EnabledDesc
 		ch <- c.wpa3EnabledDesc
 		ch <- c.sessionTimeoutDesc
 		ch <- c.loadBalanceDesc
+		ch <- c.wlan11kNeighDesc
 		ch <- c.clientSteeringDesc
 		ch <- c.centralSwitchingDesc
 		ch <- c.centralAuthenticationDesc
@@ -302,8 +316,10 @@ func (c *WLANCollector) collectConfigMetrics(
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
 		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
 		{c.authDot1xSha256Desc, boolToFloat64(entry.AuthKeyMgmtDot1xSha256)},
+		{c.wpa2EnabledDesc, boolToFloat64(entry.WPA2Enabled)},
 		{c.wpa3EnabledDesc, boolToFloat64(entry.WPA3Enabled)},
 		{c.loadBalanceDesc, boolToFloat64(entry.LoadBalance)},
+		{c.wlan11kNeighDesc, boolToFloat64(entry.Wlan11kNeighList)},
 		{c.clientSteeringDesc, boolToFloat64(entry.ClientSteering)},
 	}
 
