@@ -1126,57 +1126,98 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 	}
 }
 
-func TestWLANCollector_collectConfigMetrics(t *testing.T) {
+// TestWLANCollector_ConfigBooleansMatchLeaves binds each config boolean series to
+// its own leaf. The ten series share one value domain, so a swapped descriptor, or a
+// leaf swapped where the emit list reads it, keeps every count, every label and every
+// value in range: only a fixture that raises one leaf at a time separates them, and
+// only the registry route shows which descriptor carried the value.
+//
+// Raising one leaf at a time need not describe a WLAN anyone would deploy. The
+// subject here is the wiring, not a deployable configuration.
+func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 	t.Parallel()
 
-	entry := wlan.WlanCfgEntry{
-		WlanID:                 1,
-		ProfileName:            "test-profile",
-		AuthKeyMgmtPsk:         true,
-		AuthKeyMgmtDot1x:       false,
-		AuthKeyMgmtDot1xSha256: false,
-		WPA2Enabled:            true,
-		WPA3Enabled:            false,
-		LoadBalance:            true,
-		Wlan11kNeighList:       true,
-		ClientSteering:         true,
-		APFVapIDData: &wlan.APFVapIDData{
-			SSID: "TestWLAN",
-		},
+	tests := []struct {
+		name  string
+		raise func(*wnc.WNCDataCache)
+	}{
+		{"wnc_wlan_auth_psk_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtPsk = true
+		}},
+		{"wnc_wlan_auth_dot1x_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1x = true
+		}},
+		{"wnc_wlan_auth_dot1x_sha256_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1xSha256 = true
+		}},
+		{"wnc_wlan_wpa3_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].WPA3Enabled = true
+		}},
+		{"wnc_wlan_load_balance_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].LoadBalance = true
+		}},
+		{"wnc_wlan_client_steering_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].ClientSteering = true
+		}},
+		{"wnc_wlan_central_switching_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = true
+		}},
+		{"wnc_wlan_central_authentication_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAuthentication = true
+		}},
+		{"wnc_wlan_central_dhcp_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralDHCP = true
+		}},
+		{"wnc_wlan_central_association_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = true
+		}},
 	}
 
-	policyMap := map[string]*wlan.WlanPolicy{
-		"test-profile": {},
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	collector := &WLANCollector{
-		metrics:                   WLANMetrics{Config: true},
-		authPskDesc:               prometheus.NewDesc("test_auth_psk", "test", []string{"id"}, nil),
-		authDot1xDesc:             prometheus.NewDesc("test_auth_dot1x", "test", []string{"id"}, nil),
-		authDot1xSha256Desc:       prometheus.NewDesc("test_auth_dot1x_sha256", "test", []string{"id"}, nil),
-		wpa3EnabledDesc:           prometheus.NewDesc("test_wpa3_enabled", "test", []string{"id"}, nil),
-		sessionTimeoutDesc:        prometheus.NewDesc("test_session_timeout", "test", []string{"id"}, nil),
-		loadBalanceDesc:           prometheus.NewDesc("test_load_balance", "test", []string{"id"}, nil),
-		clientSteeringDesc:        prometheus.NewDesc("test_client_steering", "test", []string{"id"}, nil),
-		centralSwitchingDesc:      prometheus.NewDesc("test_central_switching", "test", []string{"id"}, nil),
-		centralAuthenticationDesc: prometheus.NewDesc("test_central_auth", "test", []string{"id"}, nil),
-		centralDHCPDesc:           prometheus.NewDesc("test_central_dhcp", "test", []string{"id"}, nil),
-		centralAssocEnableDesc:    prometheus.NewDesc("test_central_assoc", "test", []string{"id"}, nil),
-	}
+			data := fullFixtureSnapshot()
+			// The shared fixture raises the first two leaves, so the one-hot pattern has
+			// to lower them. wlan-11k-neigh-list is raised and left unread: a descriptor
+			// folded onto a withdrawn leaf then reports one where this table wants zero.
+			data.WLANConfigEntries[0].AuthKeyMgmtPsk = false
+			data.WLANConfigEntries[0].Wlan11kNeighList = true
+			data.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = false
+			tt.raise(data)
+			src := fixtureSource{data: data}
 
-	ch := make(chan prometheus.Metric, 20)
-	go func() {
-		defer close(ch)
-		collector.collectConfigMetrics(ch, entry, policyMap)
-	}()
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+			))
 
-	metricCount := 0
-	for range ch {
-		metricCount++
-	}
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
 
-	if metricCount == 0 {
-		t.Error("collectConfigMetrics() emitted 0 metrics, want > 0")
+			values := make(map[string]float64, len(families))
+			for _, family := range families {
+				if metrics := family.GetMetric(); len(metrics) == 1 {
+					values[family.GetName()] = metrics[0].GetGauge().GetValue()
+				}
+			}
+
+			for _, other := range tests {
+				want := 0.0
+				if other.name == tt.name {
+					want = 1.0
+				}
+				got, ok := values[other.name]
+				if !ok {
+					t.Fatalf("%s carries no single series, so the raised leaf proves nothing", other.name)
+				}
+				if got != want {
+					t.Errorf("%s = %v, want %v while only %s is raised", other.name, got, want, tt.name)
+				}
+			}
+		})
 	}
 }
 
