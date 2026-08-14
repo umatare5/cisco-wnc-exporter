@@ -42,7 +42,7 @@ The `config` series now report the values in force rather than only the values t
 
 `wnc_refresh_defaults_fallback_total` rises when a controller rejects that request and the exporter falls back to a plain read. While it rises the `config` series report only what the profile set explicitly, which is the v0.3.0 behaviour. Alert on `increase(wnc_refresh_defaults_fallback_total[15m]) > 0`. A zero on that counter is not proof that the request was applied, because a controller may accept it and ignore it, and nothing on the wire distinguishes that case.
 
-Separately, the HELP text of `wnc_ap_admin_state` and `wnc_wlan_enabled` no longer equates a `0` with disabled. A `0` means the controller reported something other than the enabled spelling, or reported nothing at all.
+Separately, the HELP text of `wnc_ap_admin_state` and `wnc_wlan_enabled` no longer equates a `0` with disabled. A `0` means the controller reported something other than the enabled spelling, or reported nothing at all. The HELP text of `wnc_client_power_save_state` no longer calls a `0` awake either. That series publishes the leaf as the controller reports it, and its value domain is undocumented.
 
 ### Fixed
 
