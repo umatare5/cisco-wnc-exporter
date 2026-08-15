@@ -4,6 +4,38 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.5.0
+
+### Added
+
+| Metric                      | Reports                                            |
+| :-------------------------- | :------------------------------------------------- |
+| `wnc_wlan_pmf_state`        | Protected management frames setting, in `state`    |
+| `wnc_wlan_ft_state`         | 802.11r fast transition setting, in `state`        |
+| `wnc_wlan_policy_enabled`   | Whether the bound policy profile is active         |
+
+All three belong to the `config` module, which is disabled by default, and none of them adds a RESTCONF route. A default scrape is unchanged.
+
+The first two carry the controller's own spelling and always have the value `1`, so `== 0` never fires and an equality match on the healthy spelling selects the healthy WLANs rather than revealing the rest. Alert on any other spelling with `state` aggregated away, as in `group by (id) (wnc_wlan_pmf_state{state!="apf-vap-pmf-required"})`. Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty `state` label reads as no label at all.
+
+`wnc_wlan_pmf_state` reports the setting that applies to a WLAN's 2.4 GHz and 5 GHz BSSes. A 6 GHz BSS requires the protection whatever this series reports, so a rule that pages on anything other than required raises a false alarm on a WLAN advertised on 6 GHz — exclude those by `id`. The error runs one way only: the series can under-report 6 GHz protection and never over-report it. The setting has three values rather than two, and the middle one admits an unprotected association, which is why the spelling is published instead of a boolean.
+
+`wnc_wlan_policy_enabled` reads a leaf that carries no absent value, so an omitted leaf reports as shut down. Every profile read on the controller this was measured against carried the leaf on a plain read as well as on a read for the values in force — but each of them read as active, so a profile that was never switched either way was never read, and that is the one a fallback could turn into a false shutdown. Keep `unless on(job, instance) increase(wnc_refresh_defaults_fallback_total[15m]) > 0` on any rule. The series is absent, and any rule on it silent, for a WLAN that resolves to no policy profile and whenever the `wlan_cfg_entries`, `wlan_policies` or `wlan_policy_list_entries` fetch fails, so pair it with `absent()` or watch `wnc_refresh_items` for those three `data` types. Whether a shut policy profile also stops the SSID being advertised is not established, so treat the series as change detection rather than an outage signal.
+
+### Changed
+
+The HELP text of `wnc_refresh_defaults_fallback_total` no longer says an omitted config leaf reads as `0`. That holds for a leaf whose Go type has no absent value, while a leaf read into a `state` label drops its series instead, and the HELP now covers both.
+
+A refresh now reads only the `data` types the enabled modules need, so the module flags bound what the controller is asked for as well as what Prometheus stores. `wnc_refresh_errors_total` is seeded for those types alone, which makes its `data` label set depend on the collector flags. With no AP module enabled, `ap_capwap_data`, `ap_oper_data`, `ap_radio_oper_data`, `ap_name_mac_map`, `ap_radio_oper_stats`, `ap_radio_reset_stats`, `rrm_measurement`, `rrm_coverage` and `rrm_ap_dot11_radar_data` have no series in either refresh metric, and a panel or rule naming one of them goes empty.
+
+`wnc_refresh_items` is still recorded on success only, so an absent series now has two causes. A `data` type carrying a series in `wnc_refresh_errors_total` and none in `wnc_refresh_items` failed its fetch; a type carrying a series in neither is one no enabled module reads. Guard a rule that names a single `data` type with `and on(job, instance) wnc_refresh_errors_total{data="..."}`, which holds it silent where that type is never fetched.
+
+`wnc_up` now reports `0` when every `data` type the enabled modules need failed, rather than when all eighteen failed. It read `1` before whenever any other fetch succeeded, so a deployment running one module could lose every series it asked for while `wnc_up` read `1`, and because the refresh reported no error the withhold-after-three-failures path never armed. It is still not a completeness signal: with two collectors enabled, one can fail entirely and `wnc_up` stays `1`. Alert on `increase(wnc_refresh_errors_total[15m]) > 0` for that.
+
+`examples/prometheus_alert_rules.yml` gains that guard on `WNCAPInventoryEmpty`, which named `ap_capwap_data`. An `unless` against an absent series excludes nothing, so without the guard the rule would fire continuously wherever no AP module is enabled. The `WNCRefreshFailing` summary no longer says the controller is unreachable, because `wnc_up` now also covers a reachable controller that refuses the models one module needs.
+
+The README now names the two mechanisms that bound what the controller is asked for. One shared refresh serves every enabled collector and runs no more often than `--wnc.cache-ttl`, which is what makes the request rate independent of the scrape interval and of how many collectors are enabled; that has always been so. What is new is the second: the refresh reads only the `data` types the enabled modules need, where before it read all of them whatever was enabled.
+
 ## v0.4.0
 
 ### Added

@@ -45,6 +45,9 @@ type WLANCollector struct {
 	centralAuthenticationDesc *prometheus.Desc
 	centralDHCPDesc           *prometheus.Desc
 	centralAssocEnableDesc    *prometheus.Desc
+	policyEnabledDesc         *prometheus.Desc
+	pmfStateDesc              *prometheus.Desc
+	ftStateDesc               *prometheus.Desc
 }
 
 // NewWLANCollector creates a new WLAN collector.
@@ -139,6 +142,25 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			"Central association enabled (0=disabled or not reported, 1=enabled)",
 			labels, nil,
 		)
+		collector.policyEnabledDesc = prometheus.NewDesc(
+			"wnc_wlan_policy_enabled",
+			"Policy profile bound to this WLAN is active (0=shut down or not reported, 1=active)",
+			labels, nil,
+		)
+		// Protected management frames has three configurations, and the middle one
+		// admits an unprotected association, so the controller's spelling goes into
+		// the label rather than being collapsed to a boolean.
+		collector.pmfStateDesc = prometheus.NewDesc(
+			"wnc_wlan_pmf_state",
+			"Protected management frames setting reported in the state label, always 1. "+
+				"It covers 2.4GHz and 5GHz — a 6GHz BSS requires PMF whatever this reports",
+			[]string{labelID, labelState}, nil,
+		)
+		collector.ftStateDesc = prometheus.NewDesc(
+			"wnc_wlan_ft_state",
+			"802.11r fast transition mode reported in the state label, always 1",
+			[]string{labelID, labelState}, nil,
+		)
 	}
 
 	if metrics.Info {
@@ -178,6 +200,9 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.centralAuthenticationDesc
 		ch <- c.centralDHCPDesc
 		ch <- c.centralAssocEnableDesc
+		ch <- c.policyEnabledDesc
+		ch <- c.pmfStateDesc
+		ch <- c.ftStateDesc
 	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
@@ -342,6 +367,29 @@ func (c *WLANCollector) collectConfigMetrics(
 				Float64Metric{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
 			)
 		}
+
+		// Status sits on the profile itself, so no container guards it.
+		metrics = append(metrics,
+			Float64Metric{c.policyEnabledDesc, boolToFloat64(profile.Status)},
+		)
+	}
+
+	// An empty spelling is not a state, and an empty state label reads as no label
+	// at all, so the series is withheld rather than published with one.
+	for _, state := range []struct {
+		desc    *prometheus.Desc
+		reading string
+	}{
+		{c.pmfStateDesc, entry.PMFOptions},
+		{c.ftStateDesc, entry.FTMode},
+	} {
+		if state.reading == "" {
+			continue
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			state.desc, prometheus.GaugeValue, 1, labels[0], state.reading,
+		)
 	}
 
 	for _, metric := range metrics {

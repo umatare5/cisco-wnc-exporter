@@ -21,10 +21,25 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_central_authentication_enabled` | Gauge | Central authentication enabled       |
 | config  | `wnc_wlan_central_dhcp_enabled`           | Gauge | Central DHCP enabled                 |
 | config  | `wnc_wlan_central_association_enabled`    | Gauge | Central association enabled          |
+| config  | `wnc_wlan_policy_enabled`                 | Gauge | Bound policy profile is active       |
+| config  | `wnc_wlan_pmf_state`                      | Gauge | PMF setting **(\*1)**                |
+| config  | `wnc_wlan_ft_state`                       | Gauge | 802.11r fast transition setting      |
 
 ## Notes
 
-The `general` and `config` modules read `wlan-cfg-entries`, and `config` also reads `wlan-policies`. The exporter asks the controller for the values in force on both, because a controller answering with the `with-defaults` basic mode `explicit` omits every leaf the profile never set — observed on IOS-XE 17.12. A controller that rejects the request is read plainly instead, and `wnc_refresh_defaults_fallback_total` rises for as long as that lasts.
+The `general` and `config` modules read `wlan-cfg-entries`, and `config` also reads `wlan-policies` and `policy-list-entries`. The exporter asks the controller for the values in force on the first two, because a controller answering with the `with-defaults` basic mode `explicit` omits every leaf the profile never set — observed on IOS-XE 17.12. A controller that rejects the request is read plainly instead, and `wnc_refresh_defaults_fallback_total` rises for as long as that lasts.
+
+`wnc_wlan_pmf_state` and `wnc_wlan_ft_state` report the controller's own spelling in the `state` label and always have the value `1`, so `== 0` never fires — see [States](README.md#a-state-is-a-label-not-a-number). Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty `state` label reads as no label at all.
+
+`wnc_wlan_policy_enabled` reads the status of the policy profile the WLAN resolves to through its policy tag, and is not published for a WLAN that resolves to none. A `0` here can coexist with `wnc_wlan_enabled` reading `1`, because that series reads the WLAN profile's own administrative state and not the profile bound to it. What a shut policy profile does to a client — refuse new associations, drop existing ones, or stop the SSID being advertised — is not established here, so treat the series as change detection rather than an outage signal. Where one policy profile is bound to several WLANs, each WLAN reports it separately; where one WLAN is bound through more than one policy tag, only one binding is reported.
+
+<details><summary><b>*1</b> What the PMF setting covers</summary><br/>
+
+The leaf reports the setting that applies to the WLAN's 2.4 GHz and 5 GHz BSSes. A 6 GHz BSS requires PMF whichever value this series reports, and the controller reports that requirement separately in a form no leaf carries. So a rule that pages on anything other than the required spelling raises a false alarm on a WLAN advertised on 6 GHz. The error runs one way only — the series can under-report 6 GHz protection and never over-report it.
+
+The setting has three values rather than two, and the middle one admits an unprotected association, which is why the spelling is published rather than a boolean.
+
+</details>
 
 `wnc_wlan_enabled`, `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*` series read their leaf from an optional container, and are not published for a WLAN whose response omits that container. A container the controller does send may still omit individual leaves, which decode to `0`.
 

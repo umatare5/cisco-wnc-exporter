@@ -832,11 +832,28 @@ func newTestDataSource(t *testing.T, controllerURL string, ttl time.Duration) *d
 		Timeout:       5 * time.Second,
 		TLSSkipVerify: true,
 		CacheTTL:      ttl,
-	}).(*dataSource)
+	}, allModules()).(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}
 	return ds
+}
+
+// allModules enables every collector module, which is what makes a refresh walk
+// every data type. The assertions over dataTypeNames describe that deployment
+// rather than the default one, where no module is enabled.
+func allModules() config.Collectors {
+	return config.Collectors{
+		AP: config.APCollectorModules{
+			General: true, Radio: true, Traffic: true, Errors: true, Info: true,
+		},
+		Client: config.ClientCollectorModules{
+			General: true, Radio: true, Traffic: true, Errors: true, Info: true,
+		},
+		WLAN: config.WLANCollectorModules{
+			General: true, Traffic: true, Config: true, Info: true,
+		},
+	}
 }
 
 // suppressBackgroundRefresh keeps Stats and GetCachedData from starting a refresh

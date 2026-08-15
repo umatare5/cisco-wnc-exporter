@@ -125,7 +125,7 @@ The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics
 
 > [!Important]
 >
-> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
+> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC, and an exporter with no collector enabled never contacts the controller at all. Every enabled collector is served from one shared refresh, and a refresh runs no more often than `--wnc.cache-ttl`, so the controller sees one pass of requests per interval however many collectors are enabled and however often Prometheus scrapes. That pass reads only the `data` types the enabled modules need. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
 
 > [!Note]
 >
@@ -155,7 +155,9 @@ These series describe the exporter itself rather than the wireless network. They
 
 > [!Note]
 >
-> `wnc_refresh_items` is recorded on success only, so an absent series means that fetch failed while a zero series means the controller returned nothing. `wnc_refresh_errors_total` is seeded to zero for every `data` type at start-up, which makes it the authoritative list of `data` label values.
+> `wnc_refresh_items` is recorded on success only, and `wnc_refresh_errors_total` is seeded to zero at start-up for every `data` type the enabled modules need. Read the two together: a type in the errors series and not in the items series failed its fetch, a zero in the items series means the controller returned nothing, and a type in neither is one no enabled module reads.
+>
+> The errors series is therefore the authoritative list of `data` label values for a given set of collector flags. Guard a rule that names one `data` type with `and on(job, instance) wnc_refresh_errors_total{data="..."}` so it stays silent where that type is never fetched.
 
 ## Use Cases
 
