@@ -62,6 +62,10 @@ const (
 	fixtureChannel = 6
 	// fixtureBandID ties radio-band-info to current-band-id.
 	fixtureBandID = 0
+	// The two state leaves carry distinct spellings so that a descriptor reading
+	// the wrong one publishes a label value the assertions do not expect.
+	fixturePMFOptions = "apf-vap-pmf-required"
+	fixtureFTMode     = "dot11r-disabled"
 )
 
 // fixtureSource serves one snapshot to every adapter in internal/wnc.
@@ -86,6 +90,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_wlan_central_authentication_enabled",
 		"wnc_wlan_central_dhcp_enabled",
 		"wnc_wlan_central_association_enabled",
+		"wnc_wlan_policy_enabled",
 	}
 	clientTrafficDerived := []string{
 		"wnc_client_rssi_dbm",
@@ -137,6 +142,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
+			"wnc_wlan_pmf_state", "wnc_wlan_ft_state",
 		}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},
@@ -427,6 +433,8 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			ProfileName:    fixtureProfile,
 			AuthKeyMgmtPsk: true,
 			WPA2Enabled:    true,
+			PMFOptions:     fixturePMFOptions,
+			FTMode:         fixtureFTMode,
 			APFVapIDData:   &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true},
 		}},
 		WLANPolicies: []wlan.WlanPolicy{{

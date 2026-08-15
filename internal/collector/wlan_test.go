@@ -2,6 +2,7 @@ package collector
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -168,7 +169,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Config module only",
 			WLANMetrics{Config: true},
-			13, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k_neighbor_list, steering, central_switching, central_auth, central_dhcp, central_assoc
+			16, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k_neighbor_list, steering, central_switching, central_auth, central_dhcp, central_assoc, policy_enabled, pmf_state, ft_state
 		},
 		{
 			"Info module only",
@@ -183,7 +184,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			16, // 1+1+13+1
+			19, // 1+1+16+1
 		},
 	}
 
@@ -961,7 +962,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 16
+	expectedDescs := 19
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1134,6 +1135,93 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 //
 // Raising one leaf at a time need not describe a WLAN anyone would deploy. The
 // subject here is the wiring, not a deployable configuration.
+// TestWLANCollector_ConfigStatesMatchLeaves pins each state series to the leaf it
+// reads. Both leaves are value-typed strings, so swapping the two descriptors is a
+// change no compiler and no count assertion catches — only the label value does.
+// The empty case is asserted too, because a state label carrying an empty string
+// reads as no label at all.
+func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
+	t.Parallel()
+
+	// stateOf returns the state label of the single series in each named family,
+	// and reports whether that family carried a gauge at value 1 at all.
+	stateOf := func(t *testing.T, mutate func(*wnc.WNCDataCache)) map[string]string {
+		t.Helper()
+
+		data := fullFixtureSnapshot()
+		mutate(data)
+
+		registry := prometheus.NewRegistry()
+		registry.MustRegister(NewWLANCollector(
+			wnc.NewWLANSource(fixtureSource{data: data}),
+			wnc.NewClientSource(fixtureSource{data: data}),
+			WLANMetrics{Config: true},
+		))
+
+		families, err := registry.Gather()
+		if err != nil {
+			t.Fatalf("Gather() error = %v, want nil", err)
+		}
+
+		states := make(map[string]string, len(families))
+		for _, family := range families {
+			metrics := family.GetMetric()
+			if len(metrics) != 1 {
+				continue
+			}
+			gauge := metrics[0].GetGauge()
+			if gauge == nil {
+				t.Errorf("%s is not a gauge", family.GetName())
+				continue
+			}
+			if got := gauge.GetValue(); got != 1 {
+				states[family.GetName()] = "value=" + strconv.FormatFloat(got, 'f', -1, 64)
+				continue
+			}
+			for _, label := range metrics[0].GetLabel() {
+				if label.GetName() == labelState {
+					states[family.GetName()] = label.GetValue()
+				}
+			}
+		}
+		return states
+	}
+
+	t.Run("Each series carries its own leaf", func(t *testing.T) {
+		t.Parallel()
+
+		states := stateOf(t, func(*wnc.WNCDataCache) {})
+
+		for name, want := range map[string]string{
+			"wnc_wlan_pmf_state": fixturePMFOptions,
+			"wnc_wlan_ft_state":  fixtureFTMode,
+		} {
+			got, ok := states[name]
+			if !ok {
+				t.Fatalf("%s carries no gauge at 1 with a state label, so its leaf is unpinned", name)
+			}
+			if got != want {
+				t.Errorf("%s state = %q, want %q", name, got, want)
+			}
+		}
+	})
+
+	t.Run("An empty leaf publishes no series", func(t *testing.T) {
+		t.Parallel()
+
+		states := stateOf(t, func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].PMFOptions = ""
+			d.WLANConfigEntries[0].FTMode = ""
+		})
+
+		for _, name := range []string{"wnc_wlan_pmf_state", "wnc_wlan_ft_state"} {
+			if got, ok := states[name]; ok {
+				t.Errorf("%s emitted state %q for an empty leaf, want no series", name, got)
+			}
+		}
+	})
+}
+
 func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 	t.Parallel()
 
@@ -1176,6 +1264,9 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 		}},
 		{"wnc_wlan_central_association_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = true
+		}},
+		{"wnc_wlan_policy_enabled", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].Status = true
 		}},
 	}
 
