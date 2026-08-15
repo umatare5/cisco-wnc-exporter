@@ -3,6 +3,7 @@ package wnc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path"
@@ -393,5 +394,131 @@ func TestFetchers_DownWhenEveryRequiredDataTypeFails(t *testing.T) {
 
 	if stats := ds.Stats(); stats.Up {
 		t.Error("Stats().Up = true, want false when every required data type failed")
+	}
+}
+
+// TestFetchers_SkipBeforeTheDeadlineCheck pins the order of the two branches. A
+// data type nobody asked for must be skipped before the deadline is consulted:
+// recording it as truncated would seed a `data` label for a request that was
+// never going to be sent, and would make the refresh report a failure it did not
+// have — which is the wnc_up defect this gating fixes, reintroduced.
+func TestFetchers_SkipBeforeTheDeadlineCheck(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(mockServerConfig{})
+	defer server.Close()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      time.Minute,
+	}, config.Collectors{
+		WLAN: config.WLANCollectorModules{General: true},
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := ds.fetchAllData(ctx); err == nil {
+		t.Error("fetchAllData() error = nil, want an error when the deadline stopped every required fetch")
+	}
+
+	// Only the required data type may carry a label. The others were skipped, and a
+	// skipped data type is not a truncated one.
+	stats := ds.Stats()
+	if len(stats.Errors) != 1 {
+		t.Errorf("Stats().Errors covers %d data types, want 1", len(stats.Errors))
+	}
+	if count, present := stats.Errors[dataWLANCfgEntries]; !present || count != 1 {
+		t.Errorf("Stats().Errors[%s] = %d (present %v), want 1",
+			dataWLANCfgEntries, count, present)
+	}
+}
+
+// TestDataSource_PanicCountsOnlyTheRequiredDataTypes complements the panic test that
+// uses every module: with one module enabled, a panic must not invent a `data` label
+// for the data types no module reads, because recordRefresh increments the counter
+// for every name it is handed.
+func TestDataSource_PanicCountsOnlyTheRequiredDataTypes(t *testing.T) {
+	t.Parallel()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    "wnc1.example.internal",
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      55 * time.Second,
+	}, config.Collectors{
+		WLAN: config.WLANCollectorModules{General: true},
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+	suppressBackgroundRefresh(ds)
+
+	ds.onRefreshDone(fmt.Errorf("run: %w", errRefreshPanicked), 2*time.Second)
+
+	stats := ds.Stats()
+	if len(stats.Errors) != 1 {
+		t.Errorf("Stats().Errors covers %d data types after a panic, want 1", len(stats.Errors))
+	}
+	if count := stats.Errors[dataWLANCfgEntries]; count != 1 {
+		t.Errorf("Stats().Errors[%s] = %d, want 1", dataWLANCfgEntries, count)
+	}
+	if stats.Up {
+		t.Error("Stats().Up = true after a panicked refresh, want false")
+	}
+}
+
+// stubSource serves one snapshot so snapshot() can be driven without the refresher.
+type stubSource struct {
+	data *WNCDataCache
+}
+
+func (s stubSource) GetCachedData(context.Context) (*WNCDataCache, error) {
+	return s.data, nil
+}
+
+// TestSnapshot_RejectsADataTypeNoModuleDeclared covers the diagnostic path. A correct
+// table never reaches it, because a collector only asks for a data type it reads — so
+// reaching it means the table has drifted from the guards it mirrors, and the sentinel
+// is what turns that into an omitted series rather than an empty slice read as data.
+func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(mockServerConfig{})
+	defer server.Close()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      time.Minute,
+	}, config.Collectors{
+		WLAN: config.WLANCollectorModules{General: true},
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+
+	data, err := ds.fetchAllData(context.Background())
+	if err != nil {
+		t.Fatalf("fetchAllData() error = %v, want nil", err)
+	}
+
+	src := stubSource{data: data}
+
+	if _, err := snapshot(context.Background(), src, dataAPCAPWAPData); !errors.Is(err, errDataTypeNotRequested) {
+		t.Errorf("snapshot() error = %v, want errDataTypeNotRequested", err)
+	}
+
+	if _, err := snapshot(context.Background(), src, dataWLANCfgEntries); err != nil {
+		t.Errorf("snapshot() error = %v, want nil for a data type a module declared", err)
 	}
 }

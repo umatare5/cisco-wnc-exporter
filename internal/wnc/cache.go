@@ -189,6 +189,13 @@ func snapshot(ctx context.Context, src DataSource, id string) (*WNCDataCache, er
 		return nil, err
 	}
 	if err := data.FetchErrors[id]; err != nil {
+		// A collector asking for a data type no module declared is a table that has
+		// drifted from the guards it mirrors. The series are correctly withheld, so
+		// nothing else reports it.
+		if errors.Is(err, errDataTypeNotRequested) {
+			slog.Warn("collector read a data type no enabled module declared", "data", id)
+		}
+
 		return nil, err
 	}
 	return data, nil
