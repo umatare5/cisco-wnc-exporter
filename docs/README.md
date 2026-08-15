@@ -62,6 +62,7 @@ group by (mac) (wnc_client_state{state!="client-status-run"})
 - Pair the query with a `for:` longer than a legitimate transition takes
 - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
 - `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
+- `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` are one series per WLAN and report a configured setting rather than an operational state
 - Every other `_state` metric keeps its numeric `0` or `1`
 
 ## Labels

@@ -4,6 +4,30 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## Unreleased
+
+### Added
+
+| Metric                      | Reports                                            |
+| :-------------------------- | :------------------------------------------------- |
+| `wnc_wlan_pmf_state`        | Protected management frames setting, in `state`    |
+| `wnc_wlan_ft_state`         | 802.11r fast transition setting, in `state`        |
+| `wnc_wlan_policy_enabled`   | Whether the bound policy profile is active         |
+
+All three belong to the `config` module, which is disabled by default, and none of them adds a RESTCONF route. A default scrape is unchanged.
+
+The first two carry the controller's own spelling and always have the value `1`, so `== 0` never fires and an equality match on the healthy spelling selects the healthy WLANs rather than revealing the rest. Alert on any other spelling with `state` aggregated away, as in `group by (id) (wnc_wlan_pmf_state{state!="apf-vap-pmf-required"})`. Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty `state` label reads as no label at all.
+
+`wnc_wlan_pmf_state` reports the setting that applies to a WLAN's 2.4 GHz and 5 GHz BSSes. A 6 GHz BSS requires the protection whatever this series reports, so a rule that pages on anything other than required raises a false alarm on a WLAN advertised on 6 GHz — exclude those by `id`. The error runs one way only: the series can under-report 6 GHz protection and never over-report it. The setting has three values rather than two, and the middle one admits an unprotected association, which is why the spelling is published instead of a boolean.
+
+`wnc_wlan_policy_enabled` reads a leaf the controller omits when the profile never set it, and an omitted leaf decodes to `0`, which this series reports as shut down. Suppress a rule on it while the fallback counter is rising: `wnc_wlan_policy_enabled == 0 unless on(job, instance) increase(wnc_refresh_defaults_fallback_total[15m]) > 0`. It is absent, and any rule on it silent, for a WLAN that resolves to no policy profile and whenever the `wlan_policies` or `wlan_policy_list_entries` fetch fails, so pair it with `absent()` or watch `wnc_refresh_items` for those two `data` types. Whether a shut policy profile also stops the SSID being advertised is not established, so treat the series as change detection rather than an outage signal.
+
+### Changed
+
+The HELP text of `wnc_refresh_defaults_fallback_total` no longer says an omitted config leaf reads as `0`. That holds for a leaf whose Go type has no absent value, while a leaf read into a `state` label drops its series instead, and the HELP now covers both.
+
+The README no longer claims the collector flags reduce load on the controller. An exporter with no collector enabled never contacts it, but enabling any collector starts a refresh that reads every `data` type `wnc_refresh_errors_total` reports, so the flags bound what Prometheus stores rather than what the controller is asked for.
+
 ## v0.4.0
 
 ### Added
