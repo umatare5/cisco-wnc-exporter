@@ -125,7 +125,7 @@ The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics
 
 > [!Important]
 >
-> All collectors are **disabled by default**, and an exporter with no collector enabled never contacts the controller. Enabling any collector starts a refresh that reads every `data` type `wnc_refresh_errors_total` reports, so the module flags bound what Prometheus stores rather than what the controller is asked for. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring keeps the stored series proportionate to what you query.
+> All collectors are **disabled by default**, and an exporter with no collector enabled never contacts the controller. A refresh reads only the `data` types the enabled modules need, so the module flags bound both what Prometheus stores and what the controller is asked for. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring keeps both proportionate to what you query.
 
 > [!Note]
 >
@@ -155,7 +155,9 @@ These series describe the exporter itself rather than the wireless network. They
 
 > [!Note]
 >
-> `wnc_refresh_items` is recorded on success only, so an absent series means that fetch failed while a zero series means the controller returned nothing. `wnc_refresh_errors_total` is seeded to zero for every `data` type at start-up, which makes it the authoritative list of `data` label values.
+> `wnc_refresh_items` is recorded on success only, and `wnc_refresh_errors_total` is seeded to zero at start-up for every `data` type the enabled modules need. Read the two together: a type in the errors series and not in the items series failed its fetch, a zero in the items series means the controller returned nothing, and a type in neither is one no enabled module reads.
+>
+> The errors series is therefore the authoritative list of `data` label values for a given set of collector flags. Guard a rule that names one `data` type with `and on(job, instance) wnc_refresh_errors_total{data="..."}` so it stays silent where that type is never fetched.
 
 ## Use Cases
 

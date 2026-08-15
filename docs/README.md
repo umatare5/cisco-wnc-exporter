@@ -18,6 +18,8 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - The flag sets the minimum idle time between refresh completions, not a snapshot expiry
 - The first scrape after start-up therefore reports `wnc_up 0` and carries no data series
 - A refresh is bounded at twice the flag value — data types the deadline never reached count as failures
+- A refresh reads only the data types the enabled modules need, so a narrower flag set leaves more of that budget per data type
+- `wnc_refresh_errors_total` names the data types a configuration reads — a type absent from both refresh series is one no enabled module reads
 - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
 
 ### Info metric caching (`--collector.info-cache-ttl`)

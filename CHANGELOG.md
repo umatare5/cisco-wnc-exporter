@@ -26,7 +26,15 @@ The first two carry the controller's own spelling and always have the value `1`,
 
 The HELP text of `wnc_refresh_defaults_fallback_total` no longer says an omitted config leaf reads as `0`. That holds for a leaf whose Go type has no absent value, while a leaf read into a `state` label drops its series instead, and the HELP now covers both.
 
-The README no longer claims the collector flags reduce load on the controller. An exporter with no collector enabled never contacts it, but enabling any collector starts a refresh that reads every `data` type `wnc_refresh_errors_total` reports, so the flags bound what Prometheus stores rather than what the controller is asked for.
+A refresh now reads only the `data` types the enabled modules need, so the module flags bound what the controller is asked for as well as what Prometheus stores. `wnc_refresh_errors_total` is seeded for those types alone, which makes its `data` label set depend on the collector flags. With no AP module enabled, `ap_capwap_data`, `ap_oper_data`, `ap_radio_oper_data`, `ap_name_mac_map`, `ap_radio_oper_stats`, `ap_radio_reset_stats`, `rrm_measurement`, `rrm_coverage` and `rrm_ap_dot11_radar_data` have no series in either refresh metric, and a panel or rule naming one of them goes empty.
+
+`wnc_refresh_items` is still recorded on success only, so an absent series now has two causes. A `data` type carrying a series in `wnc_refresh_errors_total` and none in `wnc_refresh_items` failed its fetch; a type carrying a series in neither is one no enabled module reads. Guard a rule that names a single `data` type with `and on(job, instance) wnc_refresh_errors_total{data="..."}`, which holds it silent where that type is never fetched.
+
+`wnc_up` now reports `0` when every `data` type the enabled modules need failed, rather than when all eighteen failed. It read `1` before whenever any other fetch succeeded, so a deployment running one module could lose every series it asked for while `wnc_up` read `1`, and because the refresh reported no error the withhold-after-three-failures path never armed. It is still not a completeness signal: with two collectors enabled, one can fail entirely and `wnc_up` stays `1`. Alert on `increase(wnc_refresh_errors_total[15m]) > 0` for that.
+
+`examples/prometheus_alert_rules.yml` gains that guard on `WNCAPInventoryEmpty`, which named `ap_capwap_data`. An `unless` against an absent series excludes nothing, so without the guard the rule would fire continuously wherever no AP module is enabled. The `WNCRefreshFailing` summary no longer says the controller is unreachable, because `wnc_up` now also covers a reachable controller that refuses the models one module needs.
+
+The README no longer claims the collector flags reduce load on the controller only by being off. An exporter with no collector enabled never contacts it, and one with a module enabled reads that module's `data` types alone.
 
 ## v0.4.0
 
