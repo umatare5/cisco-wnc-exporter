@@ -13,6 +13,3 @@ USER 65534:65534
 
 # Set the entrypoint
 ENTRYPOINT ["/cisco-wnc-exporter"]
-
-# Default command shows help
-CMD ["--help"]
