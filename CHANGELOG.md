@@ -4,6 +4,15 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.6.0
+
+No metric was added, renamed or removed, and no series changed what it reads from the controller.
+
+### Fixed
+
+- The `linux/amd64` image can execute. Its binary was linked against a host loader that a `FROM scratch` image does not carry, so no `linux/amd64` image this project published before this release could start. The `linux/arm64` image was unaffected.
+- `docker run` with no argument now starts the exporter. The image carried `CMD ["--help"]`, so the quickstart form in the README printed the flag list and exited instead of serving `/metrics`.
+
 ## v0.5.0
 
 ### Added
