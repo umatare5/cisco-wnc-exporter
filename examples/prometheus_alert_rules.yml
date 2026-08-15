@@ -10,11 +10,16 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "cisco-wnc-exporter cannot reach the WNC"
+          summary: "cisco-wnc-exporter is getting none of the WNC data it asked for"
           description: >-
-            Scrapes keep returning 200 from the cached snapshot, so the target
-            up stays 1 and cannot detect this. Also fires briefly after a
-            restart, before the first refresh completes.
+            wnc_up is 0 when every data type the enabled collectors read failed,
+            which covers an unreachable controller and a reachable one that
+            refuses those models. It is not a completeness signal: with more
+            than one collector enabled, one can fail entirely while wnc_up stays
+            1, which is what WNCDataTypeFailing covers. Scrapes keep returning
+            200 from the cached snapshot, so the target up stays 1 and cannot
+            detect this. Also fires briefly after a restart, before the first
+            refresh completes.
 
       - alert: WNCDataStale
         expr: time() - wnc_refresh_success_timestamp_seconds > 300
@@ -46,7 +51,10 @@ groups:
             leaves empty with a data!= matcher.
 
       - alert: WNCAPInventoryEmpty
-        expr: wnc_up == 1 unless on(job, instance) wnc_refresh_items{data="ap_capwap_data"} > 0
+        expr: >-
+          wnc_up == 1
+          and on(job, instance) wnc_refresh_errors_total{data="ap_capwap_data"}
+          unless on(job, instance) wnc_refresh_items{data="ap_capwap_data"} > 0
         for: 15m
         labels:
           severity: warning
@@ -55,4 +63,7 @@ groups:
           description: >-
             Every AP series is labeled from the AP inventory, so an empty
             inventory silently empties the AP and radio series while wnc_up
-            stays 1.
+            stays 1. The and clause holds the rule silent where no AP collector
+            is enabled and the inventory is never fetched: unless against an
+            absent series excludes nothing, so without it the rule would fire
+            continuously there.
