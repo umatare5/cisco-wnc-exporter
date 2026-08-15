@@ -2,12 +2,16 @@ package wnc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"slices"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 )
 
 // withDefaultsParam is the query the exporter sends to ask for the value in force
@@ -182,5 +186,212 @@ func TestFetchers_NoFallBackOnOtherStatus(t *testing.T) {
 	}
 	if got := ds.Stats().DefaultsFallbacks; got != 0 {
 		t.Errorf("DefaultsFallbacks = %d, want 0", got)
+	}
+}
+
+// TestRequiredDataTypes_MatchesWhatTheModulesRead pins the table the fetch loop is
+// gated on. A data type missing from it is never fetched, and its collector then
+// takes an empty slice for a successful empty fetch — the map builders return a
+// non-nil empty map, so the nil guards in the collectors do not catch it. Every
+// module's route set is therefore asserted rather than sampled.
+func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		modules config.Collectors
+		want    []string
+	}{
+		{
+			"AP general reads the inventory, the radios and the AP oper data",
+			config.Collectors{AP: config.APCollectorModules{General: true}},
+			[]string{dataAPCAPWAPData, dataAPOperData, dataAPRadioOperData},
+		},
+		{
+			"AP radio reads client data for the per-radio client count",
+			config.Collectors{AP: config.APCollectorModules{Radio: true}},
+			[]string{
+				dataAPCAPWAPData, dataAPRadioOperData, dataAPNameMACMap,
+				dataRRMMeasurement, dataClientCommonOperData,
+			},
+		},
+		{
+			"AP info reads only the two the AP collector fetches unconditionally",
+			config.Collectors{AP: config.APCollectorModules{Info: true}},
+			[]string{dataAPCAPWAPData, dataAPRadioOperData},
+		},
+		{
+			"AP errors reads the reset stats and both RRM error routes",
+			config.Collectors{AP: config.APCollectorModules{Errors: true}},
+			[]string{
+				dataAPCAPWAPData, dataAPRadioOperData, dataAPRadioOperStats,
+				dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData,
+			},
+		},
+		{
+			"WLAN config reads all three configuration routes",
+			config.Collectors{WLAN: config.WLANCollectorModules{Config: true}},
+			[]string{dataWLANCfgEntries, dataWLANPolicies, dataWLANPolicyListEntries},
+		},
+		{
+			"WLAN traffic reads client data instead of the policy routes",
+			config.Collectors{WLAN: config.WLANCollectorModules{Traffic: true}},
+			[]string{dataWLANCfgEntries, dataClientCommonOperData},
+		},
+		{
+			"WLAN general reads one data type of the eighteen",
+			config.Collectors{WLAN: config.WLANCollectorModules{General: true}},
+			[]string{dataWLANCfgEntries},
+		},
+		{
+			"client traffic reads two data types",
+			config.Collectors{Client: config.ClientCollectorModules{Traffic: true}},
+			[]string{dataClientCommonOperData, dataClientTrafficStats},
+		},
+		{
+			"client info reads the two identity routes and the dot11 data",
+			config.Collectors{Client: config.ClientCollectorModules{Info: true}},
+			[]string{
+				dataClientCommonOperData, dataClientDCInfo,
+				dataClientDot11OperData, dataClientSISFDBMac,
+			},
+		},
+		{
+			"client general also reads the mobility history",
+			config.Collectors{Client: config.ClientCollectorModules{General: true}},
+			[]string{
+				dataClientCommonOperData, dataClientDot11OperData,
+				dataClientTrafficStats, dataClientMMIFHistory,
+			},
+		},
+		{"every module reads every data type, in fetch order", allModules(), dataTypeNames},
+		{"no module reads nothing", config.Collectors{}, []string{}},
+	}
+
+	// A data type with no case is fetched rather than skipped: paying for a request
+	// is recoverable, while withholding one relies on the mark reaching its reader.
+	t.Run("an unlisted data type is fetched", func(t *testing.T) {
+		t.Parallel()
+
+		if !isDataTypeRequired("data_type_with_no_case", config.Collectors{}) {
+			t.Error("isDataTypeRequired() = false for an unlisted data type, want true")
+		}
+	})
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := requiredDataTypes(tt.modules); !slices.Equal(got, tt.want) {
+				t.Errorf("requiredDataTypes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFetchers_SkipWhatNoEnabledModuleReads proves the gate reaches the wire and
+// that a skipped data type is marked rather than left looking successful.
+// Asserting the name set alone would pass on a loop that still fetched all
+// eighteen, which is the regression this exists to catch.
+func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
+	t.Parallel()
+
+	rec := newQueryRecorder()
+	server := rec.server()
+	defer server.Close()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      time.Minute,
+	}, config.Collectors{
+		Client: config.ClientCollectorModules{Traffic: true},
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+
+	data, err := ds.fetchAllData(context.Background())
+	if err != nil {
+		t.Fatalf("fetchAllData() error = %v, want nil", err)
+	}
+
+	required := []string{dataClientCommonOperData, dataClientTrafficStats}
+	for segment, endpoint := range mockEndpoints {
+		want := 0
+		if slices.Contains(required, endpoint.dataType) {
+			want = 1
+		}
+		if got := len(rec.get(segment)); got != want {
+			t.Errorf("%s was requested %d times, want %d", segment, got, want)
+		}
+	}
+
+	// A skipped data type must be marked, or a collector reading it takes the
+	// empty slice in the snapshot for data the controller actually returned.
+	for _, name := range dataTypeNames {
+		fetchErr := data.FetchErrors[name]
+		if slices.Contains(required, name) {
+			if fetchErr != nil {
+				t.Errorf("FetchErrors[%s] = %v, want nil for a required data type", name, fetchErr)
+			}
+			continue
+		}
+		if !errors.Is(fetchErr, errDataTypeNotRequested) {
+			t.Errorf("FetchErrors[%s] = %v, want errDataTypeNotRequested", name, fetchErr)
+		}
+	}
+
+	// The mark must not reach the error counter or wnc_up: it reports a request
+	// nobody wanted, not a controller that failed one.
+	stats := ds.Stats()
+	if len(stats.Errors) != len(required) {
+		t.Errorf("Stats().Errors covers %d data types, want %d seeded from the enabled modules",
+			len(stats.Errors), len(required))
+	}
+	for _, name := range required {
+		if count, present := stats.Errors[name]; !present || count != 0 {
+			t.Errorf("Stats().Errors[%s] = %d (present %v), want 0", name, count, present)
+		}
+	}
+	if !stats.Up {
+		t.Error("Stats().Up = false, want true when every required data type succeeded")
+	}
+}
+
+// TestFetchers_DownWhenEveryRequiredDataTypeFails is the regression test for the
+// defect the gating exists to fix. Before it, wnc_up was judged against all
+// eighteen data types, so a deployment running one module could fail every data
+// type it needs, publish nothing, and still report up — and because fetchAllData
+// returned no error the consecutive-failure counter reset, so the
+// withhold-after-three-failures path never armed. The sixteen data types nothing
+// reads answer normally here, which is what made the old denominator read healthy.
+func TestFetchers_DownWhenEveryRequiredDataTypeFails(t *testing.T) {
+	t.Parallel()
+
+	server := newMockWNCServer(failing(dataClientCommonOperData, dataClientTrafficStats))
+	defer server.Close()
+
+	ds, ok := NewDataSource(config.WNC{
+		Controller:    extractHostFromURL(server.URL),
+		AccessToken:   "test-token",
+		Timeout:       5 * time.Second,
+		TLSSkipVerify: true,
+		CacheTTL:      time.Minute,
+	}, config.Collectors{
+		Client: config.ClientCollectorModules{Traffic: true},
+	}).(*dataSource)
+	if !ok {
+		t.Fatal("NewDataSource did not return *dataSource")
+	}
+
+	if _, err := ds.fetchAllData(context.Background()); err == nil {
+		t.Error("fetchAllData() error = nil, want an error when every required data type failed")
+	}
+
+	if stats := ds.Stats(); stats.Up {
+		t.Error("Stats().Up = true, want false when every required data type failed")
 	}
 }

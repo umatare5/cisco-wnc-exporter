@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -127,6 +128,12 @@ type dataSource struct {
 	refresher *refresher
 	cacheTTL  time.Duration
 
+	// names lists the data types the enabled modules read, in fetch order. It is
+	// the seeded `data` label set and the denominator every refresh outcome is
+	// judged against, so a refresh that failed everything those modules need
+	// reports wnc_up 0 however many other data types exist.
+	names []string
+
 	// failures counts consecutive failed refreshes. It must stay atomic rather
 	// than mu-protected: Stats holds mu and calls serving, and sync.Mutex is not
 	// reentrant.
@@ -150,17 +157,22 @@ type dataFetcher struct {
 	fetch func(ctx context.Context, c *WNCDataCache) (int, error)
 }
 
-// NewDataSource creates a new shared data source.
-func NewDataSource(cfg config.WNC) DataSource {
+// NewDataSource creates a new shared data source. It reads only the data types the
+// enabled modules need, so enabling one module does not poll the controller for the
+// data the others would have read.
+func NewDataSource(cfg config.WNC, modules config.Collectors) DataSource {
+	names := requiredDataTypes(modules)
 	s := &dataSource{
 		client:   createWNCClient(cfg),
 		cacheTTL: cfg.CacheTTL,
-		errors:   make(map[string]int, len(dataTypeNames)),
+		names:    names,
+		errors:   make(map[string]int, len(names)),
 	}
 
 	// Seed every data type so the error series exist on the first scrape, which
-	// is the scrape most likely to be reporting a failure.
-	for _, name := range dataTypeNames {
+	// is the scrape most likely to be reporting a failure. Seeding the required
+	// set is what lets an operator tell a failed fetch from one never requested.
+	for _, name := range names {
 		s.errors[name] = 0
 	}
 
@@ -235,7 +247,7 @@ func (s *dataSource) onRefreshDone(err error, elapsed time.Duration) {
 
 	s.failures.Add(1)
 	if errors.Is(err, errRefreshPanicked) {
-		s.recordRefresh(nil, dataTypeNames, elapsed)
+		s.recordRefresh(nil, s.names, elapsed)
 	}
 }
 
@@ -251,7 +263,8 @@ func (s *dataSource) recordRefresh(items map[string]int, failures []string, dura
 	s.items = items
 	s.duration = duration
 	s.attempted = true
-	s.up = len(failures) < len(dataTypeNames)
+	// A source with no enabled module needs nothing, so nothing failing is up.
+	s.up = len(failures) == 0 || len(failures) < len(s.names)
 }
 
 func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
@@ -264,11 +277,21 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 		RefreshedAt: start,
 	}
 
-	items := make(map[string]int, len(dataTypeNames))
-	failures := make([]string, 0, len(dataTypeNames))
+	items := make(map[string]int, len(s.names))
+	failures := make([]string, 0, len(s.names))
 	var lastErr error
 
 	for _, f := range s.fetchers() {
+		// A data type no enabled module reads is marked rather than fetched, and it
+		// is neither an item nor a failure: recording it as failed would raise the
+		// error counter for a request nobody wanted. The mark is what makes a
+		// collector reading it anyway omit its series, because an unmarked skip
+		// returns the snapshot and the collector takes the empty slice for data.
+		if !slices.Contains(s.names, f.name) {
+			data.FetchErrors[f.name] = fmt.Errorf("%s: %w", f.name, errDataTypeNotRequested)
+			continue
+		}
+
 		// A data type the deadline never reached must be recorded as failed.
 		// Leaving it out would make FetchErrors report it as a successful empty
 		// fetch, and the collectors would publish fabricated zeros for it.
@@ -297,12 +320,14 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 
 	if len(failures) > 0 {
 		slog.Info("WNC data refreshed with failures",
-			"failed_data", failures, "total", len(dataTypeNames),
+			"failed_data", failures, "total", len(s.names),
 			"duration", time.Since(start))
 	}
 
-	if len(failures) == len(dataTypeNames) {
-		return nil, fmt.Errorf("all %d WNC data fetches failed: %w", len(dataTypeNames), lastErr)
+	// The first condition is not redundant: a source with no enabled module has
+	// nothing to fail, and wrapping a nil error would print a formatting verb.
+	if len(failures) > 0 && len(failures) == len(s.names) {
+		return nil, fmt.Errorf("all %d WNC data fetches failed: %w", len(s.names), lastErr)
 	}
 
 	return data, nil

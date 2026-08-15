@@ -2,7 +2,11 @@
 // This file holds the index of RESTCONF data types a refresh walks.
 package wnc
 
-import "context"
+import (
+	"context"
+
+	"github.com/umatare5/cisco-wnc-exporter/internal/config"
+)
 
 // dataTypeNames lists every data type a refresh attempts, in fetch order.
 // A refresh truncated by its deadline drops the tail, so ap_capwap_data comes
@@ -26,6 +30,81 @@ var dataTypeNames = []string{
 	dataAPRadioResetStats,
 	dataRRMCoverage,
 	dataRRMAPDot11RadarData,
+}
+
+// anyOf reports whether any flag is set. internal/collector has the same predicate,
+// but importing it here would be a cycle.
+func anyOf(flags ...bool) bool {
+	for _, flag := range flags {
+		if flag {
+			return true
+		}
+	}
+
+	return false
+}
+
+// requiredDataTypes returns the data types the enabled modules read, in the order
+// of dataTypeNames. A data type no enabled module reads costs one serial request
+// per refresh and buys nothing.
+func requiredDataTypes(modules config.Collectors) []string {
+	names := make([]string, 0, len(dataTypeNames))
+
+	for _, name := range dataTypeNames {
+		if isDataTypeRequired(name, modules) {
+			names = append(names, name)
+		}
+	}
+
+	return names
+}
+
+// isDataTypeRequired mirrors the source calls each Collect method makes under its
+// module guards, so it has to be updated alongside them. Three data types are read
+// before any guard, and one is read by three modules across two collectors, so the
+// relation is a union over the enabled modules rather than a per-module list.
+//
+// An unlisted data type is fetched. Paying for a request is recoverable, while
+// withholding one relies on the caller marking it absent.
+func isDataTypeRequired(name string, modules config.Collectors) bool {
+	anyAP := anyOf(modules.AP.General, modules.AP.Radio,
+		modules.AP.Traffic, modules.AP.Errors, modules.AP.Info)
+	anyClient := anyOf(modules.Client.General, modules.Client.Radio,
+		modules.Client.Traffic, modules.Client.Errors, modules.Client.Info)
+	anyWLAN := anyOf(modules.WLAN.General, modules.WLAN.Traffic,
+		modules.WLAN.Config, modules.WLAN.Info)
+
+	switch name {
+	case dataAPCAPWAPData, dataAPRadioOperData:
+		return anyAP
+	case dataAPOperData:
+		return modules.AP.General
+	case dataAPNameMACMap, dataRRMMeasurement:
+		return modules.AP.Radio
+	case dataAPRadioOperStats:
+		return anyOf(modules.AP.Traffic, modules.AP.Errors)
+	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
+		return modules.AP.Errors
+	case dataWLANCfgEntries:
+		return anyWLAN
+	case dataWLANPolicies, dataWLANPolicyListEntries:
+		return modules.WLAN.Config
+	case dataClientCommonOperData:
+		// The per-radio and per-WLAN client counts read it through their own
+		// collectors, so a client module is not the only reason to fetch it.
+		return anyOf(anyClient, modules.AP.Radio, modules.WLAN.Traffic)
+	case dataClientDCInfo, dataClientSISFDBMac:
+		return modules.Client.Info
+	case dataClientDot11OperData:
+		return anyOf(modules.Client.General, modules.Client.Radio, modules.Client.Info)
+	case dataClientTrafficStats:
+		return anyOf(modules.Client.General, modules.Client.Radio,
+			modules.Client.Traffic, modules.Client.Errors)
+	case dataClientMMIFHistory:
+		return modules.Client.General
+	default:
+		return true
+	}
 }
 
 // fetchers returns the data fetchers in the order of dataTypeNames.

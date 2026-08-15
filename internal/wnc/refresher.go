@@ -18,6 +18,10 @@ var (
 	errSnapshotWithheld = errors.New("WNC data snapshot withheld")
 	// errRefreshPanicked reports a recovered panic to the outcome handler.
 	errRefreshPanicked = errors.New("WNC data refresh panicked")
+	// errDataTypeNotRequested marks a data type no enabled module reads. It goes
+	// into the snapshot so a collector that reads one anyway omits its series
+	// instead of taking an empty slice for a successful empty fetch.
+	errDataTypeNotRequested = errors.New("WNC data type not requested by any enabled collector module")
 )
 
 // refresher serves the last snapshot immediately and refreshes it in the

@@ -32,7 +32,7 @@ type StringMetric struct {
 
 // NewCollector creates a new collector manager.
 func NewCollector(cfg *config.Config) *Collector {
-	sharedDataSource := wnc.NewDataSource(cfg.WNC)
+	sharedDataSource := wnc.NewDataSource(cfg.WNC, cfg.Collectors)
 
 	return &Collector{
 		registry:         prometheus.NewRegistry(),
