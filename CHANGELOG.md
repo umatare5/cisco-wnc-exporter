@@ -34,7 +34,7 @@ A refresh now reads only the `data` types the enabled modules need, so the modul
 
 `examples/prometheus_alert_rules.yml` gains that guard on `WNCAPInventoryEmpty`, which named `ap_capwap_data`. An `unless` against an absent series excludes nothing, so without the guard the rule would fire continuously wherever no AP module is enabled. The `WNCRefreshFailing` summary no longer says the controller is unreachable, because `wnc_up` now also covers a reachable controller that refuses the models one module needs.
 
-The README no longer claims the collector flags reduce load on the controller only by being off. An exporter with no collector enabled never contacts it, and one with a module enabled reads that module's `data` types alone.
+The README now names the two mechanisms that bound what the controller is asked for. One shared refresh serves every enabled collector and runs no more often than `--wnc.cache-ttl`, which is what makes the request rate independent of the scrape interval and of how many collectors are enabled; that has always been so. What is new is the second: the refresh reads only the `data` types the enabled modules need, where before it read all of them whatever was enabled.
 
 ## v0.4.0
 

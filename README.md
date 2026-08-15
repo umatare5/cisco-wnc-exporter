@@ -125,7 +125,7 @@ The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics
 
 > [!Important]
 >
-> All collectors are **disabled by default**, and an exporter with no collector enabled never contacts the controller. A refresh reads only the `data` types the enabled modules need, so the module flags bound both what Prometheus stores and what the controller is asked for. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring keeps both proportionate to what you query.
+> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC, and an exporter with no collector enabled never contacts the controller at all. Every enabled collector is served from one shared refresh, and a refresh runs no more often than `--wnc.cache-ttl`, so the controller sees one pass of requests per interval however many collectors are enabled and however often Prometheus scrapes. That pass reads only the `data` types the enabled modules need. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
 
 > [!Note]
 >

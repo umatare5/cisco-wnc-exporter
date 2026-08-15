@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -520,5 +521,43 @@ func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
 
 	if _, err := snapshot(context.Background(), src, dataWLANCfgEntries); err != nil {
 		t.Errorf("snapshot() error = %v, want nil for a data type a module declared", err)
+	}
+}
+
+// TestRequiredDataTypes_EveryModuleFlagReadsSomething closes the one break mode the
+// per-module cases above cannot. Those name the flags that exist today, so a flag
+// added later and left out of the unions in isDataTypeRequired escapes them — and
+// its collector would then publish nothing at all, because every route it reads is
+// skipped. Walking the struct covers a flag nobody remembered to list.
+func TestRequiredDataTypes_EveryModuleFlagReadsSomething(t *testing.T) {
+	t.Parallel()
+
+	var empty config.Collectors
+	groups := reflect.ValueOf(&empty).Elem()
+
+	for i := range groups.NumField() {
+		group := groups.Field(i)
+		if group.Kind() != reflect.Struct {
+			continue
+		}
+
+		for j := range group.NumField() {
+			if group.Field(j).Kind() != reflect.Bool {
+				continue
+			}
+
+			name := groups.Type().Field(i).Name + "." + group.Type().Field(j).Name
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				var one config.Collectors
+				reflect.ValueOf(&one).Elem().Field(i).Field(j).SetBool(true)
+
+				if got := requiredDataTypes(one); len(got) == 0 {
+					t.Errorf("requiredDataTypes() is empty with only %s enabled, so every "+
+						"route that module reads is skipped and it publishes nothing", name)
+				}
+			})
+		}
 	}
 }
