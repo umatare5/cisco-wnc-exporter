@@ -224,13 +224,31 @@ Add the job config to your Prometheus YAML file using [examples/prometheus.yml](
 
 Add the alerting rules to your Prometheus YAML file using [examples/prometheus_alert_rules.yml](./examples/prometheus_alert_rules.yml) as a reference.
 
-### Example Grafana Dashboard
+### Grafana Admin-level Dashboard Example
+
+Import [examples/grafana_cisco-wnc-admin-dashboard.json](./examples/grafana_cisco-wnc-admin-dashboard.json) to add the example Grafana Dashboard for administrators.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-exporter-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-exporter-dashboard.png">
-  <img src="docs/assets/cisco-wnc-exporter-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-admin-dashboard_dark.png.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-admin-dashboard.png">
+  <img src="docs/assets/cisco-wnc-admin-dashboard.png">
 </picture>
+
+> [!Tip]
+> See [cisco-wnc-admin-dashboard_full.png](./docs/assets/cisco-wnc-admin-dashboard_full.png) for the full capture image of the example.
+
+### Grafana User-level Dashboard Example
+
+Import [examples/grafana_cisco-wnc-user-dashboard.json](./examples/grafana_cisco-wnc-user-dashboard.json) to add the example Grafana Dashboard for users.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-user-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-user-dashboard.png">
+  <img src="docs/assets/cisco-wnc-user-dashboard.png">
+</picture>
+
+> [!Tip]
+> See [cisco-wnc-user-dashboard_full.png](./docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
 
 ## Contributing
 
