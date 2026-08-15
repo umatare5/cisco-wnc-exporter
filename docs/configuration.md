@@ -1,6 +1,6 @@
 # Configuration
 
-Every flag the exporter accepts, as `cisco-wnc-exporter --help` prints it.
+A verbatim `cisco-wnc-exporter --help` transcript: every flag, its default, and the environment variable it reads where one exists.
 
 ## Flags
 
