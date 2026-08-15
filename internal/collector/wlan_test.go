@@ -1206,6 +1206,27 @@ func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 		}
 	})
 
+	// Emptying one leaf while the other carries a value is what separates a per-leaf
+	// skip from a loop that abandons the rest, and dropping the policy bindings is what
+	// separates a leaf on the WLAN entry from one on the policy profile. Emptying both
+	// at once, with a policy resolved, distinguishes neither.
+	t.Run("One empty leaf leaves the other published", func(t *testing.T) {
+		t.Parallel()
+
+		states := stateOf(t, func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].PMFOptions = ""
+			d.WLANPolicyListEntries = nil
+		})
+
+		if got, ok := states["wnc_wlan_pmf_state"]; ok {
+			t.Errorf("wnc_wlan_pmf_state emitted state %q for an empty leaf, want no series", got)
+		}
+		if got := states["wnc_wlan_ft_state"]; got != fixtureFTMode {
+			t.Errorf("wnc_wlan_ft_state state = %q, want %q — it reads the WLAN entry, "+
+				"so neither the sibling leaf nor the policy binding gates it", got, fixtureFTMode)
+		}
+	})
+
 	t.Run("An empty leaf publishes no series", func(t *testing.T) {
 		t.Parallel()
 
@@ -1387,6 +1408,9 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					centralAuthenticationDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralDHCPDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralAssocEnableDesc:    prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					policyEnabledDesc:         prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					pmfStateDesc:              prometheus.NewDesc("pmf", "pmf", []string{"id", "state"}, nil),
+					ftStateDesc:               prometheus.NewDesc("ft", "ft", []string{"id", "state"}, nil),
 				}
 				ch := make(chan prometheus.Metric, 20)
 				defer func() {
@@ -1397,7 +1421,12 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					for range ch {
 					}
 				}()
-				entry := wlan.WlanCfgEntry{WlanID: 1, ProfileName: "unknown"}
+				entry := wlan.WlanCfgEntry{
+					WlanID:      1,
+					ProfileName: "unknown",
+					PMFOptions:  fixturePMFOptions,
+					FTMode:      fixtureFTMode,
+				}
 				collector.collectConfigMetrics(ch, entry, map[string]*wlan.WlanPolicy{})
 			},
 		},
