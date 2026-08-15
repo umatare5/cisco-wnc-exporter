@@ -153,7 +153,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		collector.pmfStateDesc = prometheus.NewDesc(
 			"wnc_wlan_pmf_state",
 			"Protected management frames setting reported in the state label, always 1. "+
-				"It covers 2.4GHz and 5GHz; a 6GHz BSS requires PMF whatever this reports",
+				"It covers 2.4GHz and 5GHz — a 6GHz BSS requires PMF whatever this reports",
 			[]string{labelID, labelState}, nil,
 		)
 		collector.ftStateDesc = prometheus.NewDesc(
