@@ -38,10 +38,9 @@ builds:
 archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
-      - "*.md"
+      - "README.md"
       - "docs/*.md"
-      - "go.mod"
-      - "go.sum"
+      - "examples/*.yml"
       - "LICENSE"
 
 # Docker configuration
