@@ -27,6 +27,9 @@ const (
 	// WLAN-specific labels.
 	labelID = "id" // WLAN identifier
 
+	// Controller-specific labels.
+	labelReason = "reason" // Reason a controller-wide counter is keyed by
+
 	// Refresh health labels.
 	labelData = "data" // WNC data type identifier
 )

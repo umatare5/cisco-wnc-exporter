@@ -4,6 +4,7 @@ package wnc
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 )
@@ -21,6 +22,8 @@ var dataTypeNames = []string{
 	dataWLANCfgEntries,
 	dataWLANPolicies,
 	dataWLANPolicyListEntries,
+	dataControllerBootTime,
+	dataCoClientDelReason,
 	dataClientCommonOperData,
 	dataClientDCInfo,
 	dataClientDot11OperData,
@@ -31,6 +34,16 @@ var dataTypeNames = []string{
 	dataAPRadioResetStats,
 	dataRRMCoverage,
 	dataRRMAPDot11RadarData,
+}
+
+// boolToInt reports one item for a leaf the controller carries and none for one it
+// omits, so wnc_refresh_items reads as the count of what the read published.
+func boolToInt(present bool) int {
+	if present {
+		return 1
+	}
+
+	return 0
 }
 
 // anyOf reports whether any flag is set. internal/collector has the same predicate,
@@ -90,6 +103,8 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
 		return modules.AP.Errors
+	case dataControllerBootTime, dataCoClientDelReason:
+		return modules.Controller.General
 	case dataWLANCfgEntries:
 		return anyWLAN
 	case dataWLANPolicies, dataWLANPolicyListEntries:
@@ -192,6 +207,27 @@ func (s *dataSource) fetchers() []dataFetcher {
 				c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
 			}
 			return len(c.WLANPolicyListEntries), nil
+		}},
+		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			bootTime, present, err := rawValue[string](ctx, s.client.Core(), routeControllerBootTime)
+			if err != nil {
+				return 0, err
+			}
+			c.ControllerBootTime = bootTime
+			return boolToInt(present), nil
+		}},
+		{dataCoClientDelReason, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			leaves, present, err := rawValue[map[string]json.RawMessage](
+				ctx, s.client.Core(), routeCoClientDelReason,
+			)
+			if err != nil {
+				return 0, err
+			}
+			if !present {
+				return 0, nil
+			}
+			c.ClientDeleteReasons = numericLeaves(leaves, dataCoClientDelReason)
+			return len(c.ClientDeleteReasons), nil
 		}},
 		{dataClientCommonOperData, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.Client().ListCommonInfo(ctx)

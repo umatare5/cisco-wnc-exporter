@@ -115,6 +115,15 @@ func (c *Collector) RegisterServiceCollectors() {
 		slog.Debug("Skipped WLAN collector registration - all modules disabled")
 	}
 
+	// Register the controller collector if any controller module is enabled
+	if IsEnabled(c.cfg.Collectors.Controller.General) {
+		controllerSource := wnc.NewControllerSource(c.sharedDataSource)
+		c.registerControllerCollector(controllerSource)
+		registered = true
+	} else {
+		slog.Debug("Skipped controller collector registration - all modules disabled")
+	}
+
 	// Register Client collector if any Client module is enabled
 	if IsEnabled(
 		c.cfg.Collectors.Client.General,
@@ -192,6 +201,17 @@ func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSourc
 
 	c.registry.MustRegister(collector)
 	slog.Debug("Registered WLAN collector")
+}
+
+// registerControllerCollector registers the controller collector with its modules.
+// It has no info metrics, so no caching wrapper applies to it.
+func (c *Collector) registerControllerCollector(controllerSource wnc.ControllerSource) {
+	baseCollector := NewControllerCollector(controllerSource, ControllerMetrics{
+		General: c.cfg.Collectors.Controller.General,
+	})
+
+	c.registry.MustRegister(NewSafeCollector(baseCollector, "Controller"))
+	slog.Debug("Registered controller collector")
 }
 
 // registerClientCollector registers the Client collector with its modules.

@@ -28,6 +28,8 @@ const (
 	typeAPRadioOperStats      = "ap_radio_oper_stats"
 	typeAPRadioResetStats     = "ap_radio_reset_stats"
 	typeAPJoinStats           = "ap_join_stats"
+	typeControllerBootTime    = "controller_boot_time"
+	typeCoClientDelReason     = "co_client_del_reason"
 	typeClientCommonOperData  = "client_common_oper_data"
 	typeClientDCInfo          = "client_dc_info"
 	typeClientDot11OperData   = "client_dot11_oper_data"
@@ -45,6 +47,7 @@ const (
 var allDataTypes = []string{
 	typeAPCAPWAPData, typeAPOperData, typeAPRadioOperData, typeAPNameMACMap,
 	typeAPRadioOperStats, typeAPRadioResetStats, typeAPJoinStats,
+	typeControllerBootTime, typeCoClientDelReason,
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData,
@@ -87,6 +90,17 @@ var (
 	// fixtureEpochSentinel is what the controller writes into a timestamp leaf for an
 	// event that has not happened. It is not the zero time, so IsZero reports false.
 	fixtureEpochSentinel = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
+const (
+	// fixtureBootTime is the controller boot instant, a day past the join timestamps so
+	// that a descriptor reading one of those reports another day.
+	fixtureBootTime = "2026-01-13T00:00:00Z"
+
+	// The two delete reasons carry distinct values, and the second is there because one
+	// entry cannot tell a per-reason loop from a single emit.
+	fixtureDeleteReason      = "ap-delete"
+	fixtureOtherDeleteReason = "bssid-down"
 )
 
 // fixtureSource serves one snapshot to every adapter in internal/wnc.
@@ -152,6 +166,8 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_dtls_session_requests_total", "wnc_ap_last_join_success_timestamp_seconds",
 			"wnc_ap_last_dtls_success_timestamp_seconds", "wnc_ap_last_reboot_reason",
 		}},
+		{typeControllerBootTime, []string{"wnc_controller_boot_time_seconds"}},
+		{typeCoClientDelReason, []string{"wnc_controller_client_deletes_total"}},
 		{typeClientCommonOperData, []string{
 			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
 			"wnc_wlan_clients",
@@ -301,6 +317,7 @@ func fixtureCollectors(t *testing.T, data *wnc.WNCDataCache) []prometheus.Collec
 	wlanMetrics := WLANMetrics{General: true, Traffic: true, Config: true, Info: true}
 
 	return []prometheus.Collector{
+		NewControllerCollector(wnc.NewControllerSource(src), ControllerMetrics{General: true}),
 		NewAPCollector(
 			wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src), apMetrics,
 		),
@@ -396,6 +413,12 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		},
 		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 		JoinStats:   []ap.ApJoinStats{newFixtureJoinStats()},
+
+		ControllerBootTime: fixtureBootTime,
+		ClientDeleteReasons: map[string]float64{
+			fixtureDeleteReason:      6101,
+			fixtureOtherDeleteReason: 6102,
+		},
 
 		CommonOperData: []client.CommonOperData{{
 			ClientMAC:   fixtureClientMAC,

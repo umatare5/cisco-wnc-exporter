@@ -115,6 +115,9 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_last_config_failure_timestamp_seconds", 1767657600},
 		{"wnc_ap_last_discovery_success_timestamp_seconds", 1767744000},
 		{"wnc_ap_last_discovery_failure_timestamp_seconds", 1767830400},
+
+		// The controller module. Seconds, so a switch to UnixMilli changes the value.
+		{"wnc_controller_boot_time_seconds", 1768262400},
 	}
 
 	assertValues(t, values, tests)
@@ -189,6 +192,10 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_config_requests_total", 5104},
 		{"wnc_ap_config_responses_total", 5105},
 		{"wnc_ap_config_failures_total", 5106},
+
+		// The first reason in label order of the controller module, which carries one
+		// series per reason leaf.
+		{"wnc_controller_client_deletes_total", 6101},
 	}
 
 	assertValues(t, values, tests)

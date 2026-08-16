@@ -58,6 +58,7 @@ func registerFlags() []cli.Flag {
 	flags = append(flags, registerAPCollectorFlags()...)
 	flags = append(flags, registerClientCollectorFlags()...)
 	flags = append(flags, registerWLANCollectorFlags()...)
+	flags = append(flags, registerControllerCollectorFlags()...)
 	return flags
 }
 
@@ -220,6 +221,18 @@ func registerWLANCollectorFlags() []cli.Flag {
 			Config: cli.StringConfig{
 				TrimSpace: true,
 			},
+		},
+	}
+}
+
+// registerControllerCollectorFlags defines flags for Controller collector modules.
+func registerControllerCollectorFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.BoolFlag{
+			Name:        "collector.controller.general",
+			Usage:       "Enable controller-wide metrics",
+			Category:    "# Controller Collector Options",
+			HideDefault: true,
 		},
 	}
 }

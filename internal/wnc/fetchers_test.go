@@ -241,7 +241,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			[]string{dataWLANCfgEntries, dataClientCommonOperData},
 		},
 		{
-			"WLAN general reads one data type of the eighteen",
+			"WLAN general reads one data type of the whole set",
 			config.Collectors{WLAN: config.WLANCollectorModules{General: true}},
 			[]string{dataWLANCfgEntries},
 		},
@@ -294,7 +294,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 // TestFetchers_SkipWhatNoEnabledModuleReads proves the gate reaches the wire and
 // that a skipped data type is marked rather than left looking successful.
 // Asserting the name set alone would pass on a loop that still fetched all
-// eighteen, which is the regression this exists to catch.
+// the whole set, which is the regression this exists to catch.
 func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
 	t.Parallel()
 
@@ -365,7 +365,7 @@ func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
 
 // TestFetchers_DownWhenEveryRequiredDataTypeFails is the regression test for the
 // defect the gating exists to fix. Before it, wnc_up was judged against all
-// eighteen data types, so a deployment running one module could fail every data
+// every data type, so a deployment running one module could fail every data
 // type it needs, publish nothing, and still report up — and because fetchAllData
 // returned no error the consecutive-failure counter reset, so the
 // withhold-after-three-failures path never armed. The sixteen data types nothing

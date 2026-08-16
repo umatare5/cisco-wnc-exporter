@@ -704,7 +704,7 @@ func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
 	t.Parallel()
 
 	// The per-request timeout defaults to the cache TTL, so a one-times-TTL
-	// deadline would give eighteen sequential requests the budget of one.
+	// deadline would give every sequential request the budget of one.
 	if refreshDeadlineFactor < 2 {
 		t.Errorf("refreshDeadlineFactor = %d, want at least 2", refreshDeadlineFactor)
 	}
@@ -716,12 +716,14 @@ func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
 
 // RESTCONF module names the mock replies are keyed by.
 const (
-	mockAPGlobalOperModule  = "Cisco-IOS-XE-wireless-ap-global-oper"
-	mockAPOperModule        = "Cisco-IOS-XE-wireless-access-point-oper"
-	mockClientOperModule    = "Cisco-IOS-XE-wireless-client-oper"
-	mockRRMOperModule       = "Cisco-IOS-XE-wireless-rrm-oper"
-	mockRRMGlobalOperModule = "Cisco-IOS-XE-wireless-rrm-global-oper"
-	mockWLANCfgModule       = "Cisco-IOS-XE-wireless-wlan-cfg"
+	mockAPGlobalOperModule   = "Cisco-IOS-XE-wireless-ap-global-oper"
+	mockClientGlobalModule   = "Cisco-IOS-XE-wireless-client-global-oper"
+	mockDeviceHardwareModule = "Cisco-IOS-XE-device-hardware-oper"
+	mockAPOperModule         = "Cisco-IOS-XE-wireless-access-point-oper"
+	mockClientOperModule     = "Cisco-IOS-XE-wireless-client-oper"
+	mockRRMOperModule        = "Cisco-IOS-XE-wireless-rrm-oper"
+	mockRRMGlobalOperModule  = "Cisco-IOS-XE-wireless-rrm-global-oper"
+	mockWLANCfgModule        = "Cisco-IOS-XE-wireless-wlan-cfg"
 )
 
 const (
@@ -736,7 +738,7 @@ type mockEndpoint struct {
 }
 
 // mockEndpoints maps the final RESTCONF path segment to the data type it serves.
-// Those segments are unique across all eighteen data types, so the handler matches
+// Those segments are unique across every data type, so the handler matches
 // them exactly: substring matching routed every client and RRM request into the AP
 // branch, which left most of the per-data-type failure switches unexercised.
 var mockEndpoints = map[string]mockEndpoint{
@@ -772,6 +774,13 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
 	"ap-dot11-radar-data": {dataRRMAPDot11RadarData, mockList(mockRRMOperModule, "ap-dot11-radar-data",
 		`{"wtp-mac":"`+mockAPMAC+`"}`)},
+	// The two raw reads answer with the node itself as the only key rather than with a
+	// list, which is what mockContainer wraps and mockList cannot.
+	"boot-time": {dataControllerBootTime, mockContainer(mockDeviceHardwareModule, "boot-time",
+		`"2026-01-01T00:00:00+00:00"`)},
+	"co-client-del-reason": {dataCoClientDelReason, mockContainer(mockClientGlobalModule, "co-client-del-reason",
+		// One leaf, because every mock here answers with exactly one item.
+		`{"ap-delete":24665}`)},
 	"wlan-cfg-entries": {dataWLANCfgEntries, mockNestedList(mockWLANCfgModule, "wlan-cfg-entries",
 		"wlan-cfg-entry", `{"wlan-id":1}`)},
 	"wlan-policies": {dataWLANPolicies, mockNestedList(mockWLANCfgModule, "wlan-policies",
@@ -783,6 +792,12 @@ var mockEndpoints = map[string]mockEndpoint{
 // mockList wraps one entry in a module-qualified YANG list.
 func mockList(module, container, entry string) string {
 	return `{"` + module + `:` + container + `":[` + entry + `]}`
+}
+
+// mockContainer wraps the value of a leaf or container read. Such a read answers with
+// the node itself as its only key, where a list read answers with the list.
+func mockContainer(module, node, value string) string {
+	return `{"` + module + `:` + node + `":` + value + `}`
 }
 
 // mockNestedList wraps one entry in a container that nests the list, which is how
@@ -856,6 +871,7 @@ func allModules() config.Collectors {
 		WLAN: config.WLANCollectorModules{
 			General: true, Traffic: true, Config: true, Info: true,
 		},
+		Controller: config.ControllerCollectorModules{General: true},
 	}
 }
 
