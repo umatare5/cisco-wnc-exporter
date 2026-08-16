@@ -58,7 +58,7 @@ export WNC_ACCESS_TOKEN="YWRtaW46eW91ci1wYXNzd29yZA=="
 
 ```bash
 docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
-  ghcr.io/umatare5/cisco-wnc-exporter
+  ghcr.io/umatare5/cisco-wnc-exporter:latest
 ```
 
 - `-p`: Maps container port `10039/tcp` to host port `10039/tcp`.
@@ -252,7 +252,7 @@ Import [examples/grafana_cisco-wnc-user-dashboard.json](./examples/grafana_cisco
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the `make` targets, the Docker build, the release process and how to open a pull request.
+See [CONTRIBUTING.md](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the `make` targets, the Docker build, the release process and how to open a pull request.
 
 ## Acknowledgement
 

@@ -1,0 +1,100 @@
+---
+# A firing case is asserted through the ALERTS series the rule under test
+# produces, because exp_alerts also compares exp_annotations and would copy each
+# rule's description into this file.
+rule_files:
+  - prometheus_alert_rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # for: 5m puts the firing edge at 7m, so 6m must be silent and 9m firing.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_up{job="cisco_wnc",instance="localhost:10039"}'
+        values: "1 1 0+0x10"
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: WNCRefreshFailing
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCRefreshFailing"}
+        eval_time: 9m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCRefreshFailing", alertstate="firing", instance="localhost:10039", job="cisco_wnc", severity="critical"}'
+            value: 1
+
+  # The ramp holds the lag at exactly 180 seconds, the largest a healthy exporter
+  # reports; the rule's own description carries the formula. A lag of 0 there
+  # would let a lowered threshold pass, and no firing case would let a raised one
+  # pass. Freshness returns at 13m, so 20m holds only through keep_firing_for.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_success_timestamp_seconds{job="cisco_wnc",instance="localhost:10039"}'
+        values: "-180+60x5 120+0x6 600+60x7"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: WNCDataStale
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCDataStale"}
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCDataStale", alertstate="firing", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="WNCDataStale"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCDataStale", alertstate="firing", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # The second data type never fails, and the expected sample set names one
+  # series, so a comparison that admits a zero increase is caught here.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_errors_total{job="cisco_wnc",instance="localhost:10039",data="client_dc_info"}'
+        values: "0+0x5 1+0x20"
+      - series: 'wnc_refresh_errors_total{job="cisco_wnc",instance="localhost:10039",data="ap_capwap_data"}'
+        values: "0+0x26"
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCDataTypeFailing"}
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCDataTypeFailing", alertstate="firing", data="client_dc_info", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # A client-only deployment never fetches ap_capwap_data, so both AP series are
+  # absent: the case the and clause exists for.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_up{job="cisco_wnc",instance="localhost:10039"}'
+        values: "1+0x30"
+      - series: 'wnc_refresh_errors_total{job="cisco_wnc",instance="localhost:10039",data="client_common_oper_data"}'
+        values: "0+0x30"
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="client_common_oper_data"}'
+        values: "12+0x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WNCAPInventoryEmpty
+        exp_alerts: []
+
+  # The inventory is fetched and comes back empty: items is 0 rather than absent.
+  # for: 15m puts the firing edge at 15m, so 14m must be silent and 20m firing.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_up{job="cisco_wnc",instance="localhost:10039"}'
+        values: "1+0x30"
+      - series: 'wnc_refresh_errors_total{job="cisco_wnc",instance="localhost:10039",data="ap_capwap_data"}'
+        values: "0+0x30"
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="ap_capwap_data"}'
+        values: "0+0x30"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCAPInventoryEmpty
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCAPInventoryEmpty"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCAPInventoryEmpty", alertstate="firing", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1

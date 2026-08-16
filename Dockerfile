@@ -11,8 +11,8 @@ COPY cisco-wnc-exporter /cisco-wnc-exporter
 # Create a non-root user (using numeric ID for scratch image)
 USER 65534:65534
 
+# Declare the port; publishing it still requires docker run -p
+EXPOSE 10039
+
 # Set the entrypoint
 ENTRYPOINT ["/cisco-wnc-exporter"]
-
-# Default command shows help
-CMD ["--help"]

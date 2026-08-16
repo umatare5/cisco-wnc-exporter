@@ -26,16 +26,21 @@ builds:
       - darwin_amd64
       - darwin_arm64
       - windows_amd64
+    env:
+      - CGO_ENABLED=0
     ldflags:
       - -s -w -X 'github.com/umatare5/cisco-wnc-exporter/internal/cli.version={{ .Version }}'
+    hooks:
+      post:
+        # The setting is recorded in the binary, so this fails the release if cgo returns
+        - cmd: grep -q CGO_ENABLED=0 {{ .Path }}
 
 archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
-      - "*.md"
+      - "README.md"
       - "docs/*.md"
-      - "go.mod"
-      - "go.sum"
+      - "examples/*.yml"
       - "LICENSE"
 
 # Docker configuration
@@ -114,7 +119,7 @@ release:
     docker run --rm ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} --help
 
     # With environment variables
-    docker run --rm -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} command
+    docker run --rm -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}
     ```
 
     ### 📦 Binary Installation
