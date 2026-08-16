@@ -229,7 +229,7 @@ Add the alerting rules to your Prometheus YAML file using [examples/prometheus_a
 Import [examples/grafana_cisco-wnc-admin-dashboard.json](./examples/grafana_cisco-wnc-admin-dashboard.json) to add the example Grafana Dashboard for administrators.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-admin-dashboard_dark.png.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-admin-dashboard_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-admin-dashboard.png">
   <img src="docs/assets/cisco-wnc-admin-dashboard.png">
 </picture>
