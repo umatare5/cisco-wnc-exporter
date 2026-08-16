@@ -4970,7 +4970,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "round(rate(wnc_ap_rts_success_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "round(rate(wnc_ap_rts_successes_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "RTS Success: {{name}}:r{{radio}}",
           "refId": "A"
         },
@@ -5487,7 +5487,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "round(rate(wnc_ap_radio_reset_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "round(rate(wnc_ap_radio_resets_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "Radio Resets/s: {{name}}:r{{radio}}",
           "refId": "B"
         },

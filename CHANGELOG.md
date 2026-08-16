@@ -4,6 +4,17 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## Unreleased
+
+### Renamed
+
+Neither counter changes type, labels or value, so a rule or panel needs only the new name. Both take the plural the controller's own naming implies: it spells a counter carrying an explicit count noun in the singular (`rts-success-count`) and one carrying none in the plural (`resets`), and this exporter drops the count noun.
+
+| v0.7.0                     | v0.8.0                       |
+| :------------------------- | :--------------------------- |
+| `wnc_ap_rts_success_total` | `wnc_ap_rts_successes_total` |
+| `wnc_ap_radio_reset_total` | `wnc_ap_radio_resets_total`  |
+
 ## v0.7.0
 
 ### Added

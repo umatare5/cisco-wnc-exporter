@@ -239,12 +239,12 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			APMetrics{Traffic: true},
-			10, // data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_success
+			10, // data/mgmt/ctrl/multicast rx/tx frames, total_tx_frames, rts_successes
 		},
 		{
 			"Errors module only",
 			APMetrics{Errors: true},
-			13, // rx errors, retries, transmission_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, coverage_hole, radar, radio_reset
+			13, // rx errors, retries, transmission_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, coverage_hole, radar, radio_resets
 		},
 		{
 			"Join module only",
@@ -1776,7 +1776,7 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 		multicastRxFramesTotalDesc:  prometheus.NewDesc("test_mcast_rx", "test", []string{"mac", "radio"}, nil),
 		multicastTxFramesTotalDesc:  prometheus.NewDesc("test_mcast_tx", "test", []string{"mac", "radio"}, nil),
 		totalTxFramesTotalDesc:      prometheus.NewDesc("test_total_tx", "test", []string{"mac", "radio"}, nil),
-		rtsSuccessTotalDesc:         prometheus.NewDesc("test_rts_success", "test", []string{"mac", "radio"}, nil),
+		rtsSuccessesTotalDesc:       prometheus.NewDesc("test_rts_success", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 20)
@@ -1839,7 +1839,7 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
 		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
 		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
-		radioResetTotalDesc:           prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
+		radioResetsTotalDesc:          prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
 	}
 
 	ch := make(chan prometheus.Metric, 30)
