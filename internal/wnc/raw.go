@@ -20,6 +20,8 @@ const (
 		"/device-hardware/device-system-data/boot-time"
 	routeCoClientDelReason = "Cisco-IOS-XE-wireless-client-global-oper:client-global-oper-data" +
 		"/client-stats/co-client-del-reason"
+	routeClientRoamingStats = "Cisco-IOS-XE-wireless-client-global-oper:client-global-oper-data" +
+		"/client-dot11-stats/client-roaming-stats"
 )
 
 // restconfDataPath prefixes every path above, matching what the SDK builds for its

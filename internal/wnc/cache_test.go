@@ -783,6 +783,9 @@ var mockEndpoints = map[string]mockEndpoint{
 	"co-client-del-reason": {dataCoClientDelReason, mockContainer(mockClientGlobalModule, "co-client-del-reason",
 		// One leaf, because every mock here answers with exactly one item.
 		`{"ap-delete":24665}`)},
+	"client-roaming-stats": {dataClientRoamingStats, mockContainer(mockClientGlobalModule, "client-roaming-stats",
+		// One leaf, because every mock here answers with exactly one item.
+		`{"ap-auth-roams":30829}`)},
 	"wlan-cfg-entries": {dataWLANCfgEntries, mockNestedList(mockWLANCfgModule, "wlan-cfg-entries",
 		"wlan-cfg-entry", `{"wlan-id":1}`)},
 	"wlan-policies": {dataWLANPolicies, mockNestedList(mockWLANCfgModule, "wlan-policies",

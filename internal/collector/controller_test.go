@@ -57,7 +57,7 @@ func TestControllerCollector_Describe(t *testing.T) {
 		expectDescs int
 	}{
 		{"No modules enabled", ControllerMetrics{}, 0},
-		{"General module only", ControllerMetrics{General: true}, 2},
+		{"General module only", ControllerMetrics{General: true}, 5},
 	}
 
 	for _, tt := range tests {

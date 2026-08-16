@@ -197,6 +197,12 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		// series per reason leaf.
 		{"wnc_controller_client_deletes_total", 6101},
 
+		// The three roam counters. Their leaves are adjacent in one container and the ten
+		// unpublished ones carry values too, so a swap lands on a number listed nowhere.
+		{"wnc_controller_client_ap_auth_roams_total", 6201},
+		{"wnc_controller_client_ap_auth_dot11i_fast_roams_total", 6202},
+		{"wnc_controller_client_ap_auth_dot11i_slow_roams_total", 6203},
+
 		// Bytes in both directions, from the leaf the controller reports as a string.
 		// The five phase counts in the same record are deliberately unpublished, and
 		// each carries its own value, so reading one of them lands elsewhere.

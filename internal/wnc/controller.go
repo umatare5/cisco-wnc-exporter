@@ -10,6 +10,7 @@ import (
 type ControllerSource interface {
 	GetBootTime(ctx context.Context) (string, error)
 	GetClientDeleteReasons(ctx context.Context) (map[string]float64, error)
+	GetClientRoamingStats(ctx context.Context) (map[string]float64, error)
 }
 
 // controllerSource implements ControllerSource using SharedDataSource for caching.
@@ -33,6 +34,16 @@ func (s *controllerSource) GetBootTime(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return data.ControllerBootTime, nil
+}
+
+// GetClientRoamingStats returns the controller-wide roam counters from WNC via
+// SharedDataSource (cached).
+func (s *controllerSource) GetClientRoamingStats(ctx context.Context) (map[string]float64, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataClientRoamingStats)
+	if err != nil {
+		return nil, err
+	}
+	return data.ClientRoamingStats, nil
 }
 
 // GetClientDeleteReasons returns the per-reason client deletion counters from WNC via

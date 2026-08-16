@@ -30,6 +30,7 @@ const (
 	typeAPJoinStats           = "ap_join_stats"
 	typeControllerBootTime    = "controller_boot_time"
 	typeCoClientDelReason     = "co_client_del_reason"
+	typeClientRoamingStats    = "client_roaming_stats"
 	typeClientCommonOperData  = "client_common_oper_data"
 	typeClientDCInfo          = "client_dc_info"
 	typeClientDot11OperData   = "client_dot11_oper_data"
@@ -48,7 +49,7 @@ const (
 var allDataTypes = []string{
 	typeAPCAPWAPData, typeAPOperData, typeAPRadioOperData, typeAPNameMACMap,
 	typeAPRadioOperStats, typeAPRadioResetStats, typeAPJoinStats,
-	typeControllerBootTime, typeCoClientDelReason,
+	typeControllerBootTime, typeCoClientDelReason, typeClientRoamingStats,
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData,
@@ -169,6 +170,11 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeControllerBootTime, []string{"wnc_controller_boot_time_seconds"}},
 		{typeCoClientDelReason, []string{"wnc_controller_client_deletes_total"}},
+		{typeClientRoamingStats, []string{
+			"wnc_controller_client_ap_auth_roams_total",
+			"wnc_controller_client_ap_auth_dot11i_fast_roams_total",
+			"wnc_controller_client_ap_auth_dot11i_slow_roams_total",
+		}},
 		{typeClientCommonOperData, []string{
 			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
 			"wnc_wlan_clients",
@@ -420,6 +426,17 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		ClientDeleteReasons: map[string]float64{
 			fixtureDeleteReason:      6101,
 			fixtureOtherDeleteReason: 6102,
+		},
+		// Three of the container's thirteen leaves are published. The rest carry values
+		// here as well, so a descriptor reading one of those reports a number no
+		// assertion expects.
+		ClientRoamingStats: map[string]float64{
+			"ap-auth-roams":            6201,
+			"ap-auth-dot11i-fast-roam": 6202,
+			"ap-auth-dot11i-slow-roam": 6203,
+			"total-roam":               6204,
+			"roam-fail":                6205,
+			"dot11r-roam":              6206,
 		},
 
 		CommonOperData: []client.CommonOperData{{

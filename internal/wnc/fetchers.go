@@ -25,6 +25,7 @@ var dataTypeNames = []string{
 	dataWLANClientStats,
 	dataControllerBootTime,
 	dataCoClientDelReason,
+	dataClientRoamingStats,
 	dataClientCommonOperData,
 	dataClientDCInfo,
 	dataClientDot11OperData,
@@ -104,7 +105,7 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
 		return modules.AP.Errors
-	case dataControllerBootTime, dataCoClientDelReason:
+	case dataControllerBootTime, dataCoClientDelReason, dataClientRoamingStats:
 		return modules.Controller.General
 	case dataWLANCfgEntries:
 		return anyWLAN
@@ -239,6 +240,19 @@ func (s *dataSource) fetchers() []dataFetcher {
 			}
 			c.ClientDeleteReasons = numericLeaves(leaves, dataCoClientDelReason)
 			return len(c.ClientDeleteReasons), nil
+		}},
+		{dataClientRoamingStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			leaves, present, err := rawValue[map[string]json.RawMessage](
+				ctx, s.client.Core(), routeClientRoamingStats,
+			)
+			if err != nil {
+				return 0, err
+			}
+			if !present {
+				return 0, nil
+			}
+			c.ClientRoamingStats = numericLeaves(leaves, dataClientRoamingStats)
+			return len(c.ClientRoamingStats), nil
 		}},
 		{dataClientCommonOperData, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.Client().ListCommonInfo(ctx)

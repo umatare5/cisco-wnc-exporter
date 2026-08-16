@@ -55,6 +55,52 @@ func TestControllerSource_GetBootTime(t *testing.T) {
 	}
 }
 
+func TestControllerSource_GetClientRoamingStats(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mock    *mockDataSource
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name: "Success with roam counters",
+			mock: &mockDataSource{
+				data: &WNCDataCache{ClientRoamingStats: map[string]float64{"ap-auth-roams": 30829}},
+			},
+			wantLen: 1,
+		},
+		{
+			name:    "Nil when the controller carries no container",
+			mock:    &mockDataSource{data: &WNCDataCache{}},
+			wantLen: 0,
+		},
+		{
+			name:    "Error from data source",
+			mock:    &mockDataSource{err: errors.New("cache refresh failed")},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			source := NewControllerSource(tt.mock)
+
+			got, err := source.GetClientRoamingStats(context.Background())
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClientRoamingStats() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && len(got) != tt.wantLen {
+				t.Errorf("GetClientRoamingStats() returned %d leaves, want %d", len(got), tt.wantLen)
+			}
+		})
+	}
+}
+
 func TestControllerSource_GetClientDeleteReasons(t *testing.T) {
 	t.Parallel()
 

@@ -46,6 +46,7 @@ const (
 	dataRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	dataControllerBootTime    = "controller_boot_time"
 	dataCoClientDelReason     = "co_client_del_reason"
+	dataClientRoamingStats    = "client_roaming_stats"
 	dataWLANCfgEntries        = "wlan_cfg_entries"
 	dataWLANPolicies          = "wlan_policies"
 	dataWLANPolicyListEntries = "wlan_policy_list_entries"
@@ -88,6 +89,7 @@ type WNCDataCache struct {
 	// both are empty rather than absent when the controller does not carry it.
 	ControllerBootTime  string
 	ClientDeleteReasons map[string]float64
+	ClientRoamingStats  map[string]float64
 
 	// WLAN data. The per-WLAN client statistics live in the AP global operational
 	// subtree, so the SDK types them in its ap service package.
