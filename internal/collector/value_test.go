@@ -95,6 +95,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_wlan_clients", 1},
 		{"wnc_wlan_session_timeout_seconds", 1800},
+		{"wnc_wlan_policy_binding", 1},
 
 		{"wnc_client_speed_mbps", 866},
 		{"wnc_client_spatial_streams", 2},

@@ -128,6 +128,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_wlan_central_dhcp_enabled",
 		"wnc_wlan_central_association_enabled",
 		"wnc_wlan_policy_enabled",
+		"wnc_wlan_policy_binding",
 	}
 	clientTrafficDerived := []string{
 		"wnc_client_rssi_dbm",

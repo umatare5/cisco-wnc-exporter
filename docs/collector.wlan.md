@@ -25,6 +25,7 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_policy_enabled`                 | Gauge   | Bound policy profile is active       |
 | config  | `wnc_wlan_pmf_state`                      | Gauge   | PMF setting **(\*2)**                |
 | config  | `wnc_wlan_ft_state`                       | Gauge   | 802.11r fast transition setting      |
+| config  | `wnc_wlan_policy_binding`                 | Gauge   | Policy tag binding **(\*3)**         |
 
 ## Notes
 
@@ -35,6 +36,24 @@ Every WLAN module reads `wlan-cfg-entries`, and `config` also reads `wlan-polici
 `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` report the controller's own spelling in the `state` label and always have the value `1`, so `== 0` never fires — see [States](README.md#a-state-is-a-label-not-a-number). Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty `state` label reads as no label at all.
 
 `wnc_wlan_policy_enabled` reads the `status` leaf of the policy profile the WLAN resolves to through a policy tag, and `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*_enabled` series read leaves of that same profile, so all six report a property of the policy profile per WLAN rather than of the WLAN profile. None of these six is published for a WLAN that resolves to no policy profile, or for any WLAN at all when either the `wlan-policies` or the `policy-list-entries` fetch fails. A `0` on `wnc_wlan_policy_enabled` can coexist with `wnc_wlan_enabled` reading `1`, because that series reads the WLAN profile's own administrative state and not the profile bound to it. What a shut policy profile does to a client — refuse new associations, drop existing ones, or stop the SSID being advertised — is not established here, so treat the series as change detection rather than an outage signal. Where one policy profile is bound to several WLANs, each WLAN reports it separately. Where one WLAN is bound through more than one policy tag, the six report the last binding the exporter can resolve, and a binding naming a policy profile absent from `wlan-policies` is skipped rather than reported, so it cannot displace an earlier one. No label on these series names the tag or the profile, so a `0` can mean the profile on one tag's binding is shut while the others are active, and a `1` can hide a shut binding.
+
+<details><summary><b>*3</b> Reading which policy profile the six config series report</summary><br/>
+
+`wnc_wlan_policy_binding` publishes one series per binding, carrying the `id` of the WLAN, the `policy_profile` it is bound to and the `policy_tag` carrying the binding, always with the value `1`. The six policy-derived series above name none of those, so where a WLAN is bound through more than one tag they report one of the profiles and nothing says which — this series is what makes that state visible.
+
+Alert on it with the count of **distinct profiles**, not of series:
+
+```bash
+count by (id) (count by (id, policy_profile) (wnc_wlan_policy_binding)) > 1
+```
+
+Binding one WLAN to one profile through several tags is not ambiguous, and the inner `count` is what excludes it; counting series instead fires on it.
+
+A binding is published only when the exporter can resolve both ends. A tag naming a WLAN the controller does not define carries no `id` to key a series by, and a binding whose policy profile is absent from `wlan-policies` is skipped by the six series as well, so publishing either would show a binding they are not reporting. Both cases are real: a controller can carry a policy tag that names WLANs which no longer exist.
+
+It comes from the same two reads as the six series and adds no request of its own, so it is absent exactly when they are.
+
+</details>
 
 <details><summary><b>*1</b> What the byte counter totals, and what it is not</summary><br/>
 

@@ -61,9 +61,69 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter reached the WNC but sees no APs"
           description: >-
-            Every AP series is labeled from the AP inventory, so an empty
-            inventory silently empties the AP and radio series while wnc_up
-            stays 1. The and clause holds the rule silent where no AP collector
+            Every AP series except the join module is labeled from the AP
+            inventory, so an empty inventory silently empties the AP and radio
+            series while wnc_up stays 1. The join module reads a statistics list
+            that keeps a record for an AP the inventory has dropped, so its
+            series survive this and WNCAPNotJoining stays useful. The and clause holds the rule silent where no AP collector
             is enabled and the inventory is never fetched: unless against an
             absent series excludes nothing, so without it the rule would fire
             continuously there.
+
+      - alert: WNCWLANPolicyBindingAmbiguous
+        expr: >-
+          count by (job, instance, id)
+          (count by (job, instance, id, policy_profile) (wnc_wlan_policy_binding))
+          > 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter cannot say which policy profile WLAN {{ $labels.id }} reports"
+          description: >-
+            The six wnc_wlan config series read from the policy profile name
+            neither the tag nor the profile, so where a WLAN resolves to more
+            than one profile they report only one of them and nothing says
+            which. The inner count collapses the tags that name the same
+            profile, because binding a WLAN to one profile through several tags
+            is not ambiguous; counting series instead would fire on it. Needs
+            --collector.wlan.config, and is silent without it.
+
+      - alert: WNCAPNotJoining
+        expr: >-
+          rate(wnc_ap_discovery_requests_total[15m]) > 0
+          and wnc_ap_joined == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AP {{ $labels.mac }} reaches the WNC but holds no CAPWAP session"
+          description: >-
+            The join statistics keep a record for an AP that has left CAPWAP,
+            and its discovery counters keep advancing while it retries, so this
+            separates an AP the controller can hear from one it cannot. Both
+            sides carry mac and nothing else on purpose: a bare and requires
+            identical label sets, and joining wnc_ap_join_info for the name here
+            would make the alert vanish whenever that series is absent. Look the
+            name up with wnc_ap_join_info{mac="..."} instead. An AP that holds
+            this controller as its secondary, or that discovers by broadcast,
+            DHCP option 43 or DNS, sends discovery here at every boot, which is
+            why for is longer than the rate range. Needs --collector.ap.join.
+
+      - alert: WNCControllerBootTimeMissing
+        expr: wnc_refresh_items{data="controller_boot_time"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cisco-wnc-exporter has no controller boot time to anchor counters to"
+          description: >-
+            Every counter the controller collector publishes is cumulative since
+            the controller booted, and this gauge is the only epoch a rule can
+            anchor to, so an and on() against it returns an empty result rather
+            than firing while it is absent. items reads 0 when the read
+            succeeded and the controller carried no such leaf; a failed read
+            raises wnc_refresh_errors_total instead and removes this series,
+            which is why the rule cannot be written with absent(). The series
+            exists only while --collector.controller.general is enabled, so this
+            stays silent where it is off.

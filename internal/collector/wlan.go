@@ -50,6 +50,7 @@ type WLANCollector struct {
 	policyEnabledDesc         *prometheus.Desc
 	pmfStateDesc              *prometheus.Desc
 	ftStateDesc               *prometheus.Desc
+	policyBindingDesc         *prometheus.Desc
 }
 
 // NewWLANCollector creates a new WLAN collector.
@@ -170,6 +171,15 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			"802.11r fast transition mode reported in the state label, always 1",
 			[]string{labelID, labelState}, nil,
 		)
+		// The six policy series above name neither the tag nor the profile they read, so
+		// this is what makes a WLAN bound through several tags observable.
+		collector.policyBindingDesc = prometheus.NewDesc(
+			"wnc_wlan_policy_binding",
+			"Policy tag binding for this WLAN, always 1. One series per binding the "+
+				"exporter can resolve, so more than one policy_profile for an id means the "+
+				"six policy series report only one of the bound profiles",
+			[]string{labelID, labelPolicyProfile, labelPolicyTag}, nil,
+		)
 	}
 
 	if metrics.Info {
@@ -213,6 +223,7 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.policyEnabledDesc
 		ch <- c.pmfStateDesc
 		ch <- c.ftStateDesc
+		ch <- c.policyBindingDesc
 	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
@@ -250,6 +261,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 		// central switching disabled and no session timeout.
 		if policyErr == nil && listErr == nil {
 			wlanToPolicyMap = buildWLANToPolicyMap(policyListEntries, wlanPolicies)
+			c.collectPolicyBindings(ch, wlanConfigEntries, policyListEntries, wlanPolicies)
 		}
 	}
 
@@ -452,6 +464,48 @@ func (c *WLANCollector) collectConfigMetrics(
 			metric.Value,
 			labels...,
 		)
+	}
+}
+
+// collectPolicyBindings publishes one series per binding the exporter can resolve.
+// It is emitted here rather than in the per-WLAN loop because its label set changes
+// per binding, and a WLAN can carry more than one.
+func (c *WLANCollector) collectPolicyBindings(
+	ch chan<- prometheus.Metric,
+	wlanConfigEntries []wlan.WlanCfgEntry,
+	policyListEntries []wlan.PolicyListEntry,
+	wlanPolicies []wlan.WlanPolicy,
+) {
+	idByProfile := make(map[string]string, len(wlanConfigEntries))
+	for _, entry := range wlanConfigEntries {
+		idByProfile[entry.ProfileName] = strconv.Itoa(entry.WlanID)
+	}
+
+	resolvable := make(map[string]bool, len(wlanPolicies))
+	for _, policy := range wlanPolicies {
+		resolvable[policy.PolicyProfileName] = true
+	}
+
+	for _, entry := range policyListEntries {
+		if entry.WLANPolicies == nil || entry.TagName == "" {
+			continue
+		}
+
+		for _, mapping := range entry.WLANPolicies.WLANPolicy {
+			// A tag naming a WLAN the controller does not define carries no identifier to
+			// key the series by, and a binding whose policy profile is absent from
+			// wlan-policies is skipped by the six series as well, so publishing either
+			// would show a binding they are not reporting.
+			id, defined := idByProfile[mapping.WLANProfileName]
+			if !defined || !resolvable[mapping.PolicyProfileName] {
+				continue
+			}
+
+			ch <- prometheus.MustNewConstMetric(
+				c.policyBindingDesc, prometheus.GaugeValue, 1,
+				id, mapping.PolicyProfileName, entry.TagName,
+			)
+		}
 	}
 }
 

@@ -25,7 +25,9 @@ const (
 	labelWLAN     = "wlan"     // WLAN SSID name
 
 	// WLAN-specific labels.
-	labelID = "id" // WLAN identifier
+	labelID            = "id"             // WLAN identifier
+	labelPolicyProfile = "policy_profile" // Policy profile a WLAN is bound to
+	labelPolicyTag     = "policy_tag"     // Policy tag carrying the binding
 
 	// Controller-specific labels.
 	labelReason = "reason" // Reason a controller-wide counter is keyed by

@@ -170,7 +170,11 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Config module only",
 			WLANMetrics{Config: true},
-			16, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k_neighbor_list, steering, central_switching, central_auth, central_dhcp, central_assoc, policy_enabled, pmf_state, ft_state
+			// auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout,
+			// load_balance, 11k_neighbor_list, steering, central_switching, central_auth,
+			// central_dhcp, central_assoc, policy_enabled, pmf_state, ft_state,
+			// policy_binding
+			17,
 		},
 		{
 			"Info module only",
@@ -185,7 +189,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			20, // 1+2+16+1
+			21, // 1+2+17+1
 		},
 	}
 
@@ -1030,7 +1034,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 20
+	expectedDescs := 21
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1701,6 +1705,78 @@ func TestBuildWLANDataUsageMap_SkipsAnUnreadableLeaf(t *testing.T) {
 	for _, id := range []int{2, 3, 4} {
 		if got, ok := usage[id]; ok {
 			t.Errorf("usage[%d] = %v, want the WLAN skipped rather than read as zero", id, got)
+		}
+	}
+}
+
+// TestWLANCollector_PolicyBindingIsOneSeriesPerResolvableBinding pins the series that
+// makes an ambiguous binding observable. The six policy series name neither the tag nor
+// the profile, so without this one an operator cannot tell which of several bound
+// profiles they are reading.
+func TestWLANCollector_PolicyBindingIsOneSeriesPerResolvableBinding(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+
+	// A second tag binding the same WLAN to a second profile: the state the series
+	// exists to expose.
+	data.WLANPolicies = append(data.WLANPolicies, wlan.WlanPolicy{PolicyProfileName: "second-policy"})
+	data.WLANPolicyListEntries = append(data.WLANPolicyListEntries,
+		wlan.PolicyListEntry{
+			TagName: "second-tag",
+			WLANPolicies: &wlan.WLANPolicies{WLANPolicy: []wlan.WLANPolicyMap{
+				{WLANProfileName: fixtureProfile, PolicyProfileName: "second-policy"},
+				// A tag naming a WLAN the controller does not define: real on a controller,
+				// and it has no identifier to key a series by.
+				{WLANProfileName: "undefined-wlan", PolicyProfileName: fixturePolicy},
+				// A binding naming a policy profile the controller did not return, which the
+				// six policy series skip as well.
+				{WLANProfileName: fixtureProfile, PolicyProfileName: "unresolvable-policy"},
+			}},
+		},
+		// A tag carrying no bindings at all.
+		wlan.PolicyListEntry{TagName: "empty-tag"},
+	)
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewWLANCollector(
+		wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	got := make(map[string]bool)
+	for _, family := range families {
+		if family.GetName() != "wnc_wlan_policy_binding" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			labels := make(map[string]string, len(metric.GetLabel()))
+			for _, pair := range metric.GetLabel() {
+				labels[pair.GetName()] = pair.GetValue()
+			}
+			got[labels[labelID]+"|"+labels[labelPolicyProfile]+"|"+labels[labelPolicyTag]] = true
+
+			if metric.GetGauge().GetValue() != 1 {
+				t.Errorf("wnc_wlan_policy_binding = %v, want 1", metric.GetGauge().GetValue())
+			}
+		}
+	}
+
+	want := map[string]bool{
+		"1|" + fixturePolicy + "|test-tag": true,
+		"1|second-policy|second-tag":       true,
+	}
+	if len(got) != len(want) {
+		t.Errorf("wnc_wlan_policy_binding has %d series, want %d: %v", len(got), len(want), got)
+	}
+	for key := range want {
+		if !got[key] {
+			t.Errorf("wnc_wlan_policy_binding is missing the series %q", key)
 		}
 	}
 }
