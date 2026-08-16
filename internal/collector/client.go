@@ -75,7 +75,9 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
-			"Client association uptime in seconds",
+			"Client association uptime in seconds. Withheld rather than measured from a "+
+				"zero timestamp when the controller reports no association time, so a "+
+				"session-age check has no reading instead of a false one",
 			labels, nil,
 		)
 		collector.stateTransitionSecondsDesc = prometheus.NewDesc(
@@ -372,10 +374,16 @@ func (c *ClientCollector) collectGeneralMetrics(
 
 	// An absent key means either the fetch failed or the controller has not
 	// reported this client in that data set yet. Emitting the zero value would
-	// read as a measurement: an association uptime of roughly two millennia from
-	// a zero timestamp, or a power save state the client never reported.
+	// read as a measurement: an association uptime taken from a zero timestamp, or
+	// a power save state the client never reported.
+	//
+	// The dot11 record can also arrive without ms-assoc-time, which decodes to the
+	// zero time in year 1 rather than to an absent key, so the map guard alone lets
+	// that uptime through: time.Since saturates the Duration there and reports some
+	// 9.2e9 seconds. The comparison is the one emitTimestamp makes, so the epoch
+	// sentinel is withheld here as well.
 	var metrics []Float64Metric
-	if dot11, ok := dot11Map[data.ClientMAC]; ok {
+	if dot11, ok := dot11Map[data.ClientMAC]; ok && dot11.MsAssocTime.Year() > epochYear {
 		metrics = append(metrics,
 			Float64Metric{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()})
 	}

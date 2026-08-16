@@ -61,6 +61,83 @@ func TestClientCollector_StateReportsSpellingInLabel(t *testing.T) {
 	}
 }
 
+// TestClientCollector_WithholdsUptimeAtTheEpoch pins the withhold for the association
+// timestamp. A record carrying no ms-assoc-time holds the zero time in year 1, where
+// time.Since saturates the Duration and reports some 9.2e9 seconds; the epoch sentinel
+// is the other half, and it parses to a real instant, so IsZero does not recognize it.
+// Both rows are here because a guard on either one alone passes on the other.
+func TestClientCollector_WithholdsUptimeAtTheEpoch(t *testing.T) {
+	t.Parallel()
+
+	const (
+		epochMAC = "22:33:44:55:66:77"
+		zeroMAC  = "33:44:55:66:77:88"
+	)
+
+	data := fullFixtureSnapshot()
+	data.CommonOperData = append(data.CommonOperData,
+		client.CommonOperData{ClientMAC: epochMAC, CoState: ClientStatusRun},
+		client.CommonOperData{ClientMAC: zeroMAC, CoState: ClientStatusRun},
+	)
+	data.Dot11OperData = append(data.Dot11OperData,
+		client.Dot11OperData{MsMACAddress: epochMAC, MsAssocTime: fixtureEpochSentinel},
+		client.Dot11OperData{MsMACAddress: zeroMAC},
+	)
+
+	values := gatherClientValuesByMAC(t, data)
+
+	for _, mac := range []string{epochMAC, zeroMAC} {
+		if got, ok := values["wnc_client_uptime_seconds"][mac]; ok {
+			t.Errorf("wnc_client_uptime_seconds{mac=%q} = %v, want it withheld", mac, got)
+		}
+	}
+
+	// Without these the assertions above would also pass on a collector that reads
+	// neither record: the first proves the guard is not withholding a usable
+	// timestamp, the rest that both epoch records reached the general module.
+	if _, ok := values["wnc_client_uptime_seconds"][fixtureClientMAC]; !ok {
+		t.Error("wnc_client_uptime_seconds is absent for the usable timestamp, so the withholds prove nothing")
+	}
+	for _, mac := range []string{epochMAC, zeroMAC} {
+		if _, ok := values["wnc_client_state"][mac]; !ok {
+			t.Errorf("wnc_client_state{mac=%q} is absent, so the withhold above proves nothing", mac)
+		}
+	}
+}
+
+// gatherClientValuesByMAC gathers the client collector over the given snapshot and
+// indexes each gauge sample by family name, then by the mac label.
+func gatherClientValuesByMAC(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]float64 {
+	t.Helper()
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewClientCollector(
+		wnc.NewClientSource(fixtureSource{data: data}), ClientMetrics{General: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]map[string]float64, len(families))
+	for _, family := range families {
+		byMAC := make(map[string]float64, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			if metric.GetGauge() == nil {
+				continue
+			}
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelMAC {
+					byMAC[pair.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+		values[family.GetName()] = byMAC
+	}
+	return values
+}
+
 func TestNewClientCollector(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

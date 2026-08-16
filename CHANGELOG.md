@@ -15,6 +15,10 @@ Neither counter changes type, labels or value, so a rule or panel needs only the
 | `wnc_ap_rts_success_total` | `wnc_ap_rts_successes_total` |
 | `wnc_ap_radio_reset_total` | `wnc_ap_radio_resets_total`  |
 
+### Fixed
+
+- `wnc_client_uptime_seconds` is now absent for a client whose record carries no association time, and for the epoch the controller writes where an event has not happened. It measured from a zero timestamp instead, which saturates and reads as a session some 292 years long, so a rule of the form `wnc_client_uptime_seconds > 86400` fired on it. This applies to the client collector the rule `wnc_ap_uptime_seconds` already follows. A rule that treated the series as always present needs `absent()` or `or vector(0)`. The HELP now says so.
+
 ## v0.7.0
 
 ### Added
