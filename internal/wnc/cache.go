@@ -85,8 +85,8 @@ type WNCDataCache struct {
 	RRMCoverage      []rrm.RRMCoverage
 	ApDot11RadarData []rrm.ApDot11RadarData
 
-	// Controller-wide data. Both come from a container the SDK has no route for, and
-	// both are empty rather than absent when the controller does not carry it.
+	// Controller-wide data. Each comes from a container the SDK has no route for, and
+	// each is empty rather than absent when the controller does not carry it.
 	ControllerBootTime  string
 	ClientDeleteReasons map[string]float64
 	ClientRoamingStats  map[string]float64

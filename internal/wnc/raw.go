@@ -53,8 +53,8 @@ func rawValue[V any](
 		return value, false, err
 	}
 
-	// An empty body is how this platform reports a container it does not carry: a
-	// sibling list of one of these answers 204 with no body at all. The typed
+	// An empty body is how this platform reports a container it does not carry: a list
+	// elsewhere in its operational tree answers 204 with no body at all. The typed
 	// accessors read an empty body as a successful fetch of nothing, so treating it
 	// as absence here keeps both paths accounted alike. An HTTP error, 404 included,
 	// has already been returned above: a path this exporter got wrong must not be

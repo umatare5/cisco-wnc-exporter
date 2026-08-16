@@ -14,7 +14,7 @@ Every series here describes the whole controller, so none of them carries an ide
 | general | `wnc_controller_client_ap_auth_dot11i_fast_roams_total` | Counter | 802.11i fast roams on that path **(\*3)**    |
 | general | `wnc_controller_client_ap_auth_dot11i_slow_roams_total` | Counter | 802.11i slow roams on that path **(\*3)**    |
 
-One flag, `--collector.controller.general`, enables all five. The boot time is the epoch every counter on this page is read against, so putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
+One flag, `--collector.controller.general`, enables all five, and all three of its reads bypass the SDK's typed accessors — see note **(\*4)**. The boot time is the epoch every counter on this page is read against, so putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
 
 ## Notes
 
@@ -50,7 +50,7 @@ Both are cumulative since the controller booted, which `wnc_controller_boot_time
 
 <details><summary><b>*4</b> These reads do not go through a typed SDK accessor, and what that changes</summary><br/>
 
-Three of this exporter's data types are read by building the RESTCONF path directly, because the SDK carries no route and no type for the two containers behind this page: `controller_boot_time`, `co_client_del_reason` and `client_roaming_stats`. They reuse the SDK client, so the credentials, the TLS settings, the request timeout, the connection pool and the error typing are the same as everywhere else, and each is a registered data type like any other — gated by its flag, bounded by the refresh deadline, and counted in `wnc_refresh_items` and `wnc_refresh_errors_total`.
+Three of this exporter's data types are read by building the RESTCONF path directly, because the SDK carries no route and no type for any of the three containers behind this page: `controller_boot_time`, `co_client_del_reason` and `client_roaming_stats`. They reuse the SDK client, so the credentials, the TLS settings, the request timeout, the connection pool and the error typing are the same as everywhere else, and each is a registered data type like any other — gated by its flag, bounded by the refresh deadline, and counted in `wnc_refresh_items` and `wnc_refresh_errors_total`.
 
 Two consequences are worth knowing.
 
