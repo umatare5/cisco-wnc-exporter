@@ -163,7 +163,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_data_rx_frames_total", "wnc_ap_data_tx_frames_total",
 			"wnc_ap_rx_errors_total", "wnc_ap_fcs_errors_total",
 		}},
-		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
+		{typeAPRadioResetStats, []string{"wnc_ap_radio_resets_total"}},
 		{typeAPJoinStats, []string{
 			"wnc_ap_joined", "wnc_ap_join_info", "wnc_ap_discovery_requests_total",
 			"wnc_ap_dtls_session_requests_total", "wnc_ap_last_join_success_timestamp_seconds",

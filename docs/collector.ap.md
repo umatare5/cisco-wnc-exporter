@@ -32,7 +32,7 @@ AP collector focuses on RF foundation and radio performance.
 | traffic | `wnc_ap_control_tx_frames_total`                  | Counter | Control TX frames **(\*3)**                       |
 | traffic | `wnc_ap_multicast_rx_frames_total`                | Counter | Multicast RX frames **(\*3)**                     |
 | traffic | `wnc_ap_multicast_tx_frames_total`                | Counter | Multicast TX frames **(\*3)**                     |
-| traffic | `wnc_ap_rts_success_total`                        | Counter | Successful RTS transmissions **(\*3)**            |
+| traffic | `wnc_ap_rts_successes_total`                      | Counter | Successful RTS transmissions **(\*3)**            |
 | errors  | `wnc_ap_rx_errors_total`                          | Counter | Total RX errors **(\*3)**                         |
 | errors  | `wnc_ap_tx_retries_total`                         | Counter | Total TX retries                                  |
 | errors  | `wnc_ap_transmission_failures_total`              | Counter | Failed transmission attempts **(\*3)** **(\*4)**  |
@@ -45,7 +45,7 @@ AP collector focuses on RF foundation and radio performance.
 | errors  | `wnc_ap_mic_errors_total`                         | Counter | MIC errors **(\*3)**                              |
 | errors  | `wnc_ap_coverage_failed_clients`                  | Gauge   | Clients failing the RRM coverage check            |
 | errors  | `wnc_ap_last_radar_timestamp_seconds`             | Gauge   | Unix timestamp of the last radar **(\*5)**        |
-| errors  | `wnc_ap_radio_reset_total`                        | Counter | Radio reset count                                 |
+| errors  | `wnc_ap_radio_resets_total`                       | Counter | Radio reset count                                 |
 | join    | `wnc_ap_joined`                                   | Gauge   | CAPWAP session held now (0=no, 1=yes) **(\*6)**   |
 | join    | `wnc_ap_join_info`                                | Gauge   | AP name from the join record, always 1            |
 | join    | `wnc_ap_discovery_requests_total`                 | Counter | CAPWAP discovery requests received                |
@@ -157,7 +157,7 @@ The metrics below were observed at zero on every radio of the access points this
 | `wnc_ap_rx_errors_total`                 | Observed at zero while FCS errors advanced on the same radio.                                                               |
 | `wnc_ap_transmission_failures_total`     | Observed at zero while retries advanced. See note *4.                                                                       |
 | `wnc_ap_duplicate_frames_total`          | Observed at zero. A duplicate is counted on receive, so client retransmissions drive it.                                    |
-| `wnc_ap_rts_(success\|failures)_total`   | The RTS threshold sits at its maximum, so length-triggered RTS never happens.                                               |
+| `wnc_ap_rts_(successes\|failures)_total` | The RTS threshold sits at its maximum, so length-triggered RTS never happens.                                               |
 | `wnc_ap_fragmentation_(rx\|tx)_total`    | The fragmentation threshold sits at its maximum, and the controller labels the receive side an incomplete-fragment counter. |
 | `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Whether the counter would report a failure has not been confirmed.                             |
 | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                                                                          |

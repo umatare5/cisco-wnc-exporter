@@ -79,12 +79,13 @@ func (c *InfoCacheCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// isInfoMetric determines if a metric is an info metric based on its name.
+// isInfoMetric determines if a metric belongs to an _info family, the only class this
+// cache holds. Desc exposes no accessor for the name, so the name is read back out of
+// Desc.String, whose single return path renders it first and quoted; a descriptor
+// carrying an error renders an empty name there rather than another shape.
 func isInfoMetric(metric prometheus.Metric) bool {
-	desc := metric.Desc()
-	fqName := desc.String()
+	_, quoted, _ := strings.Cut(metric.Desc().String(), `fqName: "`)
+	fqName, _, _ := strings.Cut(quoted, `"`)
 
-	// Check if metric name contains "_info"
-	// This covers: wnc_ap_info, wnc_client_info, wnc_wlan_info
-	return strings.Contains(fqName, "_info")
+	return strings.HasSuffix(fqName, "_info")
 }

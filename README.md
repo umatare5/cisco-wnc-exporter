@@ -253,6 +253,28 @@ Import [examples/grafana_cisco-wnc-user-dashboard.json](https://github.com/umata
 > [!Tip]
 > See [cisco-wnc-user-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
 
+## Changes a Release Can Make
+
+This project is pre-1.0, so a minor release may rename or remove a metric, as the head of [CHANGELOG.md](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CHANGELOG.md) says. This section classifies the changes that arrive **without** a rename, because those carry no new name to grep for.
+
+| Change                      | Announced in                                   |
+| :-------------------------- | :--------------------------------------------- |
+| A corrected value           | The CHANGELOG section for that release         |
+| A `state` label value       | Nowhere — the controller supplies the spelling |
+| A default `_info` label set | The CHANGELOG section for that release         |
+| The verified range          | This section                                   |
+
+- **A corrected value** is the most frequent change here: a series keeps its name and its reading changes, because what it published was wrong. `wnc_wlan_wpa2_enabled` and `wnc_wlan_11k_neighbor_list_enabled` flipped from `0` to `1` wherever the default was in force (v0.4.0). A correction can also withdraw a series — `wnc_ap_uptime_seconds` went absent for an AP whose boot time the controller does not report (v0.7.0) — so a rule that assumes one is always present needs `absent()` or `or vector(0)`.
+- **A `state` label value** reaches the metric unmapped, as [docs/README.md](docs/README.md) describes, so an IOS-XE release that respells a state changes the label value with no change to this exporter and no CHANGELOG entry. Match on the spelling your own controller reports.
+- **A default `_info` label set** is what `--collector.*.info-labels` overrides, and moving a default adds or removes labels on one series rather than renaming or removing a series. A deployment that names the labels it needs is unaffected. One that relies on a default set is not, and a label dropped from a default disappears without an error even from a rule that names it in `group_left()`.
+- **The verified range** is IOS-XE 17.12, which is where every value published here was measured. The controller owns each container this exporter reads, so an image outside that range may rename or drop one and take a series with it — a loss of that kind is outside the verified range rather than a regression.
+
+> [!Note]
+>
+> A default label set is not the set the two example dashboards above need. They join `band` in nine `group_left()` calls and `ap` and `wlan` in three, and the user dashboard drives its variable chain from `username`. A default configuration therefore renders those panels with the breakdown collapsed, leaves the `username` list empty, and gives `Radio Wave Utilization` and `Other Devices Connected` no data at all, because the `and on(name, band)` in those two has nothing to match.
+>
+> Name the labels the panels use, as in `--collector.ap.info-labels=name,ip,band` and `--collector.client.info-labels=name,ipv4,ap,band,wlan,username`. [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) enables every available label.
+
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the `make` targets, the Docker build, the release process and how to open a pull request.
@@ -263,4 +285,4 @@ I launched this project with the help of **GitHub Copilot Coding Agent**, and I 
 
 ## Licence
 
-[MIT](LICENSE)
+[MIT](LICENSE). The binary statically links Apache-2.0, MIT and BSD 3-Clause dependencies, whose notices are reproduced in [NOTICE](NOTICE) and shipped alongside `LICENSE` in every release archive and container image.

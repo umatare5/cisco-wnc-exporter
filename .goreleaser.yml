@@ -39,9 +39,15 @@ archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
       - "README.md"
+      - "CHANGELOG.md"
       - "docs/*.md"
       - "examples/*.yml"
       - "LICENSE"
+      - "NOTICE"
+      - "SECURITY.md"
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
 
 # Docker configuration
 dockers:
@@ -49,6 +55,9 @@ dockers:
       - "ghcr.io/umatare5/cisco-wnc-exporter:latest-amd64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-amd64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-amd64"
+    # A prerelease must not move latest or the minor tag, and release.prerelease reaches
+    # only the GitHub release
+    skip_push: auto
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -63,10 +72,14 @@ dockers:
     goarch: amd64
     ids:
       - cisco-wnc-exporter
+    extra_files:
+      - "LICENSE"
+      - "NOTICE"
   - image_templates:
       - "ghcr.io/umatare5/cisco-wnc-exporter:latest-arm64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-arm64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-arm64"
+    skip_push: auto
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64"
@@ -81,18 +94,25 @@ dockers:
     goarch: arm64
     ids:
       - cisco-wnc-exporter
+    extra_files:
+      - "LICENSE"
+      - "NOTICE"
 
 # Docker manifest for multi-platform images
 docker_manifests:
+  # The manifest step is gated separately from the image push, so it needs its own auto
   - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:latest"
+    skip_push: auto
     image_templates:
       - "ghcr.io/umatare5/cisco-wnc-exporter:latest-amd64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:latest-arm64"
   - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}"
+    skip_push: auto
     image_templates:
       - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-amd64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-arm64"
   - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}"
+    skip_push: auto
     image_templates:
       - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-amd64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-arm64"

@@ -59,7 +59,7 @@ type APCollector struct {
 	multicastRxFramesTotalDesc    *prometheus.Desc
 	multicastTxFramesTotalDesc    *prometheus.Desc
 	totalTxFramesTotalDesc        *prometheus.Desc
-	rtsSuccessTotalDesc           *prometheus.Desc
+	rtsSuccessesTotalDesc         *prometheus.Desc
 	rxErrorsTotalDesc             *prometheus.Desc
 	txRetriesTotalDesc            *prometheus.Desc
 	transmissionFailuresTotalDesc *prometheus.Desc
@@ -72,7 +72,7 @@ type APCollector struct {
 	micErrorsTotalDesc            *prometheus.Desc
 	coverageHoleEventsDesc        *prometheus.Desc
 	lastRadarOnRadioAtDesc        *prometheus.Desc
-	radioResetTotalDesc           *prometheus.Desc
+	radioResetsTotalDesc          *prometheus.Desc
 	cpuUtilizationDesc            *prometheus.Desc
 	memoryUtilizationDesc         *prometheus.Desc
 	uptimeSecondsDesc             *prometheus.Desc
@@ -279,8 +279,8 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.rtsSuccessTotalDesc = prometheus.NewDesc(
-			"wnc_ap_rts_success_total",
+		collector.rtsSuccessesTotalDesc = prometheus.NewDesc(
+			"wnc_ap_rts_successes_total",
 			"Successful RTS transmissions",
 			baseRadioLabels,
 			nil,
@@ -360,8 +360,8 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.radioResetTotalDesc = prometheus.NewDesc(
-			"wnc_ap_radio_reset_total",
+		collector.radioResetsTotalDesc = prometheus.NewDesc(
+			"wnc_ap_radio_resets_total",
 			"Radio reset count",
 			baseRadioLabels,
 			nil,
@@ -403,7 +403,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.multicastRxFramesTotalDesc
 		ch <- c.multicastTxFramesTotalDesc
 		ch <- c.totalTxFramesTotalDesc
-		ch <- c.rtsSuccessTotalDesc
+		ch <- c.rtsSuccessesTotalDesc
 	}
 	if c.metrics.Errors {
 		ch <- c.rxErrorsTotalDesc
@@ -418,7 +418,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.micErrorsTotalDesc
 		ch <- c.coverageHoleEventsDesc
 		ch <- c.lastRadarOnRadioAtDesc
-		ch <- c.radioResetTotalDesc
+		ch <- c.radioResetsTotalDesc
 	}
 	if c.metrics.Join {
 		c.join.describe(ch)
@@ -703,7 +703,7 @@ func (c *APCollector) collectTrafficMetrics(
 		{c.multicastRxFramesTotalDesc, float64(stats.MulticastRxFrameCnt)},
 		{c.multicastTxFramesTotalDesc, float64(stats.MulticastTxFrameCnt)},
 		{c.totalTxFramesTotalDesc, float64(stats.TxFrameCount)},
-		{c.rtsSuccessTotalDesc, float64(stats.RtsSuccessCount)},
+		{c.rtsSuccessesTotalDesc, float64(stats.RtsSuccessCount)},
 	}
 
 	for _, metric := range trafficMetrics {
@@ -728,7 +728,7 @@ func (c *APCollector) collectErrorMetrics(
 	// radar timestamp reads as a DFS detection at the Unix epoch.
 	if resetCount, exists := radioResetStatsMap[radio.WtpMAC][radio.RadioSlotID]; exists {
 		ch <- prometheus.MustNewConstMetric(
-			c.radioResetTotalDesc, prometheus.CounterValue, float64(resetCount), labels...)
+			c.radioResetsTotalDesc, prometheus.CounterValue, float64(resetCount), labels...)
 	}
 	if coverage, exists := rrmCoverageMap[radioID]; exists {
 		ch <- prometheus.MustNewConstMetric(

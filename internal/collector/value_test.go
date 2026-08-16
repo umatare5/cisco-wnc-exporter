@@ -89,7 +89,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_clients", 1},
 		{"wnc_ap_coverage_failed_clients", 7},
 		// Both reset entries of this radio are totalled, not overwritten.
-		{"wnc_ap_radio_reset_total", 8},
+		{"wnc_ap_radio_resets_total", 8},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
 		{"wnc_ap_last_radar_timestamp_seconds", 1767225600},
 
@@ -148,7 +148,7 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		// tx-frame-count, the controller's own total, which the HELP string
 		// promises is not the sum of the per-type series above.
 		{"wnc_ap_total_tx_frames_total", 3109},
-		{"wnc_ap_rts_success_total", 3110},
+		{"wnc_ap_rts_successes_total", 3110},
 
 		{"wnc_ap_rx_errors_total", 3201},
 		{"wnc_ap_tx_retries_total", 3202},
