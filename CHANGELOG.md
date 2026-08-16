@@ -47,7 +47,7 @@ A timestamp leaf carrying the controller's epoch sentinel is withheld rather tha
 
 ### Fixed
 
-- `wnc_ap_uptime_seconds` is now absent for an AP whose boot time the controller does not report, or reports in a form this exporter cannot parse. It published `0` for both, which reads as an AP that booted at the instant of the scrape, so a rule of the form `wnc_ap_uptime_seconds < 600` fired on it. `wnc_ap_oper_state` is already withheld when the leaf it reads is empty, so this applies the rule the same collector already followed. A rule that treated the series as always present needs `absent()` or `or vector(0)`.
+- `wnc_ap_uptime_seconds` is now absent for an AP whose boot time the controller does not report, reports in a form this exporter cannot parse, or reports at the Unix epoch. It published `0` for both, which reads as an AP that booted at the instant of the scrape, so a rule of the form `wnc_ap_uptime_seconds < 600` fired on it. `wnc_ap_oper_state` is already withheld when the leaf it reads is empty, so this applies the rule the same collector already followed, and the epoch case matches what the same collector does with the radar timestamp. A rule that treated the series as always present needs `absent()` or `or vector(0)`. The HELP now says so.
 
 ## v0.6.0
 

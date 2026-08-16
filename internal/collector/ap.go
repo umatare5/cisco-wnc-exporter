@@ -135,7 +135,9 @@ func NewAPCollector(
 		)
 		collector.uptimeSecondsDesc = prometheus.NewDesc(
 			"wnc_ap_uptime_seconds",
-			"AP uptime in seconds",
+			"AP uptime in seconds. Withheld rather than reported as 0 when the controller "+
+				"reports no boot time this exporter can use, so a reboot check has no reading "+
+				"instead of a false one",
 			baseAPLabels,
 			nil,
 		)
@@ -925,12 +927,18 @@ func buildRadioClientCountsMap(
 }
 
 // determineUptimeFromBootTime derives uptime from the boot time timestamp, and
-// reports false when the leaf is absent or unparsable. Zero is not a usable
-// substitute: it reads as an AP that booted this instant, which is what a reboot
-// rule fires on.
+// reports false when the leaf is absent, unparsable, or at the Unix epoch. Neither
+// zero nor five decades is a usable substitute: the first reads as an AP that booted
+// this instant, which is what a reboot rule fires on, and the second silences one.
+//
+// No AP booted in 1970, so an instant there is a placeholder whatever the controller
+// meant by it. This is the same guard the join module applies to its own timestamps.
 func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
 	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
 	if err != nil {
+		return 0, false
+	}
+	if bootTime.Year() <= epochYear {
 		return 0, false
 	}
 

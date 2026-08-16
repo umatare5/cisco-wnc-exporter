@@ -905,6 +905,17 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 			true,
 			false,
 		},
+		{
+			// A placeholder rather than a boot: no AP booted in 1970. Whether this
+			// controller renders one for this leaf is not established — the guard is
+			// defensive, and it matches what the join timestamps do with the same value.
+			"Unix epoch",
+			"1970-01-01T00:00:00+00:00",
+			0,
+			0,
+			true,
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -948,6 +959,7 @@ func TestAPCollector_UptimeWithheldWhenBootTimeUnusable(t *testing.T) {
 	}{
 		{"absent leaf", "", false},
 		{"unparsable leaf", "2026-01-01", false},
+		{"epoch placeholder", "1970-01-01T00:00:00+00:00", false},
 		{"usable leaf", "2026-01-01T00:00:00Z", true},
 	}
 
