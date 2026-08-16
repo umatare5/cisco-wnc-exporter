@@ -83,6 +83,8 @@ type APCollectorModules struct {
 	Traffic bool `json:"traffic"`
 	// Errors: errors, retries, failures
 	Errors bool `json:"errors"`
+	// Join: CAPWAP discovery, join, configuration and DTLS statistics
+	Join bool `json:"join"`
 	// Info: info metric with labels
 	Info       bool     `json:"info"`
 	InfoLabels []string `json:"info_labels"`
@@ -149,6 +151,7 @@ func Parse(cmd *cli.Command) (*Config, error) {
 				Radio:      cmd.Bool("collector.ap.radio"),
 				Traffic:    cmd.Bool("collector.ap.traffic"),
 				Errors:     cmd.Bool("collector.ap.errors"),
+				Join:       cmd.Bool("collector.ap.join"),
 				Info:       cmd.Bool("collector.ap.info"),
 				InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
 			},

@@ -21,6 +21,7 @@ type APMetrics struct {
 	Radio      bool
 	Traffic    bool
 	Errors     bool
+	Join       bool
 	Info       bool
 	InfoLabels []string
 }
@@ -30,6 +31,7 @@ type APCollector struct {
 	metrics        APMetrics
 	infoDesc       *prometheus.Desc
 	infoLabelNames []string
+	join           *apJoinDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -100,6 +102,10 @@ func NewAPCollector(
 			infoLabels, nil,
 		)
 		collector.infoLabelNames = infoLabels
+	}
+
+	if metrics.Join {
+		collector.join = newAPJoinDescs()
 	}
 
 	if metrics.General {
@@ -412,6 +418,9 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.lastRadarOnRadioAtDesc
 		ch <- c.radioResetTotalDesc
 	}
+	if c.metrics.Join {
+		c.join.describe(ch)
+	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
 	}
@@ -422,6 +431,22 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx := context.Background()
 
 	if !c.isAnyMetricFlagEnabled() {
+		return
+	}
+
+	if c.metrics.Join {
+		joinStats, err := c.src.GetAPJoinStats(ctx)
+		if err != nil {
+			slog.Debug("Failed to get AP join statistics", "error", err)
+		} else {
+			c.join.collect(ch, joinStats)
+		}
+	}
+
+	// Every module below reads the AP inventory or the radio list. The join module
+	// reads neither, so a deployment enabling only that one must not go on to ask for
+	// data types no enabled module declared.
+	if !c.isAnyRadioKeyedFlagEnabled() {
 		return
 	}
 
@@ -914,6 +939,12 @@ func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {
+	return c.isAnyRadioKeyedFlagEnabled() || c.metrics.Join
+}
+
+// isAnyRadioKeyedFlagEnabled reports whether a module keyed by the AP inventory or
+// the radio list is enabled.
+func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 	return IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors, c.metrics.Info)
 }
 

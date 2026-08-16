@@ -33,6 +33,7 @@ const (
 	dataAPNameMACMap          = "ap_name_mac_map"
 	dataAPRadioOperStats      = "ap_radio_oper_stats"
 	dataAPRadioResetStats     = "ap_radio_reset_stats"
+	dataAPJoinStats           = "ap_join_stats"
 	dataClientCommonOperData  = "client_common_oper_data"
 	dataClientDCInfo          = "client_dc_info"
 	dataClientDot11OperData   = "client_dot11_oper_data"
@@ -66,6 +67,7 @@ type WNCDataCache struct {
 	RadioOperStats  []ap.RadioOperStats
 	RadioResetStats []ap.RadioResetStats
 	NameMACMaps     []ap.ApNameMACMap
+	JoinStats       []ap.ApJoinStats
 
 	CommonOperData    []client.CommonOperData
 	DCInfo            []client.DcInfo

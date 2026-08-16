@@ -716,6 +716,7 @@ func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
 
 // RESTCONF module names the mock replies are keyed by.
 const (
+	mockAPGlobalOperModule  = "Cisco-IOS-XE-wireless-ap-global-oper"
 	mockAPOperModule        = "Cisco-IOS-XE-wireless-access-point-oper"
 	mockClientOperModule    = "Cisco-IOS-XE-wireless-client-oper"
 	mockRRMOperModule       = "Cisco-IOS-XE-wireless-rrm-oper"
@@ -751,6 +752,8 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"ap-mac":"`+mockAPMAC+`","slot-id":0}`)},
 	"radio-reset-stats": {dataAPRadioResetStats, mockList(mockAPOperModule, "radio-reset-stats",
 		`{"ap-mac":"`+mockAPMAC+`","radio-id":0}`)},
+	"ap-join-stats": {dataAPJoinStats, mockList(mockAPGlobalOperModule, "ap-join-stats",
+		`{"wtp-mac":"`+mockAPMAC+`","ap-join-info":{"ap-name":"TEST-AP01","is-joined":true}}`)},
 	"common-oper-data": {dataClientCommonOperData, mockList(mockClientOperModule, "common-oper-data",
 		`{"client-mac":"`+mockClientMAC+`"}`)},
 	"dc-info": {dataClientDCInfo, mockList(mockClientOperModule, "dc-info",
@@ -845,7 +848,7 @@ func newTestDataSource(t *testing.T, controllerURL string, ttl time.Duration) *d
 func allModules() config.Collectors {
 	return config.Collectors{
 		AP: config.APCollectorModules{
-			General: true, Radio: true, Traffic: true, Errors: true, Info: true,
+			General: true, Radio: true, Traffic: true, Errors: true, Join: true, Info: true,
 		},
 		Client: config.ClientCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Info: true,

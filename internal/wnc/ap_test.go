@@ -101,6 +101,25 @@ func newMockDataSource() *mockDataSource {
 					EthMAC:  "aa:bb:cc:11:22:90",
 				},
 			},
+			JoinStats: []ap.ApJoinStats{
+				{
+					WtpMAC: "aa:bb:cc:11:22:80",
+					ApJoinInfo: ap.ApJoinInfo{
+						ApName:          "TEST-AP01",
+						IsJoined:        true,
+						NumJoinReqRecvd: 5,
+					},
+				},
+				// The list keeps a record for an AP that has left CAPWAP, so it is wider
+				// than the two-entry AP inventory above.
+				{
+					WtpMAC: "aa:bb:cc:11:22:a0",
+					ApJoinInfo: ap.ApJoinInfo{
+						ApName:   "TEST-AP03",
+						IsJoined: false,
+					},
+				},
+			},
 		},
 	}
 }
@@ -487,6 +506,72 @@ func TestAPSource_ListNameMACMaps(t *testing.T) {
 				}
 				if data[0].EthMAC == "" {
 					t.Error("ListNameMACMaps() first item has empty EthMAC")
+				}
+			}
+		})
+	}
+}
+
+func TestAPSource_GetAPJoinStats(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mock    *mockDataSource
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "Success with join statistics",
+			mock:    newMockDataSource(),
+			wantLen: 2,
+			wantErr: false,
+		},
+		{
+			name: "Success with empty data",
+			mock: &mockDataSource{
+				data: &WNCDataCache{
+					JoinStats: []ap.ApJoinStats{},
+				},
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+		{
+			name: "Error from data source",
+			mock: &mockDataSource{
+				err: errors.New("cache refresh failed"),
+			},
+			wantLen: 0,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			source := NewAPSource(tt.mock)
+			ctx := context.Background()
+
+			data, err := source.GetAPJoinStats(ctx)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAPJoinStats() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && len(data) != tt.wantLen {
+				t.Errorf("GetAPJoinStats() returned %d items, want %d", len(data), tt.wantLen)
+			}
+
+			if !tt.wantErr && tt.wantLen > 0 {
+				// The record of an AP that has left CAPWAP is the reason this data type
+				// exists, so the adapter must not filter the list down to joined APs.
+				if data[0].WtpMAC == "" {
+					t.Error("GetAPJoinStats() first item has empty WtpMAC")
+				}
+				if data[len(data)-1].ApJoinInfo.IsJoined {
+					t.Error("GetAPJoinStats() dropped the record of an AP that is not joined")
 				}
 			}
 		})

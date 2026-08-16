@@ -88,6 +88,7 @@ func (c *Collector) RegisterServiceCollectors() {
 		c.cfg.Collectors.AP.Radio,
 		c.cfg.Collectors.AP.Traffic,
 		c.cfg.Collectors.AP.Errors,
+		c.cfg.Collectors.AP.Join,
 		c.cfg.Collectors.AP.Info,
 	) {
 		apSource := wnc.NewAPSource(c.sharedDataSource)
@@ -154,6 +155,7 @@ func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRM
 		Radio:      c.cfg.Collectors.AP.Radio,
 		Traffic:    c.cfg.Collectors.AP.Traffic,
 		Errors:     c.cfg.Collectors.AP.Errors,
+		Join:       c.cfg.Collectors.AP.Join,
 		Info:       c.cfg.Collectors.AP.Info,
 		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
 	})

@@ -102,6 +102,19 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_client_power_save_state", 1},
 		// Milliseconds in the leaf, seconds in the series.
 		{"wnc_client_state_transition_seconds", 0.12},
+
+		// The join module. Both value-1 gauges first, then the timestamps, which are
+		// one day apart in the fixture so that reading a neighboring leaf lands on
+		// another day rather than on a plausible instant.
+		{"wnc_ap_joined", 1},
+		{"wnc_ap_join_info", 1},
+		{"wnc_ap_last_error_timestamp_seconds", 1767312000},
+		{"wnc_ap_last_join_success_timestamp_seconds", 1767398400},
+		{"wnc_ap_last_join_failure_timestamp_seconds", 1767484800},
+		{"wnc_ap_last_config_success_timestamp_seconds", 1767571200},
+		{"wnc_ap_last_config_failure_timestamp_seconds", 1767657600},
+		{"wnc_ap_last_discovery_success_timestamp_seconds", 1767744000},
+		{"wnc_ap_last_discovery_failure_timestamp_seconds", 1767830400},
 	}
 
 	assertValues(t, values, tests)
@@ -163,6 +176,19 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_client_data_retries_total", 4209},
 		{"wnc_client_rts_retries_total", 4210},
 		{"wnc_client_tx_retries_total", 4211},
+
+		// The join module. The discovery counters live in one container and the join
+		// and configuration counters in another, and the request, response and failure
+		// leaves of each phase are adjacent, which is what a swap would exchange.
+		{"wnc_ap_discovery_requests_total", 5201},
+		{"wnc_ap_discovery_responses_total", 5202},
+		{"wnc_ap_discovery_errors_total", 5203},
+		{"wnc_ap_join_requests_total", 5101},
+		{"wnc_ap_join_responses_total", 5102},
+		{"wnc_ap_join_failures_total", 5103},
+		{"wnc_ap_config_requests_total", 5104},
+		{"wnc_ap_config_responses_total", 5105},
+		{"wnc_ap_config_failures_total", 5106},
 	}
 
 	assertValues(t, values, tests)

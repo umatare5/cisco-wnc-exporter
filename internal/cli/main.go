@@ -162,6 +162,12 @@ func registerAPCollectorFlags() []cli.Flag {
 			HideDefault: true,
 		},
 		&cli.BoolFlag{
+			Name:        "collector.ap.join",
+			Usage:       "Enable AP CAPWAP join metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
 			Name:        "collector.ap.info",
 			Usage:       "Enable AP info metrics",
 			Category:    "# AP Collector Options",

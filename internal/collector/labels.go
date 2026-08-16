@@ -9,6 +9,7 @@ const (
 	labelState = "state" // State or setting as the controller spells it
 
 	// AP-specific labels.
+	labelChannel   = "channel"    // CAPWAP tunnel channel (control, data)
 	labelEthMAC    = "eth_mac"    // AP Ethernet MAC address
 	labelIP        = "ip"         // AP IP address
 	labelModel     = "model"      // AP model number
