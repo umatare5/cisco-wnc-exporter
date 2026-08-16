@@ -196,6 +196,11 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		// The first reason in label order of the controller module, which carries one
 		// series per reason leaf.
 		{"wnc_controller_client_deletes_total", 6101},
+
+		// Bytes in both directions, from the leaf the controller reports as a string.
+		// The five phase counts in the same record are deliberately unpublished, and
+		// each carries its own value, so reading one of them lands elsewhere.
+		{"wnc_wlan_data_usage_bytes_total", 7101},
 	}
 
 	assertValues(t, values, tests)

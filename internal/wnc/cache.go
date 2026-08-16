@@ -34,6 +34,7 @@ const (
 	dataAPRadioOperStats      = "ap_radio_oper_stats"
 	dataAPRadioResetStats     = "ap_radio_reset_stats"
 	dataAPJoinStats           = "ap_join_stats"
+	dataWLANClientStats       = "wlan_client_stats"
 	dataClientCommonOperData  = "client_common_oper_data"
 	dataClientDCInfo          = "client_dc_info"
 	dataClientDot11OperData   = "client_dot11_oper_data"
@@ -88,7 +89,9 @@ type WNCDataCache struct {
 	ControllerBootTime  string
 	ClientDeleteReasons map[string]float64
 
-	// WLAN data
+	// WLAN data. The per-WLAN client statistics live in the AP global operational
+	// subtree, so the SDK types them in its ap service package.
+	WLANClientStats       []ap.WlanClientStats
 	WLANConfigEntries     []wlan.WlanCfgEntry
 	WLANPolicies          []wlan.WlanPolicy
 	WLANPolicyListEntries []wlan.PolicyListEntry

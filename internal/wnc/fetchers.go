@@ -22,6 +22,7 @@ var dataTypeNames = []string{
 	dataWLANCfgEntries,
 	dataWLANPolicies,
 	dataWLANPolicyListEntries,
+	dataWLANClientStats,
 	dataControllerBootTime,
 	dataCoClientDelReason,
 	dataClientCommonOperData,
@@ -109,6 +110,8 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return anyWLAN
 	case dataWLANPolicies, dataWLANPolicyListEntries:
 		return modules.WLAN.Config
+	case dataWLANClientStats:
+		return modules.WLAN.Traffic
 	case dataClientCommonOperData:
 		// The per-radio and per-WLAN client counts read it through their own
 		// collectors, so a client module is not the only reason to fetch it.
@@ -207,6 +210,14 @@ func (s *dataSource) fetchers() []dataFetcher {
 				c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
 			}
 			return len(c.WLANPolicyListEntries), nil
+		}},
+		{dataWLANClientStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.AP().ListWLANClientStats(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.WLANClientStats = data.WlanClientStats
+			return len(c.WLANClientStats), nil
 		}},
 		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			bootTime, present, err := rawValue[string](ctx, s.client.Core(), routeControllerBootTime)

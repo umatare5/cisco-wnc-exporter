@@ -236,9 +236,9 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			[]string{dataWLANCfgEntries, dataWLANPolicies, dataWLANPolicyListEntries},
 		},
 		{
-			"WLAN traffic reads client data instead of the policy routes",
+			"WLAN traffic reads client data and the WLAN statistics, not the policy routes",
 			config.Collectors{WLAN: config.WLANCollectorModules{Traffic: true}},
-			[]string{dataWLANCfgEntries, dataClientCommonOperData},
+			[]string{dataWLANCfgEntries, dataWLANClientStats, dataClientCommonOperData},
 		},
 		{
 			"WLAN general reads one data type of the whole set",

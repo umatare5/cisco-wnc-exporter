@@ -756,6 +756,8 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"ap-mac":"`+mockAPMAC+`","radio-id":0}`)},
 	"ap-join-stats": {dataAPJoinStats, mockList(mockAPGlobalOperModule, "ap-join-stats",
 		`{"wtp-mac":"`+mockAPMAC+`","ap-join-info":{"ap-name":"TEST-AP01","is-joined":true}}`)},
+	"wlan-client-stats": {dataWLANClientStats, mockList(mockAPGlobalOperModule, "wlan-client-stats",
+		`{"wlan-id":1,"data-usage":"6884480"}`)},
 	"common-oper-data": {dataClientCommonOperData, mockList(mockClientOperModule, "common-oper-data",
 		`{"client-mac":"`+mockClientMAC+`"}`)},
 	"dc-info": {dataClientDCInfo, mockList(mockClientOperModule, "dc-info",

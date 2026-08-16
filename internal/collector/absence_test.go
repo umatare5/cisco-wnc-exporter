@@ -42,6 +42,7 @@ const (
 	typeWLANCfgEntries        = "wlan_cfg_entries"
 	typeWLANPolicies          = "wlan_policies"
 	typeWLANPolicyListEntries = "wlan_policy_list_entries"
+	typeWLANClientStats       = "wlan_client_stats"
 )
 
 var allDataTypes = []string{
@@ -51,7 +52,7 @@ var allDataTypes = []string{
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData,
-	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries,
+	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
 const (
@@ -186,6 +187,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 			"wnc_wlan_pmf_state", "wnc_wlan_ft_state",
 		}},
+		{typeWLANClientStats, []string{"wnc_wlan_data_usage_bytes_total"}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},
 	}
@@ -490,6 +492,20 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			LastRadarOnRadio: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}},
 
+		// The record carries every leaf of the container, including the five phase counts
+		// no series reads, so a descriptor pointed at one of those reports a number the
+		// value assertions do not expect.
+		WLANClientStats: []ap.WlanClientStats{{
+			WlanID:                  1,
+			WlanProfileName:         fixtureProfile,
+			DataUsage:               "7101",
+			TotalRandomMACClients:   7102,
+			ClientCurrStateL2Auth:   7103,
+			ClientCurrStateMobility: 7104,
+			ClientCurrStateIplearn:  7105,
+			CurrStateWebauthPending: 7106,
+			ClientCurrStateRun:      7107,
+		}},
 		WLANConfigEntries: []wlan.WlanCfgEntry{{
 			WlanID:         1,
 			ProfileName:    fixtureProfile,

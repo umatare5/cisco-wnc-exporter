@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
@@ -164,7 +165,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			WLANMetrics{Traffic: true},
-			1, // client_count
+			2, // client_count, data_usage
 		},
 		{
 			"Config module only",
@@ -184,7 +185,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			19, // 1+1+16+1
+			20, // 1+2+16+1
 		},
 	}
 
@@ -962,7 +963,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 19
+	expectedDescs := 20
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1079,28 +1080,60 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 		1: {clientCount: 10},
 	}
 
+	usageMap := map[int]uint64{
+		1: 6884480,
+	}
+
 	collector := &WLANCollector{
 		metrics:         WLANMetrics{Traffic: true},
 		clientCountDesc: prometheus.NewDesc("test_client_count", "test", []string{"id"}, nil),
+		dataUsageDesc:   prometheus.NewDesc("test_data_usage", "test", []string{"id"}, nil),
 	}
 
+	// The two series come from different data types, so each polarity has to be
+	// exercised on its own: one map nil while the other is populated is the case a
+	// shared early return would get wrong.
 	tests := []struct {
 		name     string
 		statsMap map[int]wlanStats
+		usageMap map[int]uint64
 		want     int
 		reason   string
 	}{
 		{
-			name:     "Client data available",
+			name:     "Both data types available",
 			statsMap: statsMap,
-			want:     1,
-			reason:   "the client count",
+			usageMap: usageMap,
+			want:     2,
+			reason:   "the client count and the byte counter",
 		},
 		{
 			name:     "Client data unavailable",
 			statsMap: nil,
+			usageMap: usageMap,
+			want:     1,
+			reason:   "a zero client count reads as an SSID with nobody on it, the counter still publishes",
+		},
+		{
+			name:     "WLAN statistics unavailable",
+			statsMap: statsMap,
+			usageMap: nil,
+			want:     1,
+			reason:   "a zero byte counter reads as a reset, the client count still publishes",
+		},
+		{
+			name:     "Neither data type available",
+			statsMap: nil,
+			usageMap: nil,
 			want:     0,
-			reason:   "a zero client count reads as an SSID with nobody on it",
+			reason:   "nothing is published rather than two fabricated zeros",
+		},
+		{
+			name:     "WLAN missing from the statistics list",
+			statsMap: statsMap,
+			usageMap: map[int]uint64{99: 1},
+			want:     1,
+			reason:   "the counter is absent for a WLAN the controller lists no record for",
 		},
 	}
 
@@ -1111,7 +1144,7 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 			ch := make(chan prometheus.Metric, 10)
 			go func() {
 				defer close(ch)
-				collector.collectTrafficMetrics(ch, entry, tt.statsMap)
+				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.usageMap)
 			}()
 
 			metricCount := 0
@@ -1369,12 +1402,13 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 			},
 		},
 		{
-			name: "collectTrafficMetrics with empty statsMap",
+			name: "collectTrafficMetrics with empty maps",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				collector := &WLANCollector{
 					metrics:         WLANMetrics{Traffic: true},
 					clientCountDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					dataUsageDesc:   prometheus.NewDesc("test_usage", "test", []string{"id"}, nil),
 				}
 				ch := make(chan prometheus.Metric, 10)
 				defer func() {
@@ -1386,7 +1420,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				entry := wlan.WlanCfgEntry{WlanID: 1}
-				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{})
+				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{}, map[int]uint64{})
 			},
 		},
 		{
@@ -1571,5 +1605,35 @@ func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestBuildWLANDataUsageMap_SkipsAnUnreadableLeaf keeps a fabricated zero out of a
+// counter. The leaf is a string on the wire, and the shared conversion reads both an
+// omitted leaf and an unparsable one as zero, which on a counter Prometheus reads as a
+// reset and then extrapolates from.
+func TestBuildWLANDataUsageMap_SkipsAnUnreadableLeaf(t *testing.T) {
+	t.Parallel()
+
+	usage := buildWLANDataUsageMap([]ap.WlanClientStats{
+		{WlanID: 1, DataUsage: "6884480"},
+		{WlanID: 2, DataUsage: ""},
+		{WlanID: 3, DataUsage: "not-a-number"},
+		{WlanID: 4, DataUsage: "-1"},
+		// The controller reports this counter as a string precisely because it exceeds
+		// what a JSON number is safe for, so the width has to survive the parse.
+		{WlanID: 5, DataUsage: "18446744073709551615"},
+	})
+
+	if got, ok := usage[1]; !ok || got != 6884480 {
+		t.Errorf("usage[1] = %v (present %v), want 6884480", got, ok)
+	}
+	if got, ok := usage[5]; !ok || got != 18446744073709551615 {
+		t.Errorf("usage[5] = %v (present %v), want the full 64-bit value", got, ok)
+	}
+	for _, id := range []int{2, 3, 4} {
+		if got, ok := usage[id]; ok {
+			t.Errorf("usage[%d] = %v, want the WLAN skipped rather than read as zero", id, got)
+		}
 	}
 }
