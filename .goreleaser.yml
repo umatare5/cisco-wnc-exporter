@@ -39,9 +39,11 @@ archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
       - "README.md"
+      - "CHANGELOG.md"
       - "docs/*.md"
       - "examples/*.yml"
       - "LICENSE"
+      - "NOTICE"
 
 # Docker configuration
 dockers:
@@ -63,6 +65,9 @@ dockers:
     goarch: amd64
     ids:
       - cisco-wnc-exporter
+    extra_files:
+      - "LICENSE"
+      - "NOTICE"
   - image_templates:
       - "ghcr.io/umatare5/cisco-wnc-exporter:latest-arm64"
       - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-arm64"
@@ -81,6 +86,9 @@ dockers:
     goarch: arm64
     ids:
       - cisco-wnc-exporter
+    extra_files:
+      - "LICENSE"
+      - "NOTICE"
 
 # Docker manifest for multi-platform images
 docker_manifests:
