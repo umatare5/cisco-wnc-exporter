@@ -279,6 +279,73 @@ func TestBuildWLANToPolicyMap(t *testing.T) {
 			},
 			map[string]string{},
 		},
+		{
+			// One WLAN bound through two policy tags to two different policy profiles.
+			// docs/collector.wlan.md states that the six policy series then report the
+			// last binding the exporter can resolve, and nothing pinned that: every case
+			// above binds each WLAN profile exactly once, so a first-wins rewrite would
+			// pass them all. The controller returns these entries in datastore order,
+			// which is not the order they were configured in, so which one wins is not a
+			// property an operator can predict — the point of pinning it is that the
+			// choice cannot change silently.
+			"One WLAN bound through two tags reports the last binding",
+			[]wlan.PolicyListEntry{
+				{
+					TagName: "tag1",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy1"},
+						},
+					},
+				},
+				{
+					TagName: "tag2",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy2"},
+						},
+					},
+				},
+			},
+			[]wlan.WlanPolicy{
+				{PolicyProfileName: "policy1"},
+				{PolicyProfileName: "policy2"},
+			},
+			map[string]string{
+				"profile1": "policy2",
+			},
+		},
+		{
+			// The same shape with the second binding naming a policy profile the
+			// controller did not return. The skip that handles it means an unresolvable
+			// binding cannot displace a resolvable one, which is the other half of the
+			// documented contract.
+			"An unresolvable later binding leaves the earlier one in place",
+			[]wlan.PolicyListEntry{
+				{
+					TagName: "tag1",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy1"},
+						},
+					},
+				},
+				{
+					TagName: "tag2",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "nonexistent"},
+						},
+					},
+				},
+			},
+			[]wlan.WlanPolicy{
+				{PolicyProfileName: "policy1"},
+			},
+			map[string]string{
+				"profile1": "policy1",
+			},
+		},
 	}
 
 	for _, tt := range tests {
