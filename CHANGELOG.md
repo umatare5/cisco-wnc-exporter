@@ -6,6 +6,10 @@ This project is pre-1.0, so a minor release may rename or remove a metric. Read 
 
 ## Unreleased
 
+### Fixed
+
+- `wnc_ap_uptime_seconds` is now absent for an AP whose boot time the controller does not report, or reports in a form this exporter cannot parse. It published `0` for both, which reads as an AP that booted at the instant of the scrape, so a rule of the form `wnc_ap_uptime_seconds < 600` fired on it. `wnc_ap_oper_state` is already withheld when the leaf it reads is empty, so this applies the rule the same collector already followed. A rule that treated the series as always present needs `absent()` or `or vector(0)`.
+
 ## v0.6.0
 
 No metric was added, renamed or removed, and no series changed what it reads from the controller.

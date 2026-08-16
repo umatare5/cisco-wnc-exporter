@@ -855,7 +855,7 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 		bootTimeStr string
 		minExpected int64
 		maxExpected int64
-		expectZero  bool
+		expectNotOK bool
 		expectError bool
 	}{
 		{
@@ -903,13 +903,17 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := determineUptimeFromBootTime(tt.bootTimeStr)
+			got, ok := determineUptimeFromBootTime(tt.bootTimeStr)
 
-			if tt.expectZero {
-				if got != 0 {
-					t.Errorf("determineUptimeFromBootTime(%q) = %d, want 0", tt.bootTimeStr, got)
+			if tt.expectNotOK {
+				if ok {
+					t.Errorf("determineUptimeFromBootTime(%q) reported %d as usable, want it unusable",
+						tt.bootTimeStr, got)
 				}
 			} else {
+				if !ok {
+					t.Errorf("determineUptimeFromBootTime(%q) reported no usable uptime", tt.bootTimeStr)
+				}
 				if got < tt.minExpected || got > tt.maxExpected {
 					t.Errorf(
 						"determineUptimeFromBootTime(%q) = %d, want between %d and %d",
@@ -919,6 +923,44 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 						tt.maxExpected,
 					)
 				}
+			}
+		})
+	}
+}
+
+// TestAPCollector_UptimeWithheldWhenBootTimeUnusable pins the emission side of the
+// same contract. The helper test above proves only that the helper reports the leaf
+// as unusable; nothing there stops the collector publishing the zero anyway.
+func TestAPCollector_UptimeWithheldWhenBootTimeUnusable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		bootTime    string
+		wantPresent bool
+	}{
+		{"absent leaf", "", false},
+		{"unparsable leaf", "2026-01-01", false},
+		{"usable leaf", "2026-01-01T00:00:00Z", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].ApTimeInfo.BootTime = tt.bootTime
+
+			values := apSnapshotValues(t, data)
+			if _, ok := values["wnc_ap_uptime_seconds"]; ok != tt.wantPresent {
+				t.Errorf("wnc_ap_uptime_seconds present = %v for boot time %q, want %v",
+					ok, tt.bootTime, tt.wantPresent)
+			}
+
+			// The withhold has to be scoped to this one series: it shares an emit loop
+			// with the AP-level config state, which reads a leaf of its own.
+			if _, ok := values["wnc_ap_config_state"]; !ok {
+				t.Error("wnc_ap_config_state is absent, so the assertion above proves nothing")
 			}
 		})
 	}
@@ -1237,7 +1279,11 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 	}
 
 	capwapMap := map[string]ap.CAPWAPData{
-		wtpMAC: {WtpMAC: wtpMAC, ApState: ap.ApState{ApOperationState: "registered"}},
+		wtpMAC: {
+			WtpMAC:     wtpMAC,
+			ApState:    ap.ApState{ApOperationState: "registered"},
+			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+		},
 	}
 	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
 

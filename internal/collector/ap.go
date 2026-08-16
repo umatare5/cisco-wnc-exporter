@@ -562,7 +562,10 @@ func (c *APCollector) collectSystemMetrics(
 
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
-		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
+	}
+
+	if uptime, ok := determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime); ok {
+		metrics = append(metrics, Float64Metric{c.uptimeSecondsDesc, float64(uptime)})
 	}
 
 	if sysStats := apOperDataMap[wtpMAC].ApSysStats; sysStats != nil {
@@ -896,19 +899,18 @@ func buildRadioClientCountsMap(
 	return countsMap
 }
 
-// determineUptimeFromBootTime determines uptime from boot time timestamp.
-func determineUptimeFromBootTime(bootTimeStr string) int64 {
-	if bootTimeStr == "" {
-		return 0
-	}
-
+// determineUptimeFromBootTime derives uptime from the boot time timestamp, and
+// reports false when the leaf is absent or unparsable. Zero is not a usable
+// substitute: it reads as an AP that booted this instant, which is what a reboot
+// rule fires on.
+func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
 	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
 	if err != nil {
-		return 0
+		return 0, false
 	}
 
 	uptime := time.Since(bootTime)
-	return int64(uptime.Seconds())
+	return int64(uptime.Seconds()), true
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {
