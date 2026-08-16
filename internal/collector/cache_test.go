@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -333,4 +334,47 @@ func TestInfoCacheCollector_Collect_CacheError(t *testing.T) {
 	if count != 1 {
 		t.Errorf("expected 1 metric even with zero TTL, got %d", count)
 	}
+}
+
+// TestIsInfoMetric_MatchesOnlyTheInfoFamilies keeps every other family out of the
+// info cache. The predicate matches the whole descriptor string rather than the
+// metric name, and that string embeds the HELP text, so a HELP that merely mentions
+// an _info family diverts its own series into a cache the operator sized for labels.
+// A counter that lands there reports the same value for up to the cache TTL, which
+// makes rate() a staircase, and nothing else in the suite would notice.
+func TestIsInfoMetric_MatchesOnlyTheInfoFamilies(t *testing.T) {
+	t.Parallel()
+
+	metrics := make(chan prometheus.Metric, MetricChannelBuffer*10)
+	go func() {
+		defer close(metrics)
+		for _, collector := range fixtureCollectors(t, fullFixtureSnapshot()) {
+			collector.Collect(metrics)
+		}
+	}()
+
+	seen := 0
+	for metric := range metrics {
+		seen++
+		name := metricFamilyName(t, metric)
+		if got, want := isInfoMetric(metric), strings.HasSuffix(name, "_info"); got != want {
+			t.Errorf("isInfoMetric(%s) = %v, want %v", name, got, want)
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no metric was collected, so the classification above proves nothing")
+	}
+}
+
+// metricFamilyName reads the fully qualified name back out of the descriptor, which
+// exposes no accessor for it.
+func metricFamilyName(t *testing.T, metric prometheus.Metric) string {
+	t.Helper()
+
+	_, rest, found := strings.Cut(metric.Desc().String(), `fqName: "`)
+	if !found {
+		t.Fatalf("descriptor %q carries no fqName", metric.Desc().String())
+	}
+	name, _, _ := strings.Cut(rest, `"`)
+	return name
 }

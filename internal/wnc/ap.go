@@ -16,6 +16,7 @@ type APSource interface {
 	GetRadioOperStats(ctx context.Context) ([]ap.RadioOperStats, error)
 	GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats, error)
 	ListNameMACMaps(ctx context.Context) ([]ap.ApNameMACMap, error)
+	GetAPJoinStats(ctx context.Context) ([]ap.ApJoinStats, error)
 }
 
 // apSource implements APSource using SharedDataSource for caching.
@@ -73,6 +74,15 @@ func (s *apSource) GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats
 		return nil, err
 	}
 	return data.RadioResetStats, nil
+}
+
+// GetAPJoinStats returns CAPWAP join statistics from WNC via SharedDataSource (cached).
+func (s *apSource) GetAPJoinStats(ctx context.Context) ([]ap.ApJoinStats, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPJoinStats)
+	if err != nil {
+		return nil, err
+	}
+	return data.JoinStats, nil
 }
 
 // ListNameMACMaps returns AP name to MAC mapping data from WNC via SharedDataSource (cached).

@@ -9,6 +9,7 @@ const (
 	labelState = "state" // State or setting as the controller spells it
 
 	// AP-specific labels.
+	labelChannel   = "channel"    // CAPWAP tunnel channel (control, data)
 	labelEthMAC    = "eth_mac"    // AP Ethernet MAC address
 	labelIP        = "ip"         // AP IP address
 	labelModel     = "model"      // AP model number
@@ -24,7 +25,12 @@ const (
 	labelWLAN     = "wlan"     // WLAN SSID name
 
 	// WLAN-specific labels.
-	labelID = "id" // WLAN identifier
+	labelID            = "id"             // WLAN identifier
+	labelPolicyProfile = "policy_profile" // Policy profile a WLAN is bound to
+	labelPolicyTag     = "policy_tag"     // Policy tag carrying the binding
+
+	// Controller-specific labels.
+	labelReason = "reason" // Reason a controller-wide counter is keyed by
 
 	// Refresh health labels.
 	labelData = "data" // WNC data type identifier

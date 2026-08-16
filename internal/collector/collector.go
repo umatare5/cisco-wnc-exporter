@@ -88,6 +88,7 @@ func (c *Collector) RegisterServiceCollectors() {
 		c.cfg.Collectors.AP.Radio,
 		c.cfg.Collectors.AP.Traffic,
 		c.cfg.Collectors.AP.Errors,
+		c.cfg.Collectors.AP.Join,
 		c.cfg.Collectors.AP.Info,
 	) {
 		apSource := wnc.NewAPSource(c.sharedDataSource)
@@ -112,6 +113,15 @@ func (c *Collector) RegisterServiceCollectors() {
 		registered = true
 	} else {
 		slog.Debug("Skipped WLAN collector registration - all modules disabled")
+	}
+
+	// Register the controller collector if any controller module is enabled
+	if IsEnabled(c.cfg.Collectors.Controller.General) {
+		controllerSource := wnc.NewControllerSource(c.sharedDataSource)
+		c.registerControllerCollector(controllerSource)
+		registered = true
+	} else {
+		slog.Debug("Skipped controller collector registration - all modules disabled")
 	}
 
 	// Register Client collector if any Client module is enabled
@@ -154,6 +164,7 @@ func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRM
 		Radio:      c.cfg.Collectors.AP.Radio,
 		Traffic:    c.cfg.Collectors.AP.Traffic,
 		Errors:     c.cfg.Collectors.AP.Errors,
+		Join:       c.cfg.Collectors.AP.Join,
 		Info:       c.cfg.Collectors.AP.Info,
 		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
 	})
@@ -190,6 +201,17 @@ func (c *Collector) registerWLANCollector(wlanSource wnc.WLANSource, clientSourc
 
 	c.registry.MustRegister(collector)
 	slog.Debug("Registered WLAN collector")
+}
+
+// registerControllerCollector registers the controller collector with its modules.
+// It has no info metrics, so no caching wrapper applies to it.
+func (c *Collector) registerControllerCollector(controllerSource wnc.ControllerSource) {
+	baseCollector := NewControllerCollector(controllerSource, ControllerMetrics{
+		General: c.cfg.Collectors.Controller.General,
+	})
+
+	c.registry.MustRegister(NewSafeCollector(baseCollector, "Controller"))
+	slog.Debug("Registered controller collector")
 }
 
 // registerClientCollector registers the Client collector with its modules.

@@ -27,6 +27,10 @@ const (
 	typeAPNameMACMap          = "ap_name_mac_map"
 	typeAPRadioOperStats      = "ap_radio_oper_stats"
 	typeAPRadioResetStats     = "ap_radio_reset_stats"
+	typeAPJoinStats           = "ap_join_stats"
+	typeControllerBootTime    = "controller_boot_time"
+	typeCoClientDelReason     = "co_client_del_reason"
+	typeClientRoamingStats    = "client_roaming_stats"
 	typeClientCommonOperData  = "client_common_oper_data"
 	typeClientDCInfo          = "client_dc_info"
 	typeClientDot11OperData   = "client_dot11_oper_data"
@@ -39,15 +43,17 @@ const (
 	typeWLANCfgEntries        = "wlan_cfg_entries"
 	typeWLANPolicies          = "wlan_policies"
 	typeWLANPolicyListEntries = "wlan_policy_list_entries"
+	typeWLANClientStats       = "wlan_client_stats"
 )
 
 var allDataTypes = []string{
 	typeAPCAPWAPData, typeAPOperData, typeAPRadioOperData, typeAPNameMACMap,
-	typeAPRadioOperStats, typeAPRadioResetStats,
+	typeAPRadioOperStats, typeAPRadioResetStats, typeAPJoinStats,
+	typeControllerBootTime, typeCoClientDelReason, typeClientRoamingStats,
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData,
-	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries,
+	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
 const (
@@ -66,6 +72,37 @@ const (
 	// the wrong one publishes a label value the assertions do not expect.
 	fixturePMFOptions = "apf-vap-pmf-required"
 	fixtureFTMode     = "dot11r-disabled"
+)
+
+// The eleven timestamps of the join record, one day apart so that every pair is
+// distinguishable and a descriptor reading a neighboring leaf reports another day.
+var (
+	fixtureJoinErrorAt        = time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	fixtureJoinSuccessAt      = time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
+	fixtureJoinFailureAt      = time.Date(2026, 1, 4, 0, 0, 0, 0, time.UTC)
+	fixtureConfigSuccessAt    = time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	fixtureConfigFailureAt    = time.Date(2026, 1, 6, 0, 0, 0, 0, time.UTC)
+	fixtureDiscoverySuccessAt = time.Date(2026, 1, 7, 0, 0, 0, 0, time.UTC)
+	fixtureDiscoveryFailureAt = time.Date(2026, 1, 8, 0, 0, 0, 0, time.UTC)
+	fixtureCtrlDTLSSuccessAt  = time.Date(2026, 1, 9, 0, 0, 0, 0, time.UTC)
+	fixtureCtrlDTLSFailureAt  = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	fixtureDataDTLSSuccessAt  = time.Date(2026, 1, 11, 0, 0, 0, 0, time.UTC)
+	fixtureDataDTLSFailureAt  = time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+
+	// fixtureEpochSentinel is what the controller writes into a timestamp leaf for an
+	// event that has not happened. It is not the zero time, so IsZero reports false.
+	fixtureEpochSentinel = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
+const (
+	// fixtureBootTime is the controller boot instant, a day past the join timestamps so
+	// that a descriptor reading one of those reports another day.
+	fixtureBootTime = "2026-01-13T00:00:00Z"
+
+	// The two delete reasons carry distinct values, and the second is there because one
+	// entry cannot tell a per-reason loop from a single emit.
+	fixtureDeleteReason      = "ap-delete"
+	fixtureOtherDeleteReason = "bssid-down"
 )
 
 // fixtureSource serves one snapshot to every adapter in internal/wnc.
@@ -91,6 +128,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		"wnc_wlan_central_dhcp_enabled",
 		"wnc_wlan_central_association_enabled",
 		"wnc_wlan_policy_enabled",
+		"wnc_wlan_policy_binding",
 	}
 	clientTrafficDerived := []string{
 		"wnc_client_rssi_dbm",
@@ -126,6 +164,18 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_rx_errors_total", "wnc_ap_fcs_errors_total",
 		}},
 		{typeAPRadioResetStats, []string{"wnc_ap_radio_reset_total"}},
+		{typeAPJoinStats, []string{
+			"wnc_ap_joined", "wnc_ap_join_info", "wnc_ap_discovery_requests_total",
+			"wnc_ap_dtls_session_requests_total", "wnc_ap_last_join_success_timestamp_seconds",
+			"wnc_ap_last_dtls_success_timestamp_seconds", "wnc_ap_last_reboot_reason",
+		}},
+		{typeControllerBootTime, []string{"wnc_controller_boot_time_seconds"}},
+		{typeCoClientDelReason, []string{"wnc_controller_client_deletes_total"}},
+		{typeClientRoamingStats, []string{
+			"wnc_controller_client_ap_auth_roams_total",
+			"wnc_controller_client_ap_auth_dot11i_fast_roams_total",
+			"wnc_controller_client_ap_auth_dot11i_slow_roams_total",
+		}},
 		{typeClientCommonOperData, []string{
 			"wnc_client_state", "wnc_client_info", "wnc_ap_clients",
 			"wnc_wlan_clients",
@@ -144,6 +194,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 			"wnc_wlan_pmf_state", "wnc_wlan_ft_state",
 		}},
+		{typeWLANClientStats, []string{"wnc_wlan_data_usage_bytes_total"}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},
 	}
@@ -177,7 +228,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}
 }
 
-// TestAllCollectors_FailedDataTypeNeverAddsSeries iterates all eighteen data types.
+// TestAllCollectors_FailedDataTypeNeverAddsSeries iterates every data type.
 // Two of them gate no series, only info label values, and a collector keeps the
 // series and empties the label when their fetch fails, so those two pass here
 // whatever the collector does. Nothing in this file covers label provenance.
@@ -254,21 +305,34 @@ func fixtureRegistry(t *testing.T, failedDataType string) *prometheus.Registry {
 	if failedDataType != "" {
 		data.FetchErrors[failedDataType] = errors.New("fetch failed")
 	}
+
+	registry := prometheus.NewRegistry()
+	for _, collector := range fixtureCollectors(t, data) {
+		registry.MustRegister(collector)
+	}
+	return registry
+}
+
+// fixtureCollectors returns every data collector over the given snapshot, with every
+// module enabled. fixtureRegistry gathers them; a test that needs the metrics before
+// the registry encodes them collects from them directly.
+func fixtureCollectors(t *testing.T, data *wnc.WNCDataCache) []prometheus.Collector {
+	t.Helper()
+
 	src := fixtureSource{data: data}
 
-	apMetrics := APMetrics{General: true, Radio: true, Traffic: true, Errors: true, Info: true}
+	apMetrics := APMetrics{General: true, Radio: true, Traffic: true, Errors: true, Join: true, Info: true}
 	clientMetrics := ClientMetrics{General: true, Radio: true, Traffic: true, Errors: true, Info: true}
 	wlanMetrics := WLANMetrics{General: true, Traffic: true, Config: true, Info: true}
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(
+	return []prometheus.Collector{
+		NewControllerCollector(wnc.NewControllerSource(src), ControllerMetrics{General: true}),
 		NewAPCollector(
 			wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src), apMetrics,
 		),
 		NewClientCollector(wnc.NewClientSource(src), clientMetrics),
 		NewWLANCollector(wnc.NewWLANSource(src), wnc.NewClientSource(src), wlanMetrics),
-	)
-	return registry
+	}
 }
 
 // fullFixtureSnapshot returns a snapshot in which every data type carries one
@@ -357,6 +421,24 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-2", Count: 5},
 		},
 		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
+		JoinStats:   []ap.ApJoinStats{newFixtureJoinStats()},
+
+		ControllerBootTime: fixtureBootTime,
+		ClientDeleteReasons: map[string]float64{
+			fixtureDeleteReason:      6101,
+			fixtureOtherDeleteReason: 6102,
+		},
+		// Three of the container's thirteen leaves are published. The rest carry values
+		// here as well, so a descriptor reading one of those reports a number no
+		// assertion expects.
+		ClientRoamingStats: map[string]float64{
+			"ap-auth-roams":            6201,
+			"ap-auth-dot11i-fast-roam": 6202,
+			"ap-auth-dot11i-slow-roam": 6203,
+			"total-roam":               6204,
+			"roam-fail":                6205,
+			"dot11r-roam":              6206,
+		},
 
 		CommonOperData: []client.CommonOperData{{
 			ClientMAC:   fixtureClientMAC,
@@ -428,6 +510,20 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			LastRadarOnRadio: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}},
 
+		// The record carries every leaf of the container, including the five phase counts
+		// no series reads, so a descriptor pointed at one of those reports a number the
+		// value assertions do not expect.
+		WLANClientStats: []ap.WlanClientStats{{
+			WlanID:                  1,
+			WlanProfileName:         fixtureProfile,
+			DataUsage:               "7101",
+			TotalRandomMACClients:   7102,
+			ClientCurrStateL2Auth:   7103,
+			ClientCurrStateMobility: 7104,
+			ClientCurrStateIplearn:  7105,
+			CurrStateWebauthPending: 7106,
+			ClientCurrStateRun:      7107,
+		}},
 		WLANConfigEntries: []wlan.WlanCfgEntry{{
 			WlanID:         1,
 			ProfileName:    fixtureProfile,
@@ -449,6 +545,86 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 				PolicyProfileName: fixturePolicy,
 			}}},
 		}},
+	}
+}
+
+// newFixtureJoinStats fills one join record. Every numeric leaf carries a distinct
+// value and every timestamp a distinct instant, including the ones no descriptor
+// reads, so a descriptor wired to a neighboring leaf reports a number the value
+// assertions do not expect. All eleven timestamps are real here: the epoch sentinel
+// the controller writes for an event that has not happened is exercised in
+// TestAPJoinModule_WithholdsTheEpochSentinel, which needs the series present in this
+// baseline to prove its absence there.
+func newFixtureJoinStats() ap.ApJoinStats {
+	return ap.ApJoinStats{
+		WtpMAC: fixtureAPMAC,
+		ApJoinInfo: ap.ApJoinInfo{
+			ApName:   fixtureAPName,
+			IsJoined: true,
+
+			// Neither address is published: the record is keyed by wtp-mac, and an IP in a
+			// counter's labels would turn a DHCP lease change into a counter reset.
+			ApIPAddr:      "192.0.2.99",
+			ApEthernetMAC: "aa:bb:cc:dd:ee:00",
+
+			NumJoinReqRecvd:       5101,
+			NumSuccJoinRespSent:   5102,
+			NumUnsuccJoinReqProcn: 5103,
+			NumConfigReqRecvd:     5104,
+			NumSuccConfRespSent:   5105,
+			NumUnsuccConfReqProcn: 5106,
+
+			LastJoinFailureType:   "jf-none",
+			LastConfigFailureType: "cf-none",
+			LastErrorType:         "ap-con-failure-run",
+			// Free text with no value domain, so no series reads it.
+			LastMsgDecrFailReason: "fixture decryption failure text",
+
+			LastErrorTime:         fixtureJoinErrorAt,
+			LastSuccJoinAtmptTime: fixtureJoinSuccessAt,
+			LastFailJoinAtmptTime: fixtureJoinFailureAt,
+			LastSuccConfAtmptTime: fixtureConfigSuccessAt,
+			LastFailConfAtmptTime: fixtureConfigFailureAt,
+		},
+		ApDiscoveryInfo: ap.ApDiscoveryInfo{
+			WtpMAC:      fixtureAPMAC,
+			EthernetMAC: "aa:bb:cc:dd:ee:00",
+			ApIPAddress: "192.0.2.99",
+
+			NumDiscoveryReqRecvd: 5201,
+			NumSuccDiscRespSent:  5202,
+			NumErrDiscReq:        5203,
+			LastDiscFailureType:  "disc-fail-none",
+			LastSuccessDiscTime:  fixtureDiscoverySuccessAt,
+			LastFailedDiscTime:   fixtureDiscoveryFailureAt,
+		},
+		DTLSSessInfo: ap.DTLSSessInfo{
+			MACAddr: fixtureAPMAC,
+
+			CtrlDTLSSetupReq:      5301,
+			CtrlDTLSSuccess:       5302,
+			CtrlDTLSFailure:       5303,
+			CtrlDTLSDecryptErr:    5304,
+			CtrlDTLSAntiReplayErr: 5305,
+
+			DataDTLSSetupReq:      5401,
+			DataDTLSSuccess:       5402,
+			DataDTLSFailure:       5403,
+			DataDTLSDecryptErr:    5404,
+			DataDTLSAntiReplayErr: 5405,
+
+			CtrlDTLSFailureType: "dtls-hs-success",
+			DataDTLSFailureType: "dtls-hs-fragment-error",
+
+			CtrlDTLSSuccessTime: fixtureCtrlDTLSSuccessAt,
+			CtrlDTLSFailureTime: fixtureCtrlDTLSFailureAt,
+			DataDTLSSuccessTime: fixtureDataDTLSSuccessAt,
+			DataDTLSFailureTime: fixtureDataDTLSFailureAt,
+		},
+		RebootReason:     "ap-reboot-reason-reboot-cmd",
+		DisconnectReason: "wtp-controller-initiated-reason",
+		// Free English prose, so no series reads it.
+		ApDisconnectReason: "Tag modified",
 	}
 }
 

@@ -4,6 +4,7 @@ package wnc
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 )
@@ -16,10 +17,15 @@ var dataTypeNames = []string{
 	dataAPOperData,
 	dataAPRadioOperData,
 	dataAPNameMACMap,
+	dataAPJoinStats,
 	dataRRMMeasurement,
 	dataWLANCfgEntries,
 	dataWLANPolicies,
 	dataWLANPolicyListEntries,
+	dataWLANClientStats,
+	dataControllerBootTime,
+	dataCoClientDelReason,
+	dataClientRoamingStats,
 	dataClientCommonOperData,
 	dataClientDCInfo,
 	dataClientDot11OperData,
@@ -30,6 +36,16 @@ var dataTypeNames = []string{
 	dataAPRadioResetStats,
 	dataRRMCoverage,
 	dataRRMAPDot11RadarData,
+}
+
+// boolToInt reports one item for a leaf the controller carries and none for one it
+// omits, so wnc_refresh_items reads as the count of what the read published.
+func boolToInt(present bool) int {
+	if present {
+		return 1
+	}
+
+	return 0
 }
 
 // anyOf reports whether any flag is set. internal/collector has the same predicate,
@@ -81,14 +97,22 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return modules.AP.General
 	case dataAPNameMACMap, dataRRMMeasurement:
 		return modules.AP.Radio
+	case dataAPJoinStats:
+		// The join module is keyed by the statistics list itself, which keeps a record
+		// for an AP the inventory has dropped, so it reads no other AP data type.
+		return modules.AP.Join
 	case dataAPRadioOperStats:
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
 		return modules.AP.Errors
+	case dataControllerBootTime, dataCoClientDelReason, dataClientRoamingStats:
+		return modules.Controller.General
 	case dataWLANCfgEntries:
 		return anyWLAN
 	case dataWLANPolicies, dataWLANPolicyListEntries:
 		return modules.WLAN.Config
+	case dataWLANClientStats:
+		return modules.WLAN.Traffic
 	case dataClientCommonOperData:
 		// The per-radio and per-WLAN client counts read it through their own
 		// collectors, so a client module is not the only reason to fetch it.
@@ -142,6 +166,14 @@ func (s *dataSource) fetchers() []dataFetcher {
 			c.NameMACMaps = data.ApNameMACMap
 			return len(c.NameMACMaps), nil
 		}},
+		{dataAPJoinStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.AP().ListAPJoinStats(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.JoinStats = data.ApJoinStats
+			return len(c.JoinStats), nil
+		}},
 		{dataRRMMeasurement, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.RRM().ListRRMMeasurement(ctx)
 			if err != nil {
@@ -179,6 +211,48 @@ func (s *dataSource) fetchers() []dataFetcher {
 				c.WLANPolicyListEntries = data.PolicyListEntries.PolicyListEntry
 			}
 			return len(c.WLANPolicyListEntries), nil
+		}},
+		{dataWLANClientStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.AP().ListWLANClientStats(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.WLANClientStats = data.WlanClientStats
+			return len(c.WLANClientStats), nil
+		}},
+		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			bootTime, present, err := rawValue[string](ctx, s.client.Core(), routeControllerBootTime)
+			if err != nil {
+				return 0, err
+			}
+			c.ControllerBootTime = bootTime
+			return boolToInt(present), nil
+		}},
+		{dataCoClientDelReason, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			leaves, present, err := rawValue[map[string]json.RawMessage](
+				ctx, s.client.Core(), routeCoClientDelReason,
+			)
+			if err != nil {
+				return 0, err
+			}
+			if !present {
+				return 0, nil
+			}
+			c.ClientDeleteReasons = numericLeaves(leaves, dataCoClientDelReason)
+			return len(c.ClientDeleteReasons), nil
+		}},
+		{dataClientRoamingStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			leaves, present, err := rawValue[map[string]json.RawMessage](
+				ctx, s.client.Core(), routeClientRoamingStats,
+			)
+			if err != nil {
+				return 0, err
+			}
+			if !present {
+				return 0, nil
+			}
+			c.ClientRoamingStats = numericLeaves(leaves, dataClientRoamingStats)
+			return len(c.ClientRoamingStats), nil
 		}},
 		{dataClientCommonOperData, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.Client().ListCommonInfo(ctx)

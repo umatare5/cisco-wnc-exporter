@@ -33,6 +33,8 @@ const (
 	dataAPNameMACMap          = "ap_name_mac_map"
 	dataAPRadioOperStats      = "ap_radio_oper_stats"
 	dataAPRadioResetStats     = "ap_radio_reset_stats"
+	dataAPJoinStats           = "ap_join_stats"
+	dataWLANClientStats       = "wlan_client_stats"
 	dataClientCommonOperData  = "client_common_oper_data"
 	dataClientDCInfo          = "client_dc_info"
 	dataClientDot11OperData   = "client_dot11_oper_data"
@@ -42,6 +44,9 @@ const (
 	dataRRMMeasurement        = "rrm_measurement"
 	dataRRMCoverage           = "rrm_coverage"
 	dataRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
+	dataControllerBootTime    = "controller_boot_time"
+	dataCoClientDelReason     = "co_client_del_reason"
+	dataClientRoamingStats    = "client_roaming_stats"
 	dataWLANCfgEntries        = "wlan_cfg_entries"
 	dataWLANPolicies          = "wlan_policies"
 	dataWLANPolicyListEntries = "wlan_policy_list_entries"
@@ -66,6 +71,7 @@ type WNCDataCache struct {
 	RadioOperStats  []ap.RadioOperStats
 	RadioResetStats []ap.RadioResetStats
 	NameMACMaps     []ap.ApNameMACMap
+	JoinStats       []ap.ApJoinStats
 
 	CommonOperData    []client.CommonOperData
 	DCInfo            []client.DcInfo
@@ -79,7 +85,15 @@ type WNCDataCache struct {
 	RRMCoverage      []rrm.RRMCoverage
 	ApDot11RadarData []rrm.ApDot11RadarData
 
-	// WLAN data
+	// Controller-wide data. Each comes from a container the SDK has no route for, and
+	// each is empty rather than absent when the controller does not carry it.
+	ControllerBootTime  string
+	ClientDeleteReasons map[string]float64
+	ClientRoamingStats  map[string]float64
+
+	// WLAN data. The per-WLAN client statistics live in the AP global operational
+	// subtree, so the SDK types them in its ap service package.
+	WLANClientStats       []ap.WlanClientStats
 	WLANConfigEntries     []wlan.WlanCfgEntry
 	WLANPolicies          []wlan.WlanPolicy
 	WLANPolicyListEntries []wlan.PolicyListEntry

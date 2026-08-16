@@ -21,6 +21,7 @@ type APMetrics struct {
 	Radio      bool
 	Traffic    bool
 	Errors     bool
+	Join       bool
 	Info       bool
 	InfoLabels []string
 }
@@ -30,6 +31,7 @@ type APCollector struct {
 	metrics        APMetrics
 	infoDesc       *prometheus.Desc
 	infoLabelNames []string
+	join           *apJoinDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -102,6 +104,10 @@ func NewAPCollector(
 		collector.infoLabelNames = infoLabels
 	}
 
+	if metrics.Join {
+		collector.join = newAPJoinDescs()
+	}
+
 	if metrics.General {
 		collector.radioStateDesc = prometheus.NewDesc(
 			"wnc_ap_radio_state",
@@ -129,7 +135,9 @@ func NewAPCollector(
 		)
 		collector.uptimeSecondsDesc = prometheus.NewDesc(
 			"wnc_ap_uptime_seconds",
-			"AP uptime in seconds",
+			"AP uptime in seconds. Withheld rather than reported as 0 when the controller "+
+				"reports no boot time this exporter can use, so a reboot check has no reading "+
+				"instead of a false one",
 			baseAPLabels,
 			nil,
 		)
@@ -412,6 +420,9 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.lastRadarOnRadioAtDesc
 		ch <- c.radioResetTotalDesc
 	}
+	if c.metrics.Join {
+		c.join.describe(ch)
+	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
 	}
@@ -422,6 +433,22 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx := context.Background()
 
 	if !c.isAnyMetricFlagEnabled() {
+		return
+	}
+
+	if c.metrics.Join {
+		joinStats, err := c.src.GetAPJoinStats(ctx)
+		if err != nil {
+			slog.Debug("Failed to get AP join statistics", "error", err)
+		} else {
+			c.join.collect(ch, joinStats)
+		}
+	}
+
+	// Every module below reads the AP inventory or the radio list. The join module
+	// reads neither, so a deployment enabling only that one must not go on to ask for
+	// data types no enabled module declared.
+	if !c.isAnyRadioKeyedFlagEnabled() {
 		return
 	}
 
@@ -562,7 +589,10 @@ func (c *APCollector) collectSystemMetrics(
 
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
-		{c.uptimeSecondsDesc, float64(determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime))},
+	}
+
+	if uptime, ok := determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime); ok {
+		metrics = append(metrics, Float64Metric{c.uptimeSecondsDesc, float64(uptime)})
 	}
 
 	if sysStats := apOperDataMap[wtpMAC].ApSysStats; sysStats != nil {
@@ -896,22 +926,33 @@ func buildRadioClientCountsMap(
 	return countsMap
 }
 
-// determineUptimeFromBootTime determines uptime from boot time timestamp.
-func determineUptimeFromBootTime(bootTimeStr string) int64 {
-	if bootTimeStr == "" {
-		return 0
-	}
-
+// determineUptimeFromBootTime derives uptime from the boot time timestamp, and
+// reports false when the leaf is absent, unparsable, or at the Unix epoch. Neither
+// zero nor five decades is a usable substitute: the first reads as an AP that booted
+// this instant, which is what a reboot rule fires on, and the second silences one.
+//
+// No AP booted in 1970, so an instant there is a placeholder whatever the controller
+// meant by it. This is the same guard the join module applies to its own timestamps.
+func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
 	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
 	if err != nil {
-		return 0
+		return 0, false
+	}
+	if bootTime.Year() <= epochYear {
+		return 0, false
 	}
 
 	uptime := time.Since(bootTime)
-	return int64(uptime.Seconds())
+	return int64(uptime.Seconds()), true
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {
+	return c.isAnyRadioKeyedFlagEnabled() || c.metrics.Join
+}
+
+// isAnyRadioKeyedFlagEnabled reports whether a module keyed by the AP inventory or
+// the radio list is enabled.
+func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 	return IsEnabled(c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors, c.metrics.Info)
 }
 

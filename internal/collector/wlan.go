@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
@@ -32,6 +33,7 @@ type WLANCollector struct {
 
 	enabledDesc               *prometheus.Desc
 	clientCountDesc           *prometheus.Desc
+	dataUsageDesc             *prometheus.Desc
 	authPskDesc               *prometheus.Desc
 	authDot1xDesc             *prometheus.Desc
 	authDot1xSha256Desc       *prometheus.Desc
@@ -48,6 +50,7 @@ type WLANCollector struct {
 	policyEnabledDesc         *prometheus.Desc
 	pmfStateDesc              *prometheus.Desc
 	ftStateDesc               *prometheus.Desc
+	policyBindingDesc         *prometheus.Desc
 }
 
 // NewWLANCollector creates a new WLAN collector.
@@ -72,6 +75,13 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		collector.clientCountDesc = prometheus.NewDesc(
 			"wnc_wlan_clients",
 			"Number of clients in the run state on this WLAN",
+			labels, nil,
+		)
+		collector.dataUsageDesc = prometheus.NewDesc(
+			"wnc_wlan_data_usage_bytes_total",
+			"Bytes transferred on this WLAN in both directions, as the controller totals "+
+				"them. It keeps the bytes of clients that have since disconnected, so it is "+
+				"not the sum of the per-client byte counters",
 			labels, nil,
 		)
 	}
@@ -161,6 +171,15 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			"802.11r fast transition mode reported in the state label, always 1",
 			[]string{labelID, labelState}, nil,
 		)
+		// The six policy series above name neither the tag nor the profile they read, so
+		// this is what makes a WLAN bound through several tags observable.
+		collector.policyBindingDesc = prometheus.NewDesc(
+			"wnc_wlan_policy_binding",
+			"Policy tag binding for this WLAN, always 1. One series per binding the "+
+				"exporter can resolve, so more than one policy_profile for an id means the "+
+				"six policy series report only one of the bound profiles",
+			[]string{labelID, labelPolicyProfile, labelPolicyTag}, nil,
+		)
 	}
 
 	if metrics.Info {
@@ -185,6 +204,7 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Traffic {
 		ch <- c.clientCountDesc
+		ch <- c.dataUsageDesc
 	}
 	if c.metrics.Config {
 		ch <- c.authPskDesc
@@ -203,6 +223,7 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.policyEnabledDesc
 		ch <- c.pmfStateDesc
 		ch <- c.ftStateDesc
+		ch <- c.policyBindingDesc
 	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
@@ -240,10 +261,12 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 		// central switching disabled and no session timeout.
 		if policyErr == nil && listErr == nil {
 			wlanToPolicyMap = buildWLANToPolicyMap(policyListEntries, wlanPolicies)
+			c.collectPolicyBindings(ch, wlanConfigEntries, policyListEntries, wlanPolicies)
 		}
 	}
 
 	var wlanStatsMap map[int]wlanStats
+	var dataUsageMap map[int]uint64
 	if IsEnabled(c.metrics.Traffic) {
 		clientData, clientErr := c.clientSrc.GetClientData(ctx)
 		if clientErr != nil {
@@ -253,6 +276,15 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 		if clientErr == nil {
 			wlanStatsMap = c.buildWLANStats(clientData)
 		}
+
+		// The byte counter comes from a different data type than the client count, so
+		// one failing must not withhold the other.
+		clientStats, statsErr := c.src.ListClientStats(ctx)
+		if statsErr != nil {
+			slog.Debug("Failed to get WLAN client statistics for traffic metrics", "error", statsErr)
+		} else {
+			dataUsageMap = buildWLANDataUsageMap(clientStats)
+		}
 	}
 
 	for _, entry := range wlanConfigEntries {
@@ -260,7 +292,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 			c.collectGeneralMetrics(ch, entry)
 		}
 		if c.metrics.Traffic {
-			c.collectTrafficMetrics(ch, entry, wlanStatsMap)
+			c.collectTrafficMetrics(ch, entry, wlanStatsMap, dataUsageMap)
 		}
 		if c.metrics.Config {
 			c.collectConfigMetrics(ch, entry, wlanToPolicyMap)
@@ -303,22 +335,55 @@ func (c *WLANCollector) collectTrafficMetrics(
 	ch chan<- prometheus.Metric,
 	entry wlan.WlanCfgEntry,
 	wlanStatsMap map[int]wlanStats,
+	dataUsageMap map[int]uint64,
 ) {
+	labels := []string{strconv.Itoa(entry.WlanID)}
+
 	// A nil map means client data was unavailable. Indexing it would publish a
 	// zero client count, which reads as "no clients on this SSID".
-	if wlanStatsMap == nil {
-		return
+	if wlanStatsMap != nil {
+		stats := wlanStatsMap[entry.WlanID]
+
+		ch <- prometheus.MustNewConstMetric(
+			c.clientCountDesc,
+			prometheus.GaugeValue,
+			float64(stats.clientCount),
+			labels...,
+		)
 	}
 
-	labels := []string{strconv.Itoa(entry.WlanID)}
-	stats := wlanStatsMap[entry.WlanID]
+	// The counter is absent for a WLAN the controller lists no statistics record for,
+	// which includes the case of a failed fetch.
+	if usage, ok := dataUsageMap[entry.WlanID]; ok {
+		ch <- prometheus.MustNewConstMetric(
+			c.dataUsageDesc,
+			prometheus.CounterValue,
+			float64(usage),
+			labels...,
+		)
+	}
+}
 
-	ch <- prometheus.MustNewConstMetric(
-		c.clientCountDesc,
-		prometheus.GaugeValue,
-		float64(stats.clientCount),
-		labels...,
-	)
+// buildWLANDataUsageMap indexes the byte counter by WLAN identifier.
+//
+// A record whose leaf the controller omitted is left out rather than read as zero. The
+// leaf is a string on the wire, and the shared conversion reads both an omitted leaf
+// and an unparsable one as zero, which on a counter is indistinguishable from a reset,
+// so the parse is done here where the failure can withhold the series instead.
+func buildWLANDataUsageMap(clientStats []ap.WlanClientStats) map[int]uint64 {
+	usage := make(map[int]uint64, len(clientStats))
+
+	for _, stats := range clientStats {
+		value, err := strconv.ParseUint(stats.DataUsage, 10, 64)
+		if err != nil {
+			slog.Debug("skipped a WLAN whose data usage leaf is unreadable", "id", stats.WlanID)
+			continue
+		}
+
+		usage[stats.WlanID] = value
+	}
+
+	return usage
 }
 
 type wlanStats struct {
@@ -399,6 +464,48 @@ func (c *WLANCollector) collectConfigMetrics(
 			metric.Value,
 			labels...,
 		)
+	}
+}
+
+// collectPolicyBindings publishes one series per binding the exporter can resolve.
+// It is emitted here rather than in the per-WLAN loop because its label set changes
+// per binding, and a WLAN can carry more than one.
+func (c *WLANCollector) collectPolicyBindings(
+	ch chan<- prometheus.Metric,
+	wlanConfigEntries []wlan.WlanCfgEntry,
+	policyListEntries []wlan.PolicyListEntry,
+	wlanPolicies []wlan.WlanPolicy,
+) {
+	idByProfile := make(map[string]string, len(wlanConfigEntries))
+	for _, entry := range wlanConfigEntries {
+		idByProfile[entry.ProfileName] = strconv.Itoa(entry.WlanID)
+	}
+
+	resolvable := make(map[string]bool, len(wlanPolicies))
+	for _, policy := range wlanPolicies {
+		resolvable[policy.PolicyProfileName] = true
+	}
+
+	for _, entry := range policyListEntries {
+		if entry.WLANPolicies == nil || entry.TagName == "" {
+			continue
+		}
+
+		for _, mapping := range entry.WLANPolicies.WLANPolicy {
+			// A tag naming a WLAN the controller does not define carries no identifier to
+			// key the series by, and a binding whose policy profile is absent from
+			// wlan-policies is skipped by the six series as well, so publishing either
+			// would show a binding they are not reporting.
+			id, defined := idByProfile[mapping.WLANProfileName]
+			if !defined || !resolvable[mapping.PolicyProfileName] {
+				continue
+			}
+
+			ch <- prometheus.MustNewConstMetric(
+				c.policyBindingDesc, prometheus.GaugeValue, 1,
+				id, mapping.PolicyProfileName, entry.TagName,
+			)
+		}
 	}
 }
 

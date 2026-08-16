@@ -13,7 +13,7 @@ Client collector focuses on user experience quality and connection performance.
 | radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
 | radio   | `wnc_client_mcs_index`                | Gauge   | MCS index **(\*2)**                  |
 | radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
-| radio   | `wnc_client_speed_mbps`               | Gauge   | Connection throughput                |
+| radio   | `wnc_client_speed_mbps`               | Gauge   | Negotiated PHY rate, not throughput  |
 | radio   | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)                |
 | radio   | `wnc_client_snr_decibels`             | Gauge   | Signal-to-noise ratio (dB)           |
 | traffic | `wnc_client_rx_bytes_total`           | Counter | Received bytes                       |
@@ -58,6 +58,12 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 `wnc_client_info` exists only for clients that reached `client-status-run`, so this join silently drops a client held short of it. Keep an alert on stuck clients join-free, as shown in [States](README.md#states).
 
 ## Notes
+
+`wnc_client_speed_mbps` is the rate the client negotiated for the link, reported alongside the MCS index and the stream count it is derived from. It does not measure how much the client is sending or receiving, so it stays at its negotiated value on an idle client; for throughput use `rate()` over the byte counters in the `traffic` module.
+
+`wnc_client_state_transition_seconds` reports the run latency the controller recorded for the association this client currently holds, taken from the first entry of its mobility history. It is a property of that association rather than a live measurement, so it does not move until the client associates again. It is also published only for a client in the run state, which is the state the transition ends at, so a transition that is slow, stuck or failed has no series here at all — use `wnc_client_state` for those, as shown in [States](README.md#a-state-is-a-label-not-a-number).
+
+No series here counts roams. The controller maintains a roam count for itself rather than per client, and the exporter publishes it on the [Controller](collector.controller.md) page; the per-client roam type the controller reports was left unpublished because it read the same value for every client while the controller counted tens of thousands of roams.
 
 Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module, and the ratio series removed in v0.3.0 sat in the errors module alone. Both flags default off.
 

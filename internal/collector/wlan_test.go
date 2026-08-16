@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
@@ -164,12 +165,16 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			WLANMetrics{Traffic: true},
-			1, // client_count
+			2, // client_count, data_usage
 		},
 		{
 			"Config module only",
 			WLANMetrics{Config: true},
-			16, // auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout, load_balance, 11k_neighbor_list, steering, central_switching, central_auth, central_dhcp, central_assoc, policy_enabled, pmf_state, ft_state
+			// auth_psk, auth_dot1x, auth_dot1x_sha256, wpa2, wpa3, session_timeout,
+			// load_balance, 11k_neighbor_list, steering, central_switching, central_auth,
+			// central_dhcp, central_assoc, policy_enabled, pmf_state, ft_state,
+			// policy_binding
+			17,
 		},
 		{
 			"Info module only",
@@ -184,7 +189,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			19, // 1+1+16+1
+			21, // 1+2+17+1
 		},
 	}
 
@@ -277,6 +282,73 @@ func TestBuildWLANToPolicyMap(t *testing.T) {
 				{PolicyProfileName: "policy1"},
 			},
 			map[string]string{},
+		},
+		{
+			// One WLAN bound through two policy tags to two different policy profiles.
+			// docs/collector.wlan.md states that the six policy series then report the
+			// last binding the exporter can resolve, and nothing pinned that: every case
+			// above binds each WLAN profile exactly once, so a first-wins rewrite would
+			// pass them all. The controller returns these entries in datastore order,
+			// which is not the order they were configured in, so which one wins is not a
+			// property an operator can predict — the point of pinning it is that the
+			// choice cannot change silently.
+			"One WLAN bound through two tags reports the last binding",
+			[]wlan.PolicyListEntry{
+				{
+					TagName: "tag1",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy1"},
+						},
+					},
+				},
+				{
+					TagName: "tag2",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy2"},
+						},
+					},
+				},
+			},
+			[]wlan.WlanPolicy{
+				{PolicyProfileName: "policy1"},
+				{PolicyProfileName: "policy2"},
+			},
+			map[string]string{
+				"profile1": "policy2",
+			},
+		},
+		{
+			// The same shape with the second binding naming a policy profile the
+			// controller did not return. The skip that handles it means an unresolvable
+			// binding cannot displace a resolvable one, which is the other half of the
+			// documented contract.
+			"An unresolvable later binding leaves the earlier one in place",
+			[]wlan.PolicyListEntry{
+				{
+					TagName: "tag1",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "policy1"},
+						},
+					},
+				},
+				{
+					TagName: "tag2",
+					WLANPolicies: &wlan.WLANPolicies{
+						WLANPolicy: []wlan.WLANPolicyMap{
+							{WLANProfileName: "profile1", PolicyProfileName: "nonexistent"},
+						},
+					},
+				},
+			},
+			[]wlan.WlanPolicy{
+				{PolicyProfileName: "policy1"},
+			},
+			map[string]string{
+				"profile1": "policy1",
+			},
 		},
 	}
 
@@ -962,7 +1034,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 19
+	expectedDescs := 21
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1079,28 +1151,60 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 		1: {clientCount: 10},
 	}
 
+	usageMap := map[int]uint64{
+		1: 6884480,
+	}
+
 	collector := &WLANCollector{
 		metrics:         WLANMetrics{Traffic: true},
 		clientCountDesc: prometheus.NewDesc("test_client_count", "test", []string{"id"}, nil),
+		dataUsageDesc:   prometheus.NewDesc("test_data_usage", "test", []string{"id"}, nil),
 	}
 
+	// The two series come from different data types, so each polarity has to be
+	// exercised on its own: one map nil while the other is populated is the case a
+	// shared early return would get wrong.
 	tests := []struct {
 		name     string
 		statsMap map[int]wlanStats
+		usageMap map[int]uint64
 		want     int
 		reason   string
 	}{
 		{
-			name:     "Client data available",
+			name:     "Both data types available",
 			statsMap: statsMap,
-			want:     1,
-			reason:   "the client count",
+			usageMap: usageMap,
+			want:     2,
+			reason:   "the client count and the byte counter",
 		},
 		{
 			name:     "Client data unavailable",
 			statsMap: nil,
+			usageMap: usageMap,
+			want:     1,
+			reason:   "a zero client count reads as an SSID with nobody on it, the counter still publishes",
+		},
+		{
+			name:     "WLAN statistics unavailable",
+			statsMap: statsMap,
+			usageMap: nil,
+			want:     1,
+			reason:   "a zero byte counter reads as a reset, the client count still publishes",
+		},
+		{
+			name:     "Neither data type available",
+			statsMap: nil,
+			usageMap: nil,
 			want:     0,
-			reason:   "a zero client count reads as an SSID with nobody on it",
+			reason:   "nothing is published rather than two fabricated zeros",
+		},
+		{
+			name:     "WLAN missing from the statistics list",
+			statsMap: statsMap,
+			usageMap: map[int]uint64{99: 1},
+			want:     1,
+			reason:   "the counter is absent for a WLAN the controller lists no record for",
 		},
 	}
 
@@ -1111,7 +1215,7 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 			ch := make(chan prometheus.Metric, 10)
 			go func() {
 				defer close(ch)
-				collector.collectTrafficMetrics(ch, entry, tt.statsMap)
+				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.usageMap)
 			}()
 
 			metricCount := 0
@@ -1369,12 +1473,13 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 			},
 		},
 		{
-			name: "collectTrafficMetrics with empty statsMap",
+			name: "collectTrafficMetrics with empty maps",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				collector := &WLANCollector{
 					metrics:         WLANMetrics{Traffic: true},
 					clientCountDesc: prometheus.NewDesc("test", "test", []string{"id"}, nil),
+					dataUsageDesc:   prometheus.NewDesc("test_usage", "test", []string{"id"}, nil),
 				}
 				ch := make(chan prometheus.Metric, 10)
 				defer func() {
@@ -1386,7 +1491,7 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				entry := wlan.WlanCfgEntry{WlanID: 1}
-				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{})
+				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{}, map[int]uint64{})
 			},
 		},
 		{
@@ -1571,5 +1676,107 @@ func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestBuildWLANDataUsageMap_SkipsAnUnreadableLeaf keeps a fabricated zero out of a
+// counter. The leaf is a string on the wire, and the shared conversion reads both an
+// omitted leaf and an unparsable one as zero, which on a counter Prometheus reads as a
+// reset and then extrapolates from.
+func TestBuildWLANDataUsageMap_SkipsAnUnreadableLeaf(t *testing.T) {
+	t.Parallel()
+
+	usage := buildWLANDataUsageMap([]ap.WlanClientStats{
+		{WlanID: 1, DataUsage: "6884480"},
+		{WlanID: 2, DataUsage: ""},
+		{WlanID: 3, DataUsage: "not-a-number"},
+		{WlanID: 4, DataUsage: "-1"},
+		// The controller reports this counter as a string precisely because it exceeds
+		// what a JSON number is safe for, so the width has to survive the parse.
+		{WlanID: 5, DataUsage: "18446744073709551615"},
+	})
+
+	if got, ok := usage[1]; !ok || got != 6884480 {
+		t.Errorf("usage[1] = %v (present %v), want 6884480", got, ok)
+	}
+	if got, ok := usage[5]; !ok || got != 18446744073709551615 {
+		t.Errorf("usage[5] = %v (present %v), want the full 64-bit value", got, ok)
+	}
+	for _, id := range []int{2, 3, 4} {
+		if got, ok := usage[id]; ok {
+			t.Errorf("usage[%d] = %v, want the WLAN skipped rather than read as zero", id, got)
+		}
+	}
+}
+
+// TestWLANCollector_PolicyBindingIsOneSeriesPerResolvableBinding pins the series that
+// makes an ambiguous binding observable. The six policy series name neither the tag nor
+// the profile, so without this one an operator cannot tell which of several bound
+// profiles they are reading.
+func TestWLANCollector_PolicyBindingIsOneSeriesPerResolvableBinding(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+
+	// A second tag binding the same WLAN to a second profile: the state the series
+	// exists to expose.
+	data.WLANPolicies = append(data.WLANPolicies, wlan.WlanPolicy{PolicyProfileName: "second-policy"})
+	data.WLANPolicyListEntries = append(data.WLANPolicyListEntries,
+		wlan.PolicyListEntry{
+			TagName: "second-tag",
+			WLANPolicies: &wlan.WLANPolicies{WLANPolicy: []wlan.WLANPolicyMap{
+				{WLANProfileName: fixtureProfile, PolicyProfileName: "second-policy"},
+				// A tag naming a WLAN the controller does not define: real on a controller,
+				// and it has no identifier to key a series by.
+				{WLANProfileName: "undefined-wlan", PolicyProfileName: fixturePolicy},
+				// A binding naming a policy profile the controller did not return, which the
+				// six policy series skip as well.
+				{WLANProfileName: fixtureProfile, PolicyProfileName: "unresolvable-policy"},
+			}},
+		},
+		// A tag carrying no bindings at all.
+		wlan.PolicyListEntry{TagName: "empty-tag"},
+	)
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewWLANCollector(
+		wnc.NewWLANSource(src), wnc.NewClientSource(src), WLANMetrics{Config: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	got := make(map[string]bool)
+	for _, family := range families {
+		if family.GetName() != "wnc_wlan_policy_binding" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			labels := make(map[string]string, len(metric.GetLabel()))
+			for _, pair := range metric.GetLabel() {
+				labels[pair.GetName()] = pair.GetValue()
+			}
+			got[labels[labelID]+"|"+labels[labelPolicyProfile]+"|"+labels[labelPolicyTag]] = true
+
+			if metric.GetGauge().GetValue() != 1 {
+				t.Errorf("wnc_wlan_policy_binding = %v, want 1", metric.GetGauge().GetValue())
+			}
+		}
+	}
+
+	want := map[string]bool{
+		"1|" + fixturePolicy + "|test-tag": true,
+		"1|second-policy|second-tag":       true,
+	}
+	if len(got) != len(want) {
+		t.Errorf("wnc_wlan_policy_binding has %d series, want %d: %v", len(got), len(want), got)
+	}
+	for key := range want {
+		if !got[key] {
+			t.Errorf("wnc_wlan_policy_binding is missing the series %q", key)
+		}
 	}
 }

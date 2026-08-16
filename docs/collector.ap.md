@@ -4,48 +4,80 @@ AP collector focuses on RF foundation and radio performance.
 
 ## Metrics
 
-| Module  | Metric                                | Type    | Description                                      |
-| :------ | :------------------------------------ | :------ | :----------------------------------------------- |
-| general | `wnc_ap_admin_state`                  | Gauge   | Admin state (1=enabled, 0=any other value)       |
-| general | `wnc_ap_oper_state`                   | Gauge   | Operational state in `state` label               |
-| general | `wnc_ap_radio_state`                  | Gauge   | Radio state (0=down, 1=up)                       |
-| general | `wnc_ap_config_state`                 | Gauge   | Tag config state (0=valid, 1=invalid)            |
-| general | `wnc_ap_uptime_seconds`               | Gauge   | AP uptime in seconds                             |
-| general | `wnc_ap_cpu_utilization_ratio`        | Gauge   | CPU utilization ratio (0-1) **(\*1)**            |
-| general | `wnc_ap_memory_utilization_ratio`     | Gauge   | Memory utilization ratio (0-1) **(\*1)**         |
-| radio   | `wnc_ap_channel_number`               | Gauge   | Operating channel number **(\*2)**               |
-| radio   | `wnc_ap_channel_width_mhz`            | Gauge   | Channel bandwidth (MHz)                          |
-| radio   | `wnc_ap_tx_power_dbm`                 | Gauge   | Current transmit power (dBm)                     |
-| radio   | `wnc_ap_tx_power_max_dbm`             | Gauge   | Maximum TX power capability (dBm)                |
-| radio   | `wnc_ap_noise_floor_dbm`              | Gauge   | Noise on the operating channel (dBm) **(\*2)**   |
-| radio   | `wnc_ap_channel_utilization_ratio`    | Gauge   | Channel utilization ratio (CCA), 0-1             |
-| radio   | `wnc_ap_rx_utilization_ratio`         | Gauge   | RX utilization ratio (0-1) **(\*3)**             |
-| radio   | `wnc_ap_tx_utilization_ratio`         | Gauge   | TX utilization ratio (0-1)                       |
-| radio   | `wnc_ap_noise_utilization_ratio`      | Gauge   | Noise channel utilization ratio (0-1)            |
-| radio   | `wnc_ap_clients`                      | Gauge   | Run-state clients count (calculated)             |
-| traffic | `wnc_ap_total_tx_frames_total`        | Counter | TX frames, not a sum of the frame series         |
-| traffic | `wnc_ap_data_rx_frames_total`         | Counter | Data RX frames                                   |
-| traffic | `wnc_ap_data_tx_frames_total`         | Counter | Data TX frames                                   |
-| traffic | `wnc_ap_management_rx_frames_total`   | Counter | Management RX frames                             |
-| traffic | `wnc_ap_management_tx_frames_total`   | Counter | Management TX frames                             |
-| traffic | `wnc_ap_control_rx_frames_total`      | Counter | Control RX frames **(\*3)**                      |
-| traffic | `wnc_ap_control_tx_frames_total`      | Counter | Control TX frames **(\*3)**                      |
-| traffic | `wnc_ap_multicast_rx_frames_total`    | Counter | Multicast RX frames **(\*3)**                    |
-| traffic | `wnc_ap_multicast_tx_frames_total`    | Counter | Multicast TX frames **(\*3)**                    |
-| traffic | `wnc_ap_rts_success_total`            | Counter | Successful RTS transmissions **(\*3)**           |
-| errors  | `wnc_ap_rx_errors_total`              | Counter | Total RX errors **(\*3)**                        |
-| errors  | `wnc_ap_tx_retries_total`             | Counter | Total TX retries                                 |
-| errors  | `wnc_ap_transmission_failures_total`  | Counter | Failed transmission attempts **(\*3)** **(\*4)** |
-| errors  | `wnc_ap_duplicate_frames_total`       | Counter | Duplicate frames received                        |
-| errors  | `wnc_ap_fcs_errors_total`             | Counter | Frame Check Sequence errors                      |
-| errors  | `wnc_ap_fragmentation_rx_total`       | Counter | RX fragmented packets **(\*3)**                  |
-| errors  | `wnc_ap_fragmentation_tx_total`       | Counter | TX fragmented packets **(\*3)**                  |
-| errors  | `wnc_ap_rts_failures_total`           | Counter | RTS failures **(\*3)**                           |
-| errors  | `wnc_ap_decryption_errors_total`      | Counter | Decryption errors **(\*3)**                      |
-| errors  | `wnc_ap_mic_errors_total`             | Counter | MIC errors **(\*3)**                             |
-| errors  | `wnc_ap_coverage_failed_clients`      | Gauge   | Clients failing the RRM coverage check           |
-| errors  | `wnc_ap_last_radar_timestamp_seconds` | Gauge   | Unix timestamp of the last radar **(\*5)**       |
-| errors  | `wnc_ap_radio_reset_total`            | Counter | Radio reset count                                |
+| Module  | Metric                                            | Type    | Description                                       |
+| :------ | :------------------------------------------------ | :------ | :------------------------------------------------ |
+| general | `wnc_ap_admin_state`                              | Gauge   | Admin state (1=enabled, 0=any other value)        |
+| general | `wnc_ap_oper_state`                               | Gauge   | Operational state in `state` label                |
+| general | `wnc_ap_radio_state`                              | Gauge   | Radio state (0=down, 1=up)                        |
+| general | `wnc_ap_config_state`                             | Gauge   | Tag config state (0=valid, 1=invalid)             |
+| general | `wnc_ap_uptime_seconds`                           | Gauge   | AP uptime in seconds, absent without boot time    |
+| general | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1) **(\*1)**             |
+| general | `wnc_ap_memory_utilization_ratio`                 | Gauge   | Memory utilization ratio (0-1) **(\*1)**          |
+| radio   | `wnc_ap_channel_number`                           | Gauge   | Operating channel number **(\*2)**                |
+| radio   | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth (MHz)                           |
+| radio   | `wnc_ap_tx_power_dbm`                             | Gauge   | Current transmit power (dBm)                      |
+| radio   | `wnc_ap_tx_power_max_dbm`                         | Gauge   | Maximum TX power capability (dBm)                 |
+| radio   | `wnc_ap_noise_floor_dbm`                          | Gauge   | Noise on the operating channel (dBm) **(\*2)**    |
+| radio   | `wnc_ap_channel_utilization_ratio`                | Gauge   | Channel utilization ratio (CCA), 0-1              |
+| radio   | `wnc_ap_rx_utilization_ratio`                     | Gauge   | RX utilization ratio (0-1) **(\*3)**              |
+| radio   | `wnc_ap_tx_utilization_ratio`                     | Gauge   | TX utilization ratio (0-1)                        |
+| radio   | `wnc_ap_noise_utilization_ratio`                  | Gauge   | Noise channel utilization ratio (0-1)             |
+| radio   | `wnc_ap_clients`                                  | Gauge   | Run-state clients count (calculated)              |
+| traffic | `wnc_ap_total_tx_frames_total`                    | Counter | TX frames, not a sum of the frame series          |
+| traffic | `wnc_ap_data_rx_frames_total`                     | Counter | Data RX frames                                    |
+| traffic | `wnc_ap_data_tx_frames_total`                     | Counter | Data TX frames                                    |
+| traffic | `wnc_ap_management_rx_frames_total`               | Counter | Management RX frames                              |
+| traffic | `wnc_ap_management_tx_frames_total`               | Counter | Management TX frames                              |
+| traffic | `wnc_ap_control_rx_frames_total`                  | Counter | Control RX frames **(\*3)**                       |
+| traffic | `wnc_ap_control_tx_frames_total`                  | Counter | Control TX frames **(\*3)**                       |
+| traffic | `wnc_ap_multicast_rx_frames_total`                | Counter | Multicast RX frames **(\*3)**                     |
+| traffic | `wnc_ap_multicast_tx_frames_total`                | Counter | Multicast TX frames **(\*3)**                     |
+| traffic | `wnc_ap_rts_success_total`                        | Counter | Successful RTS transmissions **(\*3)**            |
+| errors  | `wnc_ap_rx_errors_total`                          | Counter | Total RX errors **(\*3)**                         |
+| errors  | `wnc_ap_tx_retries_total`                         | Counter | Total TX retries                                  |
+| errors  | `wnc_ap_transmission_failures_total`              | Counter | Failed transmission attempts **(\*3)** **(\*4)**  |
+| errors  | `wnc_ap_duplicate_frames_total`                   | Counter | Duplicate frames received                         |
+| errors  | `wnc_ap_fcs_errors_total`                         | Counter | Frame Check Sequence errors                       |
+| errors  | `wnc_ap_fragmentation_rx_total`                   | Counter | RX fragmented packets **(\*3)**                   |
+| errors  | `wnc_ap_fragmentation_tx_total`                   | Counter | TX fragmented packets **(\*3)**                   |
+| errors  | `wnc_ap_rts_failures_total`                       | Counter | RTS failures **(\*3)**                            |
+| errors  | `wnc_ap_decryption_errors_total`                  | Counter | Decryption errors **(\*3)**                       |
+| errors  | `wnc_ap_mic_errors_total`                         | Counter | MIC errors **(\*3)**                              |
+| errors  | `wnc_ap_coverage_failed_clients`                  | Gauge   | Clients failing the RRM coverage check            |
+| errors  | `wnc_ap_last_radar_timestamp_seconds`             | Gauge   | Unix timestamp of the last radar **(\*5)**        |
+| errors  | `wnc_ap_radio_reset_total`                        | Counter | Radio reset count                                 |
+| join    | `wnc_ap_joined`                                   | Gauge   | CAPWAP session held now (0=no, 1=yes) **(\*6)**   |
+| join    | `wnc_ap_join_info`                                | Gauge   | AP name from the join record, always 1            |
+| join    | `wnc_ap_discovery_requests_total`                 | Counter | CAPWAP discovery requests received                |
+| join    | `wnc_ap_discovery_responses_total`                | Counter | Successful discovery responses sent               |
+| join    | `wnc_ap_discovery_errors_total`                   | Counter | Discovery requests found in error                 |
+| join    | `wnc_ap_join_requests_total`                      | Counter | CAPWAP join requests received                     |
+| join    | `wnc_ap_join_responses_total`                     | Counter | Successful join responses sent                    |
+| join    | `wnc_ap_join_failures_total`                      | Counter | Join requests that failed to process              |
+| join    | `wnc_ap_config_requests_total`                    | Counter | Configuration requests received                   |
+| join    | `wnc_ap_config_responses_total`                   | Counter | Successful configuration responses sent           |
+| join    | `wnc_ap_config_failures_total`                    | Counter | Configuration requests that failed                |
+| join    | `wnc_ap_dtls_session_requests_total`              | Counter | DTLS setup requests, per `channel` **(\*7)**      |
+| join    | `wnc_ap_dtls_session_successes_total`             | Counter | DTLS sessions established, per `channel`          |
+| join    | `wnc_ap_dtls_session_failures_total`              | Counter | DTLS sessions that failed, per `channel`          |
+| join    | `wnc_ap_dtls_decrypt_errors_total`                | Counter | DTLS decrypt errors, per `channel`                |
+| join    | `wnc_ap_dtls_anti_replay_errors_total`            | Counter | DTLS anti-replay errors, per `channel`            |
+| join    | `wnc_ap_last_error_timestamp_seconds`             | Gauge   | Last connection error **(\*8)**                   |
+| join    | `wnc_ap_last_join_success_timestamp_seconds`      | Gauge   | Last successful join **(\*8)**                    |
+| join    | `wnc_ap_last_join_failure_timestamp_seconds`      | Gauge   | Last failed join **(\*8)**                        |
+| join    | `wnc_ap_last_config_success_timestamp_seconds`    | Gauge   | Last successful configuration **(\*8)**           |
+| join    | `wnc_ap_last_config_failure_timestamp_seconds`    | Gauge   | Last failed configuration **(\*8)**               |
+| join    | `wnc_ap_last_discovery_success_timestamp_seconds` | Gauge   | Last successful discovery **(\*8)**               |
+| join    | `wnc_ap_last_discovery_failure_timestamp_seconds` | Gauge   | Last failed discovery **(\*8)**                   |
+| join    | `wnc_ap_last_dtls_success_timestamp_seconds`      | Gauge   | Last DTLS session, per `channel` **(\*8)**        |
+| join    | `wnc_ap_last_dtls_failure_timestamp_seconds`      | Gauge   | Last failed DTLS, per `channel` **(\*8)**         |
+| join    | `wnc_ap_last_discovery_failure_reason`            | Gauge   | Discovery failure reason in `state` **(\*9)**     |
+| join    | `wnc_ap_last_join_failure_reason`                 | Gauge   | Join failure reason in `state` **(\*9)**          |
+| join    | `wnc_ap_last_config_failure_reason`               | Gauge   | Configuration failure reason in `state` **(\*9)** |
+| join    | `wnc_ap_last_error_phase`                         | Gauge   | Phase of the last error in `state` **(\*9)**      |
+| join    | `wnc_ap_last_dtls_failure_reason`                 | Gauge   | DTLS outcome in `state`, per `channel` **(\*9)**  |
+| join    | `wnc_ap_last_reboot_reason`                       | Gauge   | Reboot reason in `state` **(\*9)**                |
+| join    | `wnc_ap_last_disconnect_reason`                   | Gauge   | Disconnect reason in `state` **(\*9)**            |
 
 ## Labels
 
@@ -76,6 +108,8 @@ wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
 ```
 
 ## Notes
+
+`wnc_ap_clients` counts the clients the controller reports in the run state, attributed to a radio through the AP **name** the client record carries, because that record carries no AP MAC. A client whose AP name has no entry in `ap-name-mac-map` is therefore left out silently, and the series is withheld for every radio when either the client list or that mapping fails to fetch. `sum(wnc_ap_clients)` can consequently read lower than `sum(wnc_wlan_clients)`, which counts the same clients without needing the mapping.
 
 <details><summary><b>*1</b> CPU and memory need AP system monitoring enabled, and read zero until it is</summary><br/>
 
@@ -235,5 +269,52 @@ What was measured on every radio measured, through RESTCONF and through the cont
 <details><summary><b>*5</b> When the radar timestamp series is absent</summary><br/>
 
 The series is published only for a radio whose last-radar leaf carries a real instant. A radio that has recorded no radar carries the epoch, which is withheld rather than published as a timestamp in 1970. In the bands measured the leaf was populated on 5 GHz radios only, which is where the regulator requires the detection, so absence is the ordinary reading rather than a fault. Use `time() - series` for the age, and treat absence as no radar on record.
+
+</details>
+<details><summary><b>*6</b> Why the join module exists, and the one signal it makes possible</summary><br/>
+
+The join statistics list is keyed by the AP radio MAC and **keeps a record for an AP that has left CAPWAP**: a record was observed for an AP absent from the AP inventory for months, with its counters frozen and its join state reporting `0`. Every other AP series is read from the inventory and disappears with it, so before this module nothing distinguished an AP that had gone from a fetch that had failed.
+
+The join state and the phase counters carry `mac` and nothing else, deliberately. A bare `and` requires both sides to carry identical label sets, so one extra label on either side would make the query below return an empty result rather than an error. The DTLS series add `channel` and the reason series add `state`, so an `and` written against one of those needs `on(mac)` or `ignoring(...)`:
+
+```bash
+rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0
+```
+
+That is the signal this module exists for: **the AP reaches the controller and cannot complete a join.** It works because the discovery counters keep advancing while the session is gone — measured on an AP whose join, configuration and DTLS counters were frozen while its discovery counters were the highest of any AP on the controller, its last successful discovery minutes after its last successful join.
+
+Three cautions on that query. An AP that holds this controller as its secondary, or that discovers by broadcast, DHCP option 43 or DNS, sends discovery requests here while joining another controller, so pair the rule with a `for:` longer than the rate window and exclude those APs by `mac`. A counter here is cumulative since the controller allocated the record, so `increase()` over a range shorter than the discovery interval reports nothing. And the query is a snapshot of the join state, so an AP flapping in and out of CAPWAP can be joined at every evaluation and never fire — `changes(wnc_ap_joined[1h]) > 2` catches that case instead.
+
+`wnc_ap_join_info` carries the name because the AP inventory no longer does, which is why the name is a series of its own rather than a label on the other thirty-one. The join record is not the only place a departed AP is still named — the AP history list names one too, measured — but this module reads the join record, and that record is keyed by the same radio MAC every series here carries. Join it with `* on(mac) group_left(name) wnc_ap_join_info`, which needs no collapsing because it carries no `radio` label. Its name puts it in the info cache, and that cache is only wrapped around the collector when `--collector.ap.info` is enabled, so with the join module alone the name is read fresh on every scrape and with both modules enabled it is up to `--collector.info-cache-ttl` old.
+
+The record set is wider than the inventory. Compare like with like to see that — `wnc_ap_info` is one series per radio, so the count to compare against is `count(count by (mac) (wnc_ap_info))`. What evicts a record is not established — leaving CAPWAP does not, and no controller reload has been observed against this list.
+
+</details>
+
+<details><summary><b>*7</b> The DTLS channel label, and the zeros on the data channel</summary><br/>
+
+The controller keeps one set of DTLS counters per CAPWAP tunnel channel in a single container, and the exporter folds the pair into one series carrying `channel`, valued `control` or `data`. This is the tunnel channel; the RF channel is `wnc_ap_channel_number`.
+
+Every `channel="data"` counter was observed at zero on every AP measured while the `control` counters advanced, because DTLS on the data channel is not enabled by default. Read those zeros as not configured rather than as no traffic, and confirm against your own AP join profile before alerting on them.
+
+</details>
+
+<details><summary><b>*8</b> When a join timestamp series is absent</summary><br/>
+
+The controller writes `1970-01-01T00:00:00+00:00` into a timestamp leaf for an event that has not happened, and that sentinel is withheld rather than published as an instant in 1970 — the same rule as note *5. On a controller where nothing has failed, the join, configuration and discovery failure timestamps and the DTLS failure timestamp are therefore absent for every AP, which is the ordinary reading rather than a fault. Use `time() - series` for the age.
+
+</details>
+
+<details><summary><b>*9</b> The reason series freeze with the record, and the controller misspells one value</summary><br/>
+
+Each of these reports the controller's own spelling in the `state` label and always has the value `1`, so `== 0` never fires — see [States](README.md#a-state-is-a-label-not-a-number). They report the **last recorded** event rather than a current state, and they freeze with the record, so an AP that has left CAPWAP keeps reporting the reason it recorded while it was joined.
+
+`wnc_ap_last_error_phase` is the sharpest example: an AP that is not joined reports the same `ap-con-failure-run` phase as one that is, on every record measured. Read it as the phase of the last error, never as a health check.
+
+On the controller measured, `wnc_ap_last_join_failure_reason` reported `jf-none`, `wnc_ap_last_config_failure_reason` `cf-none`, `wnc_ap_last_discovery_failure_reason` `disc-fail-none` and `wnc_ap_last_dtls_failure_reason` `dtls-hs-success` on every AP. Those are the healthy sentinels of their enumerations, so an equality match on them selects the healthy APs and any other spelling is the alertable set.
+
+**The disconnect reason enumeration spells its unknown value `unkown`**, and that misspelling is on the wire: a rule matching it has to use that spelling. It is recorded here rather than in the metric's HELP text because this repository's spell check rejects it in Go source.
+
+The record also carries two free-text leaves — a prose disconnect description and a message-decryption failure reason — and neither is published, because neither has a value domain that a label can be matched against.
 
 </details>

@@ -1,9 +1,9 @@
 <div align="center">
 
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo_dark.png" width="180px" />
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo.png" width="180px" />
-    <img src="docs/assets/logo.png" width="180px" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo_dark.png" width="180px" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="180px" />
+    <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="180px" />
   </picture>
 
   <h1>cisco-wnc-exporter</h1>
@@ -13,7 +13,7 @@
   <p>
     <img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/umatare5/cisco-wnc-exporter?label=Latest%20version" />
     <a href="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml"><img alt="Test and Build" src="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml/badge.svg?branch=main" /></a>
-    <img alt="Test Coverage" src="docs/assets/coverage.svg" />
+    <img alt="Test Coverage" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/coverage.svg" />
     <a href="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/umatare5/cisco-wnc-exporter" /></a><br/>
     <a href="https://www.bestpractices.dev/projects/11293"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/11293/badge" /></a>
     <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
@@ -75,9 +75,10 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 
 Each collector is enabled per module:
 
-- `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.info`
+- `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.info`
 - `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`
 - `--collector.wlan.general`, `.traffic`, `.config`, `.info`
+- `--collector.controller.general`
 
 > [!CAUTION]
 > The `--wnc.tls-skip-verify` flag disables TLS certificate verification. This should only be used in development environments or when connecting to controllers with self-signed certificates. **Never use this option in production environments** as it compromises security.
@@ -93,33 +94,35 @@ This exporter supports following environment variables:
 
 ## Metrics
 
-This exporter collects wireless network metrics from Cisco C9800 WNC using three collectors:
+This exporter collects wireless network metrics from Cisco C9800 WNC using four collectors:
 
-| Collector                              | Focus                                              |
-| :------------------------------------- | :------------------------------------------------- |
-| **[AP](docs/collector.ap.md)**         | RF foundation and radio performance                |
-| **[Client](docs/collector.client.md)** | User experience quality and connection performance |
-| **[WLAN](docs/collector.wlan.md)**     | Logical SSID performance and parameter checks      |
+| Collector                                      | Focus                                              |
+| :--------------------------------------------- | :------------------------------------------------- |
+| **[AP](docs/collector.ap.md)**                 | RF foundation and radio performance                |
+| **[Client](docs/collector.client.md)**         | User experience quality and connection performance |
+| **[WLAN](docs/collector.wlan.md)**             | Logical SSID performance and parameter checks      |
+| **[Controller](docs/collector.controller.md)** | The controller itself, with no per-device label    |
 
-Each page lists every metric its collector publishes, the labels its `_info` metric carries, and the counters the controller may report as a constant zero. The `Module` column on those pages names the flag suffix that enables a metric, as in `--collector.ap.radio`.
+Each page lists every metric its collector publishes, the labels its `_info` metric carries where it has one, and the counters the controller may report as a constant zero. The `Module` column on those pages names the flag suffix that enables a metric, as in `--collector.ap.radio`.
 
 The series a dashboard usually starts from:
 
-| Collector | Metric                             | Type  | Description                          |
-| :-------- | :--------------------------------- | :---- | :----------------------------------- |
-| AP        | `wnc_ap_oper_state`                | Gauge | Operational state in `state` label   |
-| AP        | `wnc_ap_channel_number`            | Gauge | Operating channel number             |
-| AP        | `wnc_ap_tx_power_dbm`              | Gauge | Current transmit power (dBm)         |
-| AP        | `wnc_ap_noise_floor_dbm`           | Gauge | Noise on the operating channel (dBm) |
-| AP        | `wnc_ap_channel_utilization_ratio` | Gauge | Channel utilization ratio (CCA), 0-1 |
-| AP        | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
-| Client    | `wnc_client_state`                 | Gauge | Connection state in `state` label    |
-| Client    | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
-| Client    | `wnc_client_speed_mbps`            | Gauge | Connection throughput                |
-| Client    | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
-| Client    | `wnc_client_snr_decibels`          | Gauge | Signal-to-noise ratio (dB)           |
-| WLAN      | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |
-| WLAN      | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
+| Collector  | Metric                             | Type  | Description                          |
+| :--------- | :--------------------------------- | :---- | :----------------------------------- |
+| AP         | `wnc_ap_oper_state`                | Gauge | Operational state in `state` label   |
+| AP         | `wnc_ap_channel_number`            | Gauge | Operating channel number             |
+| AP         | `wnc_ap_tx_power_dbm`              | Gauge | Current transmit power (dBm)         |
+| AP         | `wnc_ap_noise_floor_dbm`           | Gauge | Noise on the operating channel (dBm) |
+| AP         | `wnc_ap_channel_utilization_ratio` | Gauge | Channel utilization ratio (CCA), 0-1 |
+| AP         | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
+| Client     | `wnc_client_state`                 | Gauge | Connection state in `state` label    |
+| Client     | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
+| Client     | `wnc_client_speed_mbps`            | Gauge | Negotiated PHY rate (Mbps)           |
+| Client     | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
+| Client     | `wnc_client_snr_decibels`          | Gauge | Signal-to-noise ratio (dB)           |
+| WLAN       | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |
+| WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
+| Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
 The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe the exporter itself rather than the wireless network.
 
@@ -199,7 +202,7 @@ $ ./cisco-wnc-exporter \
 
 #### Complete Usage
 
-For complete monitoring, see [`.air.toml`](./.air.toml) which enables all collectors with maximum info-labels.
+For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) which enables all collectors with maximum info-labels.
 
 ### Prometheus Configuration
 
@@ -226,29 +229,29 @@ Add the alerting rules to your Prometheus YAML file using [examples/prometheus_a
 
 ### Grafana Admin-level Dashboard Example
 
-Import [examples/grafana_cisco-wnc-admin-dashboard.json](./examples/grafana_cisco-wnc-admin-dashboard.json) to add the example Grafana Dashboard for administrators.
+Import [examples/grafana_cisco-wnc-admin-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-admin-dashboard.json) to add the example Grafana Dashboard for administrators.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-admin-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-admin-dashboard.png">
-  <img src="docs/assets/cisco-wnc-admin-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard.png">
+  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard.png">
 </picture>
 
 > [!Tip]
-> See [cisco-wnc-admin-dashboard_full.png](./docs/assets/cisco-wnc-admin-dashboard_full.png) for the full capture image of the example.
+> See [cisco-wnc-admin-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-admin-dashboard_full.png) for the full capture image of the example.
 
 ### Grafana User-level Dashboard Example
 
-Import [examples/grafana_cisco-wnc-user-dashboard.json](./examples/grafana_cisco-wnc-user-dashboard.json) to add the example Grafana Dashboard for users.
+Import [examples/grafana_cisco-wnc-user-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-user-dashboard.json) to add the example Grafana Dashboard for users.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cisco-wnc-user-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/cisco-wnc-user-dashboard.png">
-  <img src="docs/assets/cisco-wnc-user-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard.png">
+  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard.png">
 </picture>
 
 > [!Tip]
-> See [cisco-wnc-user-dashboard_full.png](./docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
+> See [cisco-wnc-user-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
 
 ## Contributing
 

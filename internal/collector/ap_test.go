@@ -247,6 +247,12 @@ func TestAPCollector_Describe(t *testing.T) {
 			13, // rx errors, retries, transmission_failures, duplicates, fcs, frag rx/tx, rts_failures, decrypt, mic, coverage_hole, radar, radio_reset
 		},
 		{
+			"Join module only",
+			APMetrics{Join: true},
+			// joined, join_info, 14 counters, 9 timestamps, 7 reasons
+			32,
+		},
+		{
 			"Info module only",
 			APMetrics{Info: true},
 			1, // info metric
@@ -258,9 +264,10 @@ func TestAPCollector_Describe(t *testing.T) {
 				Radio:   true,
 				Traffic: true,
 				Errors:  true,
+				Join:    true,
 				Info:    true,
 			},
-			41, // 7+10+10+13+1
+			73, // 7+10+10+13+32+1
 		},
 	}
 
@@ -855,7 +862,7 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 		bootTimeStr string
 		minExpected int64
 		maxExpected int64
-		expectZero  bool
+		expectNotOK bool
 		expectError bool
 	}{
 		{
@@ -898,18 +905,33 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 			true,
 			false,
 		},
+		{
+			// A placeholder rather than a boot: no AP booted in 1970. Whether this
+			// controller renders one for this leaf is not established — the guard is
+			// defensive, and it matches what the join timestamps do with the same value.
+			"Unix epoch",
+			"1970-01-01T00:00:00+00:00",
+			0,
+			0,
+			true,
+			false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := determineUptimeFromBootTime(tt.bootTimeStr)
+			got, ok := determineUptimeFromBootTime(tt.bootTimeStr)
 
-			if tt.expectZero {
-				if got != 0 {
-					t.Errorf("determineUptimeFromBootTime(%q) = %d, want 0", tt.bootTimeStr, got)
+			if tt.expectNotOK {
+				if ok {
+					t.Errorf("determineUptimeFromBootTime(%q) reported %d as usable, want it unusable",
+						tt.bootTimeStr, got)
 				}
 			} else {
+				if !ok {
+					t.Errorf("determineUptimeFromBootTime(%q) reported no usable uptime", tt.bootTimeStr)
+				}
 				if got < tt.minExpected || got > tt.maxExpected {
 					t.Errorf(
 						"determineUptimeFromBootTime(%q) = %d, want between %d and %d",
@@ -919,6 +941,45 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 						tt.maxExpected,
 					)
 				}
+			}
+		})
+	}
+}
+
+// TestAPCollector_UptimeWithheldWhenBootTimeUnusable pins the emission side of the
+// same contract. The helper test above proves only that the helper reports the leaf
+// as unusable; nothing there stops the collector publishing the zero anyway.
+func TestAPCollector_UptimeWithheldWhenBootTimeUnusable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		bootTime    string
+		wantPresent bool
+	}{
+		{"absent leaf", "", false},
+		{"unparsable leaf", "2026-01-01", false},
+		{"epoch placeholder", "1970-01-01T00:00:00+00:00", false},
+		{"usable leaf", "2026-01-01T00:00:00Z", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].ApTimeInfo.BootTime = tt.bootTime
+
+			values := apSnapshotValues(t, data)
+			if _, ok := values["wnc_ap_uptime_seconds"]; ok != tt.wantPresent {
+				t.Errorf("wnc_ap_uptime_seconds present = %v for boot time %q, want %v",
+					ok, tt.bootTime, tt.wantPresent)
+			}
+
+			// The withhold has to be scoped to this one series: it shares an emit loop
+			// with the AP-level config state, which reads a leaf of its own.
+			if _, ok := values["wnc_ap_config_state"]; !ok {
+				t.Error("wnc_ap_config_state is absent, so the assertion above proves nothing")
 			}
 		})
 	}
@@ -1237,7 +1298,11 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 	}
 
 	capwapMap := map[string]ap.CAPWAPData{
-		wtpMAC: {WtpMAC: wtpMAC, ApState: ap.ApState{ApOperationState: "registered"}},
+		wtpMAC: {
+			WtpMAC:     wtpMAC,
+			ApState:    ap.ApState{ApOperationState: "registered"},
+			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+		},
 	}
 	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
 
@@ -2056,5 +2121,269 @@ func TestAPCollector_RadarTimestampOmitsUnpopulatedLeaf(t *testing.T) {
 				t.Errorf("%s present = %v, want %v for %s", metric, ok, tt.present, tt.last)
 			}
 		})
+	}
+}
+
+// gatherJoinValues collects the AP collector with only the join module enabled and
+// indexes every sample by metric name, then by the value of the given label. A series
+// that does not carry that label is indexed under the empty string.
+func gatherJoinValues(t *testing.T, data *wnc.WNCDataCache, label string) map[string]map[string]float64 {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Join: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]map[string]float64, len(families))
+	for _, family := range families {
+		byLabel := make(map[string]float64, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			key := ""
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == label {
+					key = pair.GetValue()
+				}
+			}
+			switch {
+			case metric.GetGauge() != nil:
+				byLabel[key] = metric.GetGauge().GetValue()
+			case metric.GetCounter() != nil:
+				byLabel[key] = metric.GetCounter().GetValue()
+			}
+		}
+		values[family.GetName()] = byLabel
+	}
+	return values
+}
+
+// TestAPJoinModule_ChannelSeriesReadTheirOwnLeaf pins the DTLS series to the channel
+// they are read from. The controller keeps both channels in one container with leaf
+// names that differ by a single token, so folding them into one series with a label
+// is exactly where a swap goes unnoticed: every count and every label name stays
+// intact and only the two values exchange places.
+func TestAPJoinModule_ChannelSeriesReadTheirOwnLeaf(t *testing.T) {
+	t.Parallel()
+
+	values := gatherJoinValues(t, fullFixtureSnapshot(), labelChannel)
+
+	tests := []struct {
+		name        string
+		wantControl float64
+		wantData    float64
+	}{
+		{"wnc_ap_dtls_session_requests_total", 5301, 5401},
+		{"wnc_ap_dtls_session_successes_total", 5302, 5402},
+		{"wnc_ap_dtls_session_failures_total", 5303, 5403},
+		{"wnc_ap_dtls_decrypt_errors_total", 5304, 5404},
+		{"wnc_ap_dtls_anti_replay_errors_total", 5305, 5405},
+		{"wnc_ap_last_dtls_success_timestamp_seconds", 1767916800, 1768089600},
+		{"wnc_ap_last_dtls_failure_timestamp_seconds", 1768003200, 1768176000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			byChannel, ok := values[tt.name]
+			if !ok {
+				t.Fatalf("%s has no series in the all-succeed snapshot", tt.name)
+			}
+			if got := byChannel[dtlsChannelControl]; got != tt.wantControl {
+				t.Errorf("%s{channel=%q} = %v, want %v", tt.name, dtlsChannelControl, got, tt.wantControl)
+			}
+			if got := byChannel[dtlsChannelData]; got != tt.wantData {
+				t.Errorf("%s{channel=%q} = %v, want %v", tt.name, dtlsChannelData, got, tt.wantData)
+			}
+		})
+	}
+}
+
+// TestAPJoinModule_WithholdsTheEpochSentinel pins the withhold. The controller writes
+// 1970-01-01T00:00:00+00:00 into a timestamp leaf for an event that has not happened,
+// which parses to a real instant, so IsZero does not recognize it and a naive guard
+// publishes a gauge reporting an event five decades ago.
+func TestAPJoinModule_WithholdsTheEpochSentinel(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	record := &data.JoinStats[0]
+	record.ApJoinInfo.LastFailJoinAtmptTime = fixtureEpochSentinel
+	record.ApJoinInfo.LastFailConfAtmptTime = fixtureEpochSentinel
+	record.ApDiscoveryInfo.LastFailedDiscTime = fixtureEpochSentinel
+	record.DTLSSessInfo.CtrlDTLSFailureTime = fixtureEpochSentinel
+	record.DTLSSessInfo.DataDTLSFailureTime = fixtureEpochSentinel
+
+	values := gatherJoinValues(t, data, labelChannel)
+
+	withheld := []string{
+		"wnc_ap_last_join_failure_timestamp_seconds",
+		"wnc_ap_last_config_failure_timestamp_seconds",
+		"wnc_ap_last_discovery_failure_timestamp_seconds",
+		"wnc_ap_last_dtls_failure_timestamp_seconds",
+	}
+	for _, name := range withheld {
+		if len(values[name]) != 0 {
+			t.Errorf("%s has %d series for the epoch sentinel, want it withheld", name, len(values[name]))
+		}
+	}
+
+	// Without these the assertions above would also pass on a module that publishes
+	// no timestamp at all.
+	present := []string{
+		"wnc_ap_last_join_success_timestamp_seconds",
+		"wnc_ap_last_config_success_timestamp_seconds",
+		"wnc_ap_last_discovery_success_timestamp_seconds",
+		"wnc_ap_last_dtls_success_timestamp_seconds",
+		"wnc_ap_last_error_timestamp_seconds",
+	}
+	for _, name := range present {
+		if len(values[name]) == 0 {
+			t.Errorf("%s is absent, so the withholds above prove nothing", name)
+		}
+	}
+}
+
+// TestAPJoinModule_ReasonsCarryTheControllerSpelling pins each enum leaf to its own
+// series. The two DTLS channels carry different spellings in the fixture, so a swap
+// between them changes which label value each channel reports.
+func TestAPJoinModule_ReasonsCarryTheControllerSpelling(t *testing.T) {
+	t.Parallel()
+
+	values := gatherJoinValues(t, fullFixtureSnapshot(), labelState)
+
+	tests := []struct {
+		name  string
+		state string
+	}{
+		{"wnc_ap_last_discovery_failure_reason", "disc-fail-none"},
+		{"wnc_ap_last_join_failure_reason", "jf-none"},
+		{"wnc_ap_last_config_failure_reason", "cf-none"},
+		{"wnc_ap_last_error_phase", "ap-con-failure-run"},
+		{"wnc_ap_last_reboot_reason", "ap-reboot-reason-reboot-cmd"},
+		{"wnc_ap_last_disconnect_reason", "wtp-controller-initiated-reason"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			byState := values[tt.name]
+			if len(byState) != 1 {
+				t.Fatalf("%s has %d series, want one per AP", tt.name, len(byState))
+			}
+			if got, ok := byState[tt.state]; !ok || got != 1 {
+				t.Errorf("%s{state=%q} = %v (present %v), want 1", tt.name, tt.state, got, ok)
+			}
+		})
+	}
+
+	byState := values["wnc_ap_last_dtls_failure_reason"]
+	for state, want := range map[string]bool{"dtls-hs-success": true, "dtls-hs-fragment-error": true} {
+		if _, ok := byState[state]; ok != want {
+			t.Errorf("wnc_ap_last_dtls_failure_reason{state=%q} present = %v, want %v", state, ok, want)
+		}
+	}
+}
+
+// TestAPJoinModule_FreeTextLeavesAreNotPublished keeps the two prose leaves of the
+// record out of the label set. Neither has a value domain, so publishing one would
+// make the label set unbounded and the series unusable in a match.
+func TestAPJoinModule_FreeTextLeavesAreNotPublished(t *testing.T) {
+	t.Parallel()
+
+	src := fixtureSource{data: fullFixtureSnapshot()}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Join: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	prose := []string{"Tag modified", "fixture decryption failure text"}
+	for _, family := range families {
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				for _, text := range prose {
+					if pair.GetValue() == text {
+						t.Errorf("%s carries the free-text leaf %q in label %q",
+							family.GetName(), text, pair.GetName())
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestAPJoinModule_NamesAnAPThatLeftCAPWAP is the reason this module exists. The
+// statistics list keeps a record for an AP the controller no longer lists in the AP
+// inventory, so this is the only place such an AP has any series at all, and
+// ap-join-info is the only container that still carries its name.
+func TestAPJoinModule_NamesAnAPThatLeftCAPWAP(t *testing.T) {
+	t.Parallel()
+
+	const departedMAC = "bb:cc:dd:ee:ff:00"
+
+	departed := newFixtureJoinStats()
+	departed.WtpMAC = departedMAC
+	departed.ApJoinInfo.ApName = "TEST-AP99"
+	departed.ApJoinInfo.IsJoined = false
+
+	data := fullFixtureSnapshot()
+	data.JoinStats = append(data.JoinStats, departed)
+
+	values := gatherJoinValues(t, data, labelMAC)
+
+	if got := values["wnc_ap_joined"][departedMAC]; got != 0 {
+		t.Errorf("wnc_ap_joined{mac=departed} = %v, want 0", got)
+	}
+	if got := values["wnc_ap_joined"][fixtureAPMAC]; got != 1 {
+		t.Errorf("wnc_ap_joined{mac=joined} = %v, want 1", got)
+	}
+	if _, ok := values["wnc_ap_join_info"][departedMAC]; !ok {
+		t.Error("wnc_ap_join_info has no series for the departed AP, so an alert on it cannot name the AP")
+	}
+
+	// The discovery counters keep advancing while the session is gone, which is what
+	// makes rate(discovery) > 0 and wnc_ap_joined == 0 a signal rather than a tautology.
+	if _, ok := values["wnc_ap_discovery_requests_total"][departedMAC]; !ok {
+		t.Error("wnc_ap_discovery_requests_total has no series for the departed AP")
+	}
+
+	// A bare and requires identical label sets, so every series of this module has to
+	// carry the mac label, and it has to be the list key the AP inventory is keyed by.
+	for name, byMAC := range values {
+		if _, ok := byMAC[""]; ok {
+			t.Errorf("%s has a series carrying no mac label", name)
+		}
+		for mac := range byMAC {
+			if mac != fixtureAPMAC && mac != departedMAC {
+				t.Errorf("%s carries mac=%q, want the wtp-mac list key", name, mac)
+			}
+		}
+	}
+}
+
+// TestAPJoinModule_NameSeriesIgnoresTheInfoFlag pins the name series to its own
+// module. It is named for the info family so that the info cache holds it, and the
+// cache wrapper is only applied when the info module is enabled, so the series has to
+// be published either way.
+func TestAPJoinModule_NameSeriesIgnoresTheInfoFlag(t *testing.T) {
+	t.Parallel()
+
+	values := gatherJoinValues(t, fullFixtureSnapshot(), labelName)
+	if got := values["wnc_ap_join_info"][fixtureAPName]; got != 1 {
+		t.Errorf("wnc_ap_join_info{name=%q} = %v with the info module disabled, want 1", fixtureAPName, got)
 	}
 }

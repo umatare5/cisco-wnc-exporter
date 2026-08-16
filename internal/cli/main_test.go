@@ -16,7 +16,7 @@ func TestRegisterFlags(t *testing.T) {
 	}{
 		{
 			name:          "All flags registered",
-			expectedCount: 31,
+			expectedCount: 33,
 		},
 	}
 
@@ -193,8 +193,8 @@ func TestRegisterAPCollectorFlags(t *testing.T) {
 	}{
 		{
 			name:          "AP collector flags count",
-			expectedCount: 6,
-			expectedTypes: []string{"bool", "bool", "bool", "bool", "bool", "string"},
+			expectedCount: 7,
+			expectedTypes: []string{"bool", "bool", "bool", "bool", "bool", "bool", "string"},
 		},
 	}
 
@@ -269,6 +269,19 @@ func TestRegisterWLANCollectorFlags(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestRegisterControllerCollectorFlags verifies Controller collector module flags.
+func TestRegisterControllerCollectorFlags(t *testing.T) {
+	t.Parallel()
+
+	flags := registerControllerCollectorFlags()
+	if got := len(flags); got != 1 {
+		t.Errorf("registerControllerCollectorFlags() returned %d flags, want 1", got)
+	}
+	if _, ok := flags[0].(*cli.BoolFlag); !ok {
+		t.Errorf("flag[0] type = %T, want *cli.BoolFlag", flags[0])
 	}
 }
 

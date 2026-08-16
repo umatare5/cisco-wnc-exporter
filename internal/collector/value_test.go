@@ -95,6 +95,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_wlan_clients", 1},
 		{"wnc_wlan_session_timeout_seconds", 1800},
+		{"wnc_wlan_policy_binding", 1},
 
 		{"wnc_client_speed_mbps", 866},
 		{"wnc_client_spatial_streams", 2},
@@ -102,6 +103,22 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_client_power_save_state", 1},
 		// Milliseconds in the leaf, seconds in the series.
 		{"wnc_client_state_transition_seconds", 0.12},
+
+		// The join module. Both value-1 gauges first, then the timestamps, which are
+		// one day apart in the fixture so that reading a neighboring leaf lands on
+		// another day rather than on a plausible instant.
+		{"wnc_ap_joined", 1},
+		{"wnc_ap_join_info", 1},
+		{"wnc_ap_last_error_timestamp_seconds", 1767312000},
+		{"wnc_ap_last_join_success_timestamp_seconds", 1767398400},
+		{"wnc_ap_last_join_failure_timestamp_seconds", 1767484800},
+		{"wnc_ap_last_config_success_timestamp_seconds", 1767571200},
+		{"wnc_ap_last_config_failure_timestamp_seconds", 1767657600},
+		{"wnc_ap_last_discovery_success_timestamp_seconds", 1767744000},
+		{"wnc_ap_last_discovery_failure_timestamp_seconds", 1767830400},
+
+		// The controller module. Seconds, so a switch to UnixMilli changes the value.
+		{"wnc_controller_boot_time_seconds", 1768262400},
 	}
 
 	assertValues(t, values, tests)
@@ -163,6 +180,34 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_client_data_retries_total", 4209},
 		{"wnc_client_rts_retries_total", 4210},
 		{"wnc_client_tx_retries_total", 4211},
+
+		// The join module. The discovery counters live in one container and the join
+		// and configuration counters in another, and the request, response and failure
+		// leaves of each phase are adjacent, which is what a swap would exchange.
+		{"wnc_ap_discovery_requests_total", 5201},
+		{"wnc_ap_discovery_responses_total", 5202},
+		{"wnc_ap_discovery_errors_total", 5203},
+		{"wnc_ap_join_requests_total", 5101},
+		{"wnc_ap_join_responses_total", 5102},
+		{"wnc_ap_join_failures_total", 5103},
+		{"wnc_ap_config_requests_total", 5104},
+		{"wnc_ap_config_responses_total", 5105},
+		{"wnc_ap_config_failures_total", 5106},
+
+		// The first reason in label order of the controller module, which carries one
+		// series per reason leaf.
+		{"wnc_controller_client_deletes_total", 6101},
+
+		// The three roam counters. Their leaves are adjacent in one container and the ten
+		// unpublished ones carry values too, so a swap lands on a number listed nowhere.
+		{"wnc_controller_client_ap_auth_roams_total", 6201},
+		{"wnc_controller_client_ap_auth_dot11i_fast_roams_total", 6202},
+		{"wnc_controller_client_ap_auth_dot11i_slow_roams_total", 6203},
+
+		// Bytes in both directions, from the leaf the controller reports as a string.
+		// The five phase counts in the same record are deliberately unpublished, and
+		// each carries its own value, so reading one of them lands elsewhere.
+		{"wnc_wlan_data_usage_bytes_total", 7101},
 	}
 
 	assertValues(t, values, tests)

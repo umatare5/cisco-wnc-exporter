@@ -4,11 +4,12 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 
 ## Collectors
 
-| Collector                     | Focus                                              |
-| :---------------------------- | :------------------------------------------------- |
-| [AP](collector.ap.md)         | RF foundation and radio performance                |
-| [Client](collector.client.md) | User experience quality and connection performance |
-| [WLAN](collector.wlan.md)     | Logical SSID performance and parameter checks      |
+| Collector                             | Focus                                              |
+| :------------------------------------ | :------------------------------------------------- |
+| [AP](collector.ap.md)                 | RF foundation and radio performance                |
+| [Client](collector.client.md)         | User experience quality and connection performance |
+| [WLAN](collector.wlan.md)             | Logical SSID performance and parameter checks      |
+| [Controller](collector.controller.md) | The controller itself, with no per-device label    |
 
 ## Data refresh and caching
 
@@ -21,6 +22,15 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - A refresh reads only the data types the enabled modules need, so a narrower flag set leaves more of that budget per data type
 - `wnc_refresh_errors_total` names the data types a configuration reads — a type absent from both refresh series is one no enabled module reads
 - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
+- Every read is a registered data type, so it is gated by a module flag, bounded by the refresh deadline and counted in both refresh series alike — twenty of the twenty-three go through a typed SDK accessor, and the three the SDK has no route for build their path directly and check the container they were answered with, as [Controller](collector.controller.md) note *4 describes
+
+### Request timeout (`--wnc.timeout`)
+
+- The flag bounds a whole RESTCONF request, from the dial to the last byte of the body
+- It does not bound the wait for the response headers, nor the TLS handshake: the SDK pins both at 5 seconds and exposes no option for them, so raising the flag past that does not buy more patience with a controller that is slow to begin answering
+- That failure raises `wnc_refresh_errors_total` for the data type and withholds its series, so it is visible
+- It does **not** raise `wnc_refresh_defaults_fallback_total`, which counts only a controller answering `400` to the request for the values in force — a header timeout carries no HTTP status at all
+- On the controller this was measured against, the first byte of a WLAN config read arrived within 0.21 seconds including the request for the values in force, a factor of twenty below the pinned limit
 
 ### Info metric caching (`--collector.info-cache-ttl`)
 
@@ -65,6 +75,7 @@ group by (mac) (wnc_client_state{state!="client-status-run"})
 - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
 - `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
 - `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` are one series per WLAN and report a configured setting rather than an operational state
+- The reason and phase series of the AP `join` module report the **last recorded** event rather than a current one, and freeze with the record — so they keep their reading for an AP that has left CAPWAP. All are one series per AP except the DTLS reason, which is one per tunnel channel
 - Every other `_state` metric keeps its numeric `0` or `1`
 
 ## Labels

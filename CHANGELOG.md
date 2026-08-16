@@ -4,6 +4,51 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.7.0
+
+### Added
+
+The AP collector gains a `join` module behind `--collector.ap.join`, disabled by default like every other module. It reads one new `data` type, `ap_join_stats`, and reads nothing else — a deployment enabling only this module makes one request per refresh.
+
+| Metric                                               | Reports                                            |
+| :--------------------------------------------------- | :------------------------------------------------- |
+| `wnc_ap_joined`                                      | Whether a CAPWAP session is held now               |
+| `wnc_ap_join_info`                                   | AP name from the join record, always `1`           |
+| `wnc_ap_{discovery,join,config}_*_total`             | Requests, responses and failures of each phase     |
+| `wnc_ap_dtls_*_total`                                | DTLS setup, decrypt and anti-replay, per `channel` |
+| `wnc_ap_last_*_timestamp_seconds`                    | Last success and failure of each phase             |
+| `wnc_ap_last_*_reason` and `wnc_ap_last_error_phase` | Each enumeration in a `state` label                |
+
+A new **controller collector** behind `--collector.controller.general` reports the controller rather than a device, so none of its series carries an identifying label. It is documented in [docs/collector.controller.md](docs/collector.controller.md).
+
+| Metric                                       | Reports                                            |
+| :------------------------------------------- | :------------------------------------------------- |
+| `wnc_controller_boot_time_seconds`           | Unix time of the last boot                         |
+| `wnc_controller_client_deletes_total`        | Client deletions per `reason`, several hundred     |
+| `wnc_controller_client_ap_auth_*roams_total` | Roams on the AP-authenticated path, three counters |
+
+The boot time is the epoch the other counters are read against, which is why one flag enables all five: behind a second flag, a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` would return nothing rather than fire. It is withheld rather than reported as `0` when the controller does not carry the leaf, and it moves by a second between reads, so compare it against a threshold and not with `changes()`.
+
+The delete reasons are controller-wide with no per-client, per-AP or per-WLAN equivalent anywhere in the operational data, so a rise says what happened and never to whom. The three roam counters cover the FlexConnect local-authentication path only, and the two `dot11i` counters are not a partition of the total.
+
+None of the three containers behind this collector has a route in the SDK, so all three are read by building the RESTCONF path directly. **A controller or image that does not carry one answers `404`, which is a failure rather than an absence** — note *4 on that page gives the rule expression that excludes them.
+
+`wnc_wlan_policy_binding` joins the WLAN `config` module, one series per binding carrying `id`, `policy_profile` and `policy_tag`. The six policy-derived config series name none of those, so where a WLAN is bound through more than one policy tag they report one of the profiles and nothing said which; this makes that state observable. It adds no request, coming from the two reads those six already use.
+
+`wnc_wlan_data_usage_bytes_total` joins the WLAN `traffic` module, reporting the controller's own byte total per WLAN in both directions. The unit was established by measurement rather than by the model, which reports none. It keeps the bytes of clients that have since disconnected, so it is not the sum of the per-client counters and a WLAN with no clients can carry a large unmoving value.
+
+Thirty-two metrics in all — more series than that per AP, because the five DTLS counters and the DTLS reason carry one series per tunnel channel — listed individually in [docs/collector.ap.md](docs/collector.ap.md). **The statistics list keeps a record for an AP that has left CAPWAP**, which is what the module is for: every other AP series is read from the AP inventory and disappears with it, so nothing distinguished a departed AP from a failed fetch. The signal that becomes available is `rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0`, an AP that reaches the controller and cannot complete a join, and it works because the discovery counters keep advancing while the session is gone.
+
+No series carries the AP name as a label. The counters and the join state carry `mac` alone, so a bare `and` between them matches — it requires identical label sets on both sides — and renaming an AP cannot start a fresh counter series. The DTLS series add `channel`, the reason series add `state`, and the name is published as `wnc_ap_join_info{mac,name}`, because the AP inventory no longer names a departed AP. Read note *6 on that page before writing a rule: the query has a known false positive for an AP that holds this controller as its secondary.
+
+A timestamp leaf carrying the controller's epoch sentinel is withheld rather than published as an instant in 1970, so the failure timestamps are absent on a controller where nothing has failed.
+
+`examples/prometheus_alert_rules.yml` gains three rules for the series above — `WNCAPNotJoining`, `WNCWLANPolicyBindingAmbiguous` and `WNCControllerBootTimeMissing` — each with a fixture case that fails if the expression is written the obvious wrong way. The `WNCAPInventoryEmpty` description no longer claims that every AP series is labeled from the AP inventory, which the join module makes false.
+
+### Fixed
+
+- `wnc_ap_uptime_seconds` is now absent for an AP whose boot time the controller does not report, reports in a form this exporter cannot parse, or reports at the Unix epoch. It published `0` for both, which reads as an AP that booted at the instant of the scrape, so a rule of the form `wnc_ap_uptime_seconds < 600` fired on it. `wnc_ap_oper_state` is already withheld when the leaf it reads is empty, so this applies the rule the same collector already followed, and the epoch case matches what the same collector does with the radar timestamp. A rule that treated the series as always present needs `absent()` or `or vector(0)`. The HELP now says so.
+
 ## v0.6.0
 
 No metric was added, renamed or removed, and no series changed what it reads from the controller.

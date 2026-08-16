@@ -98,3 +98,122 @@ tests:
         exp_samples:
           - labels: 'ALERTS{alertname="WNCAPInventoryEmpty", alertstate="firing", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
             value: 1
+
+  # WLAN 1 is bound to two different profiles, which is ambiguous; WLAN 5 is bound to
+  # one profile through two tags, which is not. The expected sample set names WLAN 1
+  # alone, so an expression that counts series rather than distinct profiles fails
+  # here.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_wlan_policy_binding{job="cisco_wnc",instance="localhost:10039",id="1",policy_profile="policy-a",policy_tag="tag-1"}'
+        values: "1+0x30"
+      - series: 'wnc_wlan_policy_binding{job="cisco_wnc",instance="localhost:10039",id="1",policy_profile="policy-b",policy_tag="tag-2"}'
+        values: "1+0x30"
+      - series: 'wnc_wlan_policy_binding{job="cisco_wnc",instance="localhost:10039",id="5",policy_profile="policy-c",policy_tag="tag-1"}'
+        values: "1+0x30"
+      - series: 'wnc_wlan_policy_binding{job="cisco_wnc",instance="localhost:10039",id="5",policy_profile="policy-c",policy_tag="tag-2"}'
+        values: "1+0x30"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCWLANPolicyBindingAmbiguous
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCWLANPolicyBindingAmbiguous"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCWLANPolicyBindingAmbiguous", alertstate="firing", id="1", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # Both APs advance their discovery counter; only the one holding no session may
+  # fire. rate is positive from the second sample rather than from a full range, so
+  # the firing edge is for: alone, at 30m.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_ap_discovery_requests_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff"}'
+        values: "0+1x50"
+      - series: 'wnc_ap_joined{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff"}'
+        values: "0+0x50"
+      - series: 'wnc_ap_discovery_requests_total{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66"}'
+        values: "0+1x50"
+      - series: 'wnc_ap_joined{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66"}'
+        values: "1+0x50"
+      # A third AP holds no session and is not reaching the controller either: its
+      # record survives in the statistics list with a flat counter. It must stay silent,
+      # which is what pins the rate clause — without this case the rule reduced to
+      # wnc_ap_joined == 0 passes, and that fires for every decommissioned AP forever.
+      - series: 'wnc_ap_discovery_requests_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
+        values: "77+0x50"
+      - series: 'wnc_ap_joined{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
+        values: "0+0x50"
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: WNCAPNotJoining
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCAPNotJoining"}
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCAPNotJoining", alertstate="firing", instance="localhost:10039", job="cisco_wnc", mac="aa:bb:cc:dd:ee:ff", severity="warning"}'
+            value: 1
+
+  # The controller module is enabled and the boot time read returned nothing, while a
+  # sibling read of the same module returned plenty.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'
+        values: "0+0x30"
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="co_client_del_reason"}'
+        values: "326+0x30"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCControllerBootTimeMissing"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCControllerBootTimeMissing", alertstate="firing", data="controller_boot_time", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # The healthy case: the read returned the leaf. Without it a comparison widened to
+  # >= 0, or dropped altogether, fires forever on every deployment that enables the
+  # module and still passes.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'
+        values: "1+0x30"
+      - series: 'wnc_controller_boot_time_seconds{job="cisco_wnc",instance="localhost:10039"}'
+        values: "1767225600+0x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
+
+  # The read succeeded and the gauge is still absent, because the leaf did not parse or
+  # sat at the epoch. items alone cannot see that, which is why the rule carries the
+  # second clause.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'
+        values: "1+0x30"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCControllerBootTimeMissing"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCControllerBootTimeMissing", alertstate="firing", data="controller_boot_time", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # The module is disabled, so the series does not exist and the rule must be silent
+  # rather than firing on every deployment that never enabled it.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="ap_capwap_data"}'
+        values: "3+0x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
