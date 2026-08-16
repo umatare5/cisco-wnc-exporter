@@ -73,6 +73,7 @@ group by (mac) (wnc_client_state{state!="client-status-run"})
 - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
 - `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
 - `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` are one series per WLAN and report a configured setting rather than an operational state
+- The reason and phase series of the AP `join` module are one series per AP, report the **last recorded** event rather than a current one, and freeze with the record — so they keep their reading for an AP that has left CAPWAP
 - Every other `_state` metric keeps its numeric `0` or `1`
 
 ## Labels

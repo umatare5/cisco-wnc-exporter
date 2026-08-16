@@ -11,6 +11,7 @@ tmp_dir = "tmp"
                   --collector.ap.radio \
                   --collector.ap.traffic \
                   --collector.ap.errors \
+                  --collector.ap.join \
                   --collector.ap.info \
                   --collector.ap.info-labels "name,ip,band,model,serial,sw_version,eth_mac" \
                   --collector.client.general \

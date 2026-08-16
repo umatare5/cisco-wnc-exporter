@@ -6,6 +6,25 @@ This project is pre-1.0, so a minor release may rename or remove a metric. Read 
 
 ## Unreleased
 
+### Added
+
+The AP collector gains a `join` module behind `--collector.ap.join`, disabled by default like every other module. It reads one new `data` type, `ap_join_stats`, and reads nothing else — a deployment enabling only this module makes one request per refresh.
+
+| Metric                                               | Reports                                            |
+| :--------------------------------------------------- | :------------------------------------------------- |
+| `wnc_ap_joined`                                      | Whether a CAPWAP session is held now               |
+| `wnc_ap_join_info`                                   | AP name from the join record, always `1`           |
+| `wnc_ap_{discovery,join,config}_*_total`             | Requests, responses and failures of each phase     |
+| `wnc_ap_dtls_*_total`                                | DTLS setup, decrypt and anti-replay, per `channel` |
+| `wnc_ap_last_*_timestamp_seconds`                    | Last success and failure of each phase             |
+| `wnc_ap_last_*_reason` and `wnc_ap_last_error_phase` | Each enumeration in a `state` label                |
+
+Thirty-two series in all, listed individually in [docs/collector.ap.md](docs/collector.ap.md). **The statistics list keeps a record for an AP that has left CAPWAP**, which is what the module is for: every other AP series is read from the AP inventory and disappears with it, so nothing distinguished a departed AP from a failed fetch. The signal that becomes available is `rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0`, an AP that reaches the controller and cannot complete a join, and it works because the discovery counters keep advancing while the session is gone.
+
+Every series carries `mac` and nothing else, because a bare `and` requires identical label sets on both sides and because renaming an AP would otherwise start a fresh counter series. The name is published as `wnc_ap_join_info` instead, the only container that still names a departed AP. Read note *6 on that page before writing a rule: the query has a known false positive for an AP that holds this controller as its secondary.
+
+A timestamp leaf carrying the controller's epoch sentinel is withheld rather than published as an instant in 1970, so the failure timestamps are absent on a controller where nothing has failed.
+
 ### Fixed
 
 - `wnc_ap_uptime_seconds` is now absent for an AP whose boot time the controller does not report, or reports in a form this exporter cannot parse. It published `0` for both, which reads as an AP that booted at the instant of the scrape, so a rule of the form `wnc_ap_uptime_seconds < 600` fired on it. `wnc_ap_oper_state` is already withheld when the leaf it reads is empty, so this applies the rule the same collector already followed. A rule that treated the series as always present needs `absent()` or `or vector(0)`.

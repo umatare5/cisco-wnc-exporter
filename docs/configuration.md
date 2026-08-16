@@ -35,6 +35,7 @@ GLOBAL OPTIONS:
    --collector.ap.general             Enable AP general metrics
    --collector.ap.info                Enable AP info metrics
    --collector.ap.info-labels string  Comma-separated list of AP info labels (default: "name,ip")
+   --collector.ap.join                Enable AP CAPWAP join metrics
    --collector.ap.radio               Enable AP radio metrics
    --collector.ap.traffic             Enable AP traffic metrics
 
