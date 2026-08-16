@@ -66,21 +66,22 @@ func NewControllerCollector(src wnc.ControllerSource, metrics ControllerMetrics)
 		)
 		collector.apAuthRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_roams_total",
-			"Roams the controller counted on the path where the AP authenticated the client "+
-				"itself, cumulative since the controller booted. A WLAN whose policy profile "+
-				"leaves central association enabled is not counted here however much it roams, "+
-				"and the two dot11i counters are not a partition of this one",
+			"Roams the controller counted on the FlexConnect local-authentication path, "+
+				"cumulative since the controller booted. A WLAN whose roams do not take that "+
+				"path is not counted here at all, so read a flat zero as no roam took this "+
+				"path rather than as nobody roamed. The two dot11i counters are not a "+
+				"partition of this one",
 			nil, nil,
 		)
 		collector.apAuthFastRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_dot11i_fast_roams_total",
-			"802.11i fast roams on that same path, cumulative since the controller booted. "+
+			"802.11i fast roams on the same path, cumulative since the controller booted. "+
 				"Zero here while the slow counter moves means a cached key is not being used",
 			nil, nil,
 		)
 		collector.apAuthSlowRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_dot11i_slow_roams_total",
-			"802.11i slow roams on that same path, cumulative since the controller booted, "+
+			"802.11i slow roams on the same path, cumulative since the controller booted, "+
 				"each one a full authentication rather than a cached key",
 			nil, nil,
 		)

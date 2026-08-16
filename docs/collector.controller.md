@@ -40,7 +40,7 @@ The label carries the controller's own spelling of the reason.
 
 <details><summary><b>*3</b> The roam counters cover one path only, and do not sum</summary><br/>
 
-All three count roams the AP authenticated itself, which is the FlexConnect local-authentication path. **A WLAN whose policy profile leaves central association enabled is not counted here however much it roams**, so read a flat zero as "no roam took this path" and not as "nobody roamed".
+All three count roams on the **FlexConnect local-authentication path**, which is how the controller itself labels them. **A WLAN whose roams do not take that path is not counted here at all**, so read a flat zero as "no roam took this path" and not as "nobody roamed". Exactly which policy-profile setting excludes a WLAN was not separated by measurement — the controller reported these counters advancing while every WLAN measured had local authentication and central association both switched off, which cannot tell the two knobs apart.
 
 The two `dot11i` counters are **not a partition** of the total. Where this was measured the total was three orders of magnitude above their sum, so their ratio is not a key-cache hit rate. What is worth alerting on is the shape: a fast counter that stays at zero while the slow counter advances means a full authentication on every roam, and on a WLAN with opportunistic key caching enabled that is a finding.
 

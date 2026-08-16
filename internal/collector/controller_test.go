@@ -181,3 +181,30 @@ func TestControllerCollector_SeriesCarryNoIdentifyingLabel(t *testing.T) {
 		}
 	}
 }
+
+// TestControllerCollector_RoamCounterWithheldWhenLeafAbsent pins the per-leaf guard.
+// Ten of the container's thirteen leaves are deliberately unpublished, so a release
+// that stopped sending one of the three that are would otherwise read as a counter
+// that had fallen to zero.
+func TestControllerCollector_RoamCounterWithheldWhenLeafAbsent(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	delete(data.ClientRoamingStats, leafAPAuthDot11iFastRoam)
+
+	values := gatherControllerValues(t, data)
+
+	if len(values["wnc_controller_client_ap_auth_dot11i_fast_roams_total"]) != 0 {
+		t.Error("wnc_controller_client_ap_auth_dot11i_fast_roams_total is present for an absent leaf")
+	}
+
+	// The siblings must survive, so the withhold is per leaf rather than per container.
+	for _, name := range []string{
+		"wnc_controller_client_ap_auth_roams_total",
+		"wnc_controller_client_ap_auth_dot11i_slow_roams_total",
+	} {
+		if len(values[name]) == 0 {
+			t.Errorf("%s is absent, so the assertion above proves nothing", name)
+		}
+	}
+}
