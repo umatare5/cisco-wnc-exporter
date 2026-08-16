@@ -115,7 +115,7 @@ The series a dashboard usually starts from:
 | AP        | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
 | Client    | `wnc_client_state`                 | Gauge | Connection state in `state` label    |
 | Client    | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
-| Client    | `wnc_client_speed_mbps`            | Gauge | Connection throughput                |
+| Client    | `wnc_client_speed_mbps`            | Gauge | Negotiated PHY rate (Mbps)           |
 | Client    | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
 | Client    | `wnc_client_snr_decibels`          | Gauge | Signal-to-noise ratio (dB)           |
 | WLAN      | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |

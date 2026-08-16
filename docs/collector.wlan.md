@@ -27,6 +27,8 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 
 ## Notes
 
+`wnc_wlan_clients` counts only the clients the controller reports in the run state, so it does not count a client held short of it. During an onboarding failure the count therefore **falls** while clients pile up in an earlier phase, which is the opposite of what a rule written against a client-count rise expects. `wnc_client_state` is the series that covers a client short of the run state.
+
 Every WLAN module reads `wlan-cfg-entries`, and `config` also reads `wlan-policies` and `policy-list-entries`. The exporter asks the controller for the values in force on the first two, because a plain read omits every leaf whose value equals its default, whether the profile set that value or never touched it — observed on IOS-XE 17.12. The same criterion reaches a whole container, so a container missing from a plain read can mean every leaf in it is at its default rather than that the feature is off. A controller that answers `400` is read plainly instead, and `wnc_refresh_defaults_fallback_total` rises for as long as that lasts. The `traffic` module also reads the client list, and `wnc_wlan_clients` is withheld for every WLAN when that fetch fails.
 
 `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` report the controller's own spelling in the `state` label and always have the value `1`, so `== 0` never fires — see [States](README.md#a-state-is-a-label-not-a-number). Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty `state` label reads as no label at all.

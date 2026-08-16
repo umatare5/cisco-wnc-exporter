@@ -77,6 +77,8 @@ wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
 
 ## Notes
 
+`wnc_ap_clients` counts the clients the controller reports in the run state, attributed to a radio through the AP **name** the client record carries, because that record carries no AP MAC. A client whose AP name has no entry in `ap-name-mac-map` is therefore left out silently, and the series is withheld for every radio when either the client list or that mapping fails to fetch. `sum(wnc_ap_clients)` can consequently read lower than `sum(wnc_wlan_clients)`, which counts the same clients without needing the mapping.
+
 <details><summary><b>*1</b> CPU and memory need AP system monitoring enabled, and read zero until it is</summary><br/>
 
 Both values come from the AP system statistics the controller collects, and that collection is disabled by default. Enable it on the AP join profile the access point uses:
