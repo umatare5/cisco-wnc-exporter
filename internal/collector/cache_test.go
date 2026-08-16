@@ -261,7 +261,7 @@ func TestIsInfoMetric_DescString(t *testing.T) {
 	t.Parallel()
 	// Test that isInfoMetric correctly parses the descriptor string
 	desc := prometheus.NewDesc(
-		"test_info_metric",
+		"test_metric_info",
 		"Test info metric",
 		[]string{"label1"},
 		prometheus.Labels{"const": "value"},
@@ -280,13 +280,13 @@ func TestIsInfoMetric_DescString(t *testing.T) {
 		t.Error("expected metric with 'info_' at beginning to NOT be identified as info metric (requires '_info')")
 	}
 
-	// Test case sensitivity
-	desc3 := prometheus.NewDesc("test_INFO_metric", "Test INFO metric", nil, nil)
+	// Test case sensitivity. The name ends in the upper-case form deliberately: one
+	// merely containing it fails the suffix test whatever the case, so it would pass
+	// against a predicate that folded case before comparing.
+	desc3 := prometheus.NewDesc("test_metric_INFO", "Test INFO metric", nil, nil)
 	metric3 := prometheus.MustNewConstMetric(desc3, prometheus.GaugeValue, 1.0)
 
 	result := isInfoMetric(metric3)
-	// The function uses strings.Contains which is case-sensitive
-	// So "INFO" should not match "_info"
 	if result {
 		t.Error("expected case-sensitive matching for info detection")
 	}
@@ -336,12 +336,75 @@ func TestInfoCacheCollector_Collect_CacheError(t *testing.T) {
 	}
 }
 
-// TestIsInfoMetric_MatchesOnlyTheInfoFamilies keeps every other family out of the
-// info cache. The predicate matches the whole descriptor string rather than the
-// metric name, and that string embeds the HELP text, so a HELP that merely mentions
-// an _info family diverts its own series into a cache the operator sized for labels.
-// A counter that lands there reports the same value for up to the cache TTL, which
-// makes rate() a staircase, and nothing else in the suite would notice.
+// TestIsInfoMetric_KeysOnlyOnTheNameSuffix holds the predicate to the fully qualified
+// name. Desc.String embeds the HELP text and the variable label names either side of
+// the name, so a substring test reaches prose an author writes freely: a counter whose
+// HELP merely names an _info family would land in a cache sized for label churn and
+// then report one value for a whole TTL, which turns rate() into a staircase. The HELP
+// text and the label names below are the hypothetical ones, not the published ones.
+func TestIsInfoMetric_KeysOnlyOnTheNameSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		metric   prometheus.Metric
+		expected bool
+	}{
+		{
+			name: "help names an info family",
+			metric: prometheus.MustNewConstMetric(
+				prometheus.NewDesc(
+					"wnc_ap_uptime_seconds",
+					"Seconds since the AP booted. Join wnc_ap_info for the AP name.",
+					nil, nil,
+				),
+				prometheus.GaugeValue,
+				1.0,
+			),
+			expected: false,
+		},
+		{
+			name: "variable label name ends in _info",
+			metric: prometheus.MustNewConstMetric(
+				prometheus.NewDesc("wnc_ap_channel_number", "Radio channel", []string{"radio_info"}, nil),
+				prometheus.GaugeValue,
+				36.0,
+				"0",
+			),
+			expected: false,
+		},
+		{
+			name: "name carries _info between two words",
+			metric: prometheus.MustNewConstMetric(
+				prometheus.NewDesc("wnc_ap_info_labels_total", "Info labels published", nil, nil),
+				prometheus.CounterValue,
+				7.0,
+			),
+			expected: false,
+		},
+		{
+			name: "name ends in _info",
+			metric: prometheus.MustNewConstMetric(
+				prometheus.NewDesc("wnc_ap_join_info", "AP join info", nil, nil),
+				prometheus.GaugeValue,
+				1.0,
+			),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := isInfoMetric(tt.metric); got != tt.expected {
+				t.Errorf("isInfoMetric(%s) = %v, expected %v", metricFamilyName(t, tt.metric), got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestIsInfoMetric_MatchesOnlyTheInfoFamilies keeps every other family out of the info
+// cache across the whole published surface, where the table above states the rule over
+// four names. Nothing else in the suite would notice a family joining the cache.
 func TestIsInfoMetric_MatchesOnlyTheInfoFamilies(t *testing.T) {
 	t.Parallel()
 
