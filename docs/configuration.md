@@ -48,6 +48,10 @@ GLOBAL OPTIONS:
    --collector.client.radio               Enable Client radio metrics
    --collector.client.traffic             Enable Client traffic metrics
 
+   # Controller Collector Options
+
+   --collector.controller.general  Enable controller-wide metrics
+
    # WLAN Collector Options
 
    --collector.wlan.config              Enable WLAN config metrics
