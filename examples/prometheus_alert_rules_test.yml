@@ -137,6 +137,14 @@ tests:
         values: "0+1x50"
       - series: 'wnc_ap_joined{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66"}'
         values: "1+0x50"
+      # A third AP holds no session and is not reaching the controller either: its
+      # record survives in the statistics list with a flat counter. It must stay silent,
+      # which is what pins the rate clause — without this case the rule reduced to
+      # wnc_ap_joined == 0 passes, and that fires for every decommissioned AP forever.
+      - series: 'wnc_ap_discovery_requests_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
+        values: "77+0x50"
+      - series: 'wnc_ap_joined{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
+        values: "0+0x50"
     alert_rule_test:
       - eval_time: 29m
         alertname: WNCAPNotJoining
@@ -156,6 +164,38 @@ tests:
         values: "0+0x30"
       - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="co_client_del_reason"}'
         values: "326+0x30"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCControllerBootTimeMissing"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCControllerBootTimeMissing", alertstate="firing", data="controller_boot_time", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # The healthy case: the read returned the leaf. Without it a comparison widened to
+  # >= 0, or dropped altogether, fires forever on every deployment that enables the
+  # module and still passes.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'
+        values: "1+0x30"
+      - series: 'wnc_controller_boot_time_seconds{job="cisco_wnc",instance="localhost:10039"}'
+        values: "1767225600+0x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WNCControllerBootTimeMissing
+        exp_alerts: []
+
+  # The read succeeded and the gauge is still absent, because the leaf did not parse or
+  # sat at the epoch. items alone cannot see that, which is why the rule carries the
+  # second clause.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'
+        values: "1+0x30"
     alert_rule_test:
       - eval_time: 14m
         alertname: WNCControllerBootTimeMissing

@@ -87,7 +87,11 @@ groups:
             which. The inner count collapses the tags that name the same
             profile, because binding a WLAN to one profile through several tags
             is not ambiguous; counting series instead would fire on it. Needs
-            --collector.wlan.config, and is silent without it.
+            --collector.wlan.config, and is silent without it. Binding one WLAN
+            to a different profile per site is a legitimate design, and there is
+            nothing to fix in that case: read the profiles from
+            wnc_wlan_policy_binding, treat the six config series for that id as
+            unusable, and silence this alert for that id.
 
       - alert: WNCAPNotJoining
         expr: >-
@@ -111,7 +115,12 @@ groups:
             why for is longer than the rate range. Needs --collector.ap.join.
 
       - alert: WNCControllerBootTimeMissing
-        expr: wnc_refresh_items{data="controller_boot_time"} == 0
+        expr: >-
+          wnc_refresh_items{data="controller_boot_time"} == 0
+          or (
+          wnc_refresh_items{data="controller_boot_time"} == 1
+          unless on(job, instance) wnc_controller_boot_time_seconds
+          )
         for: 15m
         labels:
           severity: warning
@@ -124,6 +133,9 @@ groups:
             than firing while it is absent. items reads 0 when the read
             succeeded and the controller carried no such leaf; a failed read
             raises wnc_refresh_errors_total instead and removes this series,
-            which is why the rule cannot be written with absent(). The series
+            which is why the rule cannot be written with absent(). The second
+            clause covers the other two ways the gauge is withheld, where the
+            read succeeded and items reads 1: the leaf did not parse, or it sat
+            at the epoch. Both clauses are anchored on an items series that
             exists only while --collector.controller.general is enabled, so this
             stays silent where it is off.
