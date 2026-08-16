@@ -44,6 +44,7 @@ archives:
       - "examples/*.yml"
       - "LICENSE"
       - "NOTICE"
+      - "SECURITY.md"
     format_overrides:
       - goos: windows
         formats: ["zip"]
