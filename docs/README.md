@@ -22,6 +22,14 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - `wnc_refresh_errors_total` names the data types a configuration reads — a type absent from both refresh series is one no enabled module reads
 - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
 
+### Request timeout (`--wnc.timeout`)
+
+- The flag bounds a whole RESTCONF request, from the dial to the last byte of the body
+- It does not bound the wait for the response headers, nor the TLS handshake: the SDK pins both at 5 seconds and exposes no option for them, so raising the flag past that does not buy more patience with a controller that is slow to begin answering
+- That failure raises `wnc_refresh_errors_total` for the data type and withholds its series, so it is visible
+- It does **not** raise `wnc_refresh_defaults_fallback_total`, which counts only a controller answering `400` to the request for the values in force — a header timeout carries no HTTP status at all
+- On the controller this was measured against, the first byte of a WLAN config read arrived within 0.21 seconds including the request for the values in force, a factor of twenty below the pinned limit
+
 ### Info metric caching (`--collector.info-cache-ttl`)
 
 - Info metrics are served from a snapshot up to the flag value old, and the collector behind them still runs on every scrape, so no controller request is saved

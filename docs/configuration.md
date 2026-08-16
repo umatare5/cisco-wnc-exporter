@@ -64,3 +64,7 @@ GLOBAL OPTIONS:
    --collector.internal.go-runtime  Enable Go runtime metrics collector
    --collector.internal.process     Enable process metrics collector
 ```
+
+## Notes
+
+`--wnc.timeout` bounds a whole RESTCONF request. It does not bound the wait for the response headers or the TLS handshake, which the SDK pins at 5 seconds and exposes no option for, so raising the flag does not make the exporter wait longer for a controller that is slow to begin answering. See [Data refresh and caching](README.md#data-refresh-and-caching) for what that failure looks like in the refresh metrics.
