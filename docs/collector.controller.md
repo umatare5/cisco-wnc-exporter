@@ -14,7 +14,7 @@ Every series here describes the whole controller, so none of them carries an ide
 | general | `wnc_controller_client_ap_auth_dot11i_fast_roams_total` | Counter | 802.11i fast roams on that path **(\*3)**    |
 | general | `wnc_controller_client_ap_auth_dot11i_slow_roams_total` | Counter | 802.11i slow roams on that path **(\*3)**    |
 
-One flag, `--collector.controller.general`, enables all five, and all three of its reads bypass the SDK's typed accessors — see note **(\*4)**. The boot time is the epoch every counter on this page is read against, so putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
+One flag, `--collector.controller.general`, enables all five, and all three of its reads bypass the SDK's typed accessors — see note **(\*4)**. Neither counter container on this page reports an epoch of its own, so the boot time is the only reset anchor available, and putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
 
 ## Notes
 
@@ -40,11 +40,11 @@ The label carries the controller's own spelling of the reason.
 
 <details><summary><b>*3</b> The roam counters cover one path only, and do not sum</summary><br/>
 
-All three count roams on the **FlexConnect local-authentication path**, which is how the controller itself labels them. **A WLAN whose roams do not take that path is not counted here at all**, so read a flat zero as "no roam took this path" and not as "nobody roamed". Exactly which policy-profile setting excludes a WLAN was not separated by measurement — the controller reported these counters advancing while every WLAN measured had local authentication and central association both switched off, which cannot tell the two knobs apart.
+All three count roams on the **FlexConnect local-authentication path**, which is how the controller itself labels them. **A WLAN whose roams do not take that path is not counted here at all**, so read a flat zero as "no roam took this path" and not as "nobody roamed". Exactly which policy-profile setting excludes a WLAN was not separated by measurement — the counters carried a non-zero total while every WLAN measured had local authentication and central association both switched off, and no read caught any of the three moving, so nothing measured tells the two knobs apart.
 
-The two `dot11i` counters are **not a partition** of the total. Where this was measured the total was three orders of magnitude above their sum, so their ratio is not a key-cache hit rate. What is worth alerting on is the shape: a fast counter that stays at zero while the slow counter advances means a full authentication on every roam, and on a WLAN with opportunistic key caching enabled that is a finding.
+The two `dot11i` counters are **not a partition** of the total. Where this was measured the total stood at some two hundred and fifty times their sum, so their ratio is not a key-cache hit rate. What is worth alerting on is the shape: a fast counter that stays at zero while the slow counter advances means a full authentication on every roam, and on a WLAN with opportunistic key caching enabled that is a finding.
 
-Both are cumulative since the controller booted, which `wnc_controller_boot_time_seconds` reports. The container carries ten further leaves that read zero while these advance, and two of those duplicate what `wnc_wlan_central_association_enabled` and `wnc_wlan_ft_state` already publish, so none of the ten is published here.
+Both are cumulative, and the container reports no epoch of its own, so read `wnc_controller_boot_time_seconds` as a reset anchor rather than as the instant the counts run from. The container carries ten further leaves that read zero where these three carried a total, and two of those duplicate what `wnc_wlan_central_association_enabled` and `wnc_wlan_ft_state` already publish, so none of the ten is published here.
 
 </details>
 

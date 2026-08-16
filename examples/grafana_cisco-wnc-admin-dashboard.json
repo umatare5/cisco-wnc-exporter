@@ -3203,7 +3203,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "wnc_ap_oper_state{radio=~\"$radio_id\"} * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "wnc_ap_oper_state * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -3367,7 +3367,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "wnc_ap_config_state{radio=~\"$radio_id\"} * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "wnc_ap_config_state * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -3469,7 +3469,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max_over_time(wnc_ap_uptime_seconds{radio=~\"$radio_id\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "max_over_time(wnc_ap_uptime_seconds[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -3571,7 +3571,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "avg_over_time(wnc_ap_cpu_utilization_ratio{radio=~\"$radio_id\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "avg_over_time(wnc_ap_cpu_utilization_ratio[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -3673,7 +3673,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "avg_over_time(wnc_ap_memory_utilization_ratio{radio=~\"$radio_id\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "avg_over_time(wnc_ap_memory_utilization_ratio[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }

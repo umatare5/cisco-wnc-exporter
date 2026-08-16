@@ -54,7 +54,9 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 ### Counter reset timing
 
 - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
-- Query them with a range long enough to absorb a re-join, such as `increase(...[1h])`
+- A client's counters reset the same way when it re-associates, because the statistics belong to the association rather than to the device
+- Across 750 reads of the client traffic container, the byte and packet counters fell to zero together three times, each time in the same read that carried a new association timestamp for that client, matching the instant of the fall
+- Query them with a range long enough to absorb a re-join or a re-association, such as `increase(...[1h])`
 
 ## States
 
