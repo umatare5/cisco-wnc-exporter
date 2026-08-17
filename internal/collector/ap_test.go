@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -2485,6 +2486,12 @@ func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 			fixtureAPMAC + ":0": {WtpMAC: fixtureAPMAC, RadioSlotID: 0},
 		}},
 		{"fetch failed", nil},
+		{"record with radio-data but no dca-stats", map[string]*rrm.RadioSlot{
+			fixtureAPMAC + ":0": {
+				WtpMAC: fixtureAPMAC, RadioSlotID: 0,
+				RadioData: &rrm.RadioData{CoverageProfilePassed: true},
+			},
+		}},
 	}
 
 	for _, tt := range tests {
@@ -2504,9 +2511,20 @@ func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Gather() error = %v, want nil", err)
 			}
+			// The deeper container has its own rule: the last case carries radio-data
+			// without dca-stats, so the verdicts publish while the counter does not.
+			withVerdicts := tt.slot != nil && tt.slot[fixtureAPMAC+":0"] != nil &&
+				tt.slot[fixtureAPMAC+":0"].RadioData != nil
 			for _, family := range families {
-				if family.GetName() == "wnc_ap_rrm_profile_passed" {
-					t.Errorf("wnc_ap_rrm_profile_passed has %d series, want none",
+				switch family.GetName() {
+				case "wnc_ap_rrm_profile_passed":
+					if !withVerdicts {
+						t.Errorf("wnc_ap_rrm_profile_passed has %d series, want none",
+							len(family.GetMetric()))
+					}
+				case "wnc_ap_channel_changes_total":
+					t.Errorf("wnc_ap_channel_changes_total has %d series, want none: "+
+						"a zero there reads as a radio DCA has never moved",
 						len(family.GetMetric()))
 				}
 			}
@@ -2622,5 +2640,76 @@ func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
 		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the only "+
 			"record belongs to another AP", got)
+	}
+}
+
+// TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf covers the slot list carrying entries
+// that are not radios. A remote-LAN port arrives with both state leaves omitted, and a
+// string comparison against the up spelling reports it down — a permanently failing
+// radio on every AP that has such a port. Each leaf is guarded on its own, because the
+// controller omits per leaf rather than per record.
+func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		operState  string
+		adminState string
+		want       []string
+		reason     string
+	}{
+		{
+			"both leaves present", APRadioStateUp, "disabled",
+			[]string{"test_radio_state", "test_admin_state"},
+			"a real radio publishes both",
+		},
+		{
+			"remote-LAN port with both leaves omitted", "", "",
+			nil,
+			"neither series exists rather than reporting a down, disabled radio",
+		},
+		{
+			"operational state omitted alone", "", APAdminStateEnabled,
+			[]string{"test_admin_state"},
+			"the guards are independent",
+		},
+		{
+			"admin state omitted alone", APRadioStateUp, "",
+			[]string{"test_radio_state"},
+			"the guards are independent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			collector := &APCollector{
+				metrics:        APMetrics{General: true},
+				radioStateDesc: prometheus.NewDesc("test_radio_state", "test", []string{"mac", "radio"}, nil),
+				adminStateDesc: prometheus.NewDesc("test_admin_state", "test", []string{"mac", "radio"}, nil),
+			}
+			radio := &ap.RadioOperData{
+				WtpMAC: fixtureAPMAC, RadioSlotID: 2,
+				OperState: tt.operState, AdminState: tt.adminState,
+			}
+
+			ch := make(chan prometheus.Metric, 4)
+			go func() {
+				defer close(ch)
+				collector.collectGeneralMetrics(ch, radio)
+			}()
+
+			var got []string
+			for metric := range ch {
+				_, quoted, _ := strings.Cut(metric.Desc().String(), "fqName: \"")
+				name, _, _ := strings.Cut(quoted, "\"")
+				got = append(got, name)
+			}
+
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("collectGeneralMetrics() published %v, want %v: %s", got, tt.want, tt.reason)
+			}
+		})
 	}
 }

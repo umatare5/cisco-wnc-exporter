@@ -220,7 +220,8 @@ func NewAPCollector(
 		)
 		collector.channelChangesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_channel_changes_total",
-			"Channel changes on this radio from any cause, as the controller counts them",
+			"Channel changes on this radio, from the controller's DCA assignment statistics. "+
+				"It resets, so read it with rate() rather than as a lifetime total",
 			baseRadioLabels,
 			nil,
 		)
@@ -229,7 +230,8 @@ func NewAPCollector(
 	if metrics.Spectrum {
 		collector.airQualityDesc = prometheus.NewDesc(
 			"wnc_ap_air_quality_index",
-			"CleanAir air quality index of the channel the radio operates on",
+			"Average CleanAir air quality index of the channel the radio operates on, over "+
+				"a window the controller does not declare",
 			baseRadioLabels,
 			nil,
 		)
@@ -638,9 +640,23 @@ func (c *APCollector) collectGeneralMetrics(
 ) {
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 
-	metrics := []Float64Metric{
-		{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
-		{c.adminStateDesc, boolToFloat64(radio.AdminState == APAdminStateEnabled)},
+	metrics := []Float64Metric{}
+
+	// An absent leaf is not a state, and comparing it against the up spelling reports
+	// the radio down. The slot list carries entries that are not radios — a remote-LAN
+	// port arrives with both leaves omitted, measured — so the equality test alone
+	// would publish a down radio for every such port. The AP-level state above applies
+	// the same rule.
+	if radio.OperState != "" {
+		metrics = append(metrics,
+			Float64Metric{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
+		)
+	}
+
+	if radio.AdminState != "" {
+		metrics = append(metrics,
+			Float64Metric{c.adminStateDesc, boolToFloat64(radio.AdminState == APAdminStateEnabled)},
+		)
 	}
 
 	for _, metric := range metrics {
@@ -746,8 +762,9 @@ var rrmProfiles = []struct {
 	{"noise", func(d *rrm.RadioData) bool { return d.NoiseProfilePassed }},
 }
 
-// radioJoins holds the three reads the radio module joins against. A nil map is a
-// failed fetch, which withholds the series that read it rather than reporting a zero.
+// radioJoins holds the three reads the radio module joins against. A map with no entry
+// for a radio withholds that radio's series rather than reporting a zero; clientCounts
+// is left nil outright, because a partial count reads as a radio with no clients.
 type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
 	slots        map[string]*rrm.RadioSlot
@@ -1101,14 +1118,6 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 	)
 }
 
-// noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,
-// and reports whether the channel was found.
-//
-// noise-data is a per-channel list spanning the band's channel set, so a fixed index
-// reports a channel the radio is not on. The list carries no YANG key either, so its
-// order is not specified. The channel to match is the primary one, which is absent on
-// a radio in monitor or sniffer mode; because the SDK types it as a plain integer,
-// zero is treated as absent rather than as a channel.
 // airQualityOnCurrentChannel returns the CleanAir index for the channel the radio
 // operates on, and reports whether the reading was found.
 //
@@ -1146,6 +1155,14 @@ func airQualityOnCurrentChannel(table []rrm.SpectrumAqTable, radio *ap.RadioOper
 	return 0, false
 }
 
+// noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,
+// and reports whether the channel was found.
+//
+// noise-data is a per-channel list spanning the band's channel set, so a fixed index
+// reports a channel the radio is not on. The list carries no YANG key either, so its
+// order is not specified. The channel to match is the primary one, which is absent on
+// a radio in monitor or sniffer mode; because the SDK types it as a plain integer,
+// zero is treated as absent rather than as a channel.
 func noiseOnCurrentChannel(rrmData *rrm.RRMMeasurement, radio *ap.RadioOperData) (int, bool) {
 	if radio.PhyHtCfg == nil || rrmData.Noise == nil {
 		return 0, false

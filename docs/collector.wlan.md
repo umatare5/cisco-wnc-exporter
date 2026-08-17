@@ -52,13 +52,15 @@ The leaf is a string on the wire. A record whose leaf is missing or unparsable i
 
 The controller keeps one count per phase rather than one enumerated leaf, so the four `phase` values — `l2auth`, `mobility`, `iplearn` and `webauth_pending` — are this exporter's own names for those four leaves.
 
-**They are current counts, not cumulative ones.** The fifth count in the same record, the clients in the run state, equalled the per-WLAN client records exactly on every WLAN and in total, which is what types all five as gauges. They are **not additive** with `wnc_wlan_clients`, which counts the run state only.
+**They are current counts, not cumulative ones.** The fifth count in the same record, the clients in the run state, equalled the per-WLAN client records exactly on every WLAN and in total, which is what types all five as gauges. Whether the five counts partition a WLAN's clients was not measured, so do not add them to `wnc_wlan_clients`, which counts the run state only.
 
 **What they detect is a stall, not a failure rate.** A client that onboards normally occupies a phase for milliseconds, so a scrape lands on it only by coincidence: all four leaves read zero in every one of ninety consecutive reads taken ten seconds apart. A client held in a phase, by contrast, stays there and is what the series is for. Alert on a count that persists rather than on any non-zero reading:
 
 ```bash
 min_over_time(wnc_wlan_onboarding_clients[5m]) > 0
 ```
+
+**A failure that has already completed is counted elsewhere.** These gauges hold a client only while it is stuck, so an onboarding failure that ended in a disconnect leaves them at zero; `wnc_controller_client_deletes_total{reason}` on the [Controller](collector.controller.md) page keeps the cumulative count per reason, and the reasons that name a DHCP, four-way-handshake, EAP or IP-learn timeout carried substantial totals on the controller measured here while every one of these gauges read zero. Read the counter for whether onboarding is failing and these gauges for which WLAN is holding a client now.
 
 The four series are absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails. A record present with a phase leaf omitted cannot be told from a zero, so the error runs one way only — a stall can be under-reported and never invented.
 
