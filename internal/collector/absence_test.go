@@ -193,7 +193,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeRRMCoverage, []string{"wnc_ap_coverage_failed_clients"}},
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
-		{typeRRMRadioSlot, []string{"wnc_ap_rrm_profile_passed"}},
+		{typeRRMRadioSlot, []string{"wnc_ap_rrm_profile_passed", "wnc_ap_channel_changes_total"}},
 		{typeRRMSpectrumAqTable, []string{"wnc_ap_air_quality_index"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
@@ -522,6 +522,12 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 				LoadProfPassed:            false,
 				InterferenceProfilePassed: false,
 				NoiseProfilePassed:        true,
+				DCAStats: &rrm.DCAStats{
+					BestChan:          31,
+					CurrentChanEnergy: -32,
+					LastChanEnergy:    -33,
+					ChanChanges:       34,
+				},
 			},
 		}},
 		SpectrumAqTable: []rrm.SpectrumAqTable{{

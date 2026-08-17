@@ -24,6 +24,7 @@ AP collector focuses on RF foundation and radio performance.
 | radio    | `wnc_ap_noise_utilization_ratio`                  | Gauge   | Noise channel utilization ratio (0-1)              |
 | radio    | `wnc_ap_clients`                                  | Gauge   | Run-state clients count (calculated)               |
 | radio    | `wnc_ap_rrm_profile_passed`                       | Gauge   | RRM profile verdict per `profile` **(\*4)**        |
+| radio    | `wnc_ap_channel_changes_total`                    | Counter | Channel changes from any cause **(\*4)**           |
 | traffic  | `wnc_ap_total_tx_frames_total`                    | Counter | TX frames, not a sum of the frame series           |
 | traffic  | `wnc_ap_data_rx_frames_total`                     | Counter | Data RX frames                                     |
 | traffic  | `wnc_ap_data_tx_frames_total`                     | Counter | Data TX frames                                     |
@@ -254,7 +255,7 @@ This was verified through direct RESTCONF API access to the live WNC environment
 
 </details>
 
-<details><summary><b>*4</b> Reading the RRM profile verdicts</summary><br/>
+<details><summary><b>*4</b> Reading the RRM profile verdicts and the channel-change counter</summary><br/>
 
 The controller judges each radio against four profiles and reports one verdict leaf per profile, so the four `profile` values — `coverage`, `load`, `interference` and `noise` — are this exporter's own names for those leaves. `1` is a pass.
 
@@ -267,6 +268,8 @@ count by (mac, radio) (min_over_time(wnc_ap_rrm_profile_passed[30m]) == 0) >= 3
 The thresholds each profile is judged against are configured on the controller and are not read here, so the series says a profile failed and never by how much. `wnc_ap_channel_utilization_ratio` and `wnc_ap_noise_floor_dbm` are the measured quantities behind the `load` and `noise` verdicts, and `wnc_ap_coverage_failed_clients` counts the clients behind the `coverage` one.
 
 The four series are absent for a radio the slot list has no record for, for a record that carries no radio data, and for every radio while the `rrm_radio_slot` fetch fails. A verdict leaf the controller omits from a record it did send cannot be told from a reported failure, so the error runs one way only — the series can report a failure that was never measured and never hide one.
+
+`wnc_ap_channel_changes_total` comes from the same record and adds no request. **It counts a change from any cause**: the controller does not separate a DCA decision, a DFS event and a manual assignment, so a rise says the radio moved and never why. `wnc_ap_last_radar_timestamp_seconds` is what distinguishes a DFS event, and comparing the two is how a radar-driven move is told from an RRM one. The counter was monotonic non-decreasing on every radio across fifteen reads, with one radio observed stepping by one as its best channel moved. It sits one container deeper than the verdicts and is absent on its own when the controller reports no assignment statistics for a radio, which a zero would misreport as a radio that has never moved.
 
 </details>
 

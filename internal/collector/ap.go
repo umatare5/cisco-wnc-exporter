@@ -44,6 +44,7 @@ type APCollector struct {
 	noiseFloorDesc                *prometheus.Desc
 	txPowerDesc                   *prometheus.Desc
 	rrmProfilePassedDesc          *prometheus.Desc
+	channelChangesTotalDesc       *prometheus.Desc
 	airQualityDesc                *prometheus.Desc
 	channelDesc                   *prometheus.Desc
 	channelWidthDesc              *prometheus.Desc
@@ -215,6 +216,12 @@ func NewAPCollector(
 			"Whether the radio passes this RRM profile (1=passed, 0=failed or the "+
 				"verdict was not reported)",
 			[]string{labelMAC, labelRadio, labelProfile},
+			nil,
+		)
+		collector.channelChangesTotalDesc = prometheus.NewDesc(
+			"wnc_ap_channel_changes_total",
+			"Channel changes on this radio from any cause, as the controller counts them",
+			baseRadioLabels,
 			nil,
 		)
 	}
@@ -412,6 +419,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.noiseUtilizationDesc
 		ch <- c.associatedClientsDesc
 		ch <- c.rrmProfilePassedDesc
+		ch <- c.channelChangesTotalDesc
 	}
 	if c.metrics.Traffic {
 		ch <- c.dataRxFramesTotalDesc
@@ -704,6 +712,18 @@ func (c *APCollector) collectRadioMetrics(
 				prometheus.GaugeValue,
 				boolToFloat64(profile.passed(slot.RadioData)),
 				radio.WtpMAC, strconv.Itoa(radio.RadioSlotID), profile.name,
+			)
+		}
+
+		// The channel-change counter lives one container deeper, which the controller
+		// omits on a radio it reports no assignment statistics for. A zero there would
+		// read as a radio DCA has never moved.
+		if dca := slot.RadioData.DCAStats; dca != nil {
+			ch <- prometheus.MustNewConstMetric(
+				c.channelChangesTotalDesc,
+				prometheus.CounterValue,
+				float64(dca.ChanChanges),
+				labels...,
 			)
 		}
 	}

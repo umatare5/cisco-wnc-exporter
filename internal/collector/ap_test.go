@@ -235,8 +235,8 @@ func TestAPCollector_Describe(t *testing.T) {
 			"Radio module only",
 			APMetrics{Radio: true},
 			// channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util,
-			// rx_util, tx_util, noise_util, clients, rrm_profile_passed
-			11,
+			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes
+			12,
 		},
 		{
 			"Traffic module only",
@@ -275,7 +275,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			75, // 7+11+10+13+32+1+1
+			76, // 7+12+10+13+32+1+1
 		},
 	}
 
@@ -1147,7 +1147,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 43
+	expectedDescs := 44
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
