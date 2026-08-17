@@ -40,8 +40,8 @@ AP collector focuses on RF foundation and radio performance.
 | errors   | `wnc_ap_transmission_failures_total`              | Counter | Failed transmission attempts **(\*3)** **(\*5)**   |
 | errors   | `wnc_ap_duplicate_frames_total`                   | Counter | Duplicate frames received                          |
 | errors   | `wnc_ap_fcs_errors_total`                         | Counter | Frame Check Sequence errors                        |
-| errors   | `wnc_ap_fragmentation_rx_total`                   | Counter | RX fragmented packets **(\*3)**                    |
-| errors   | `wnc_ap_fragmentation_tx_total`                   | Counter | TX fragmented packets **(\*3)**                    |
+| errors   | `wnc_ap_rx_fragments_total`                       | Counter | RX fragments **(\*3)**                             |
+| errors   | `wnc_ap_tx_fragments_total`                       | Counter | TX fragments **(\*3)**                             |
 | errors   | `wnc_ap_rts_failures_total`                       | Counter | RTS failures **(\*3)**                             |
 | errors   | `wnc_ap_decryption_errors_total`                  | Counter | Decryption errors **(\*3)**                        |
 | errors   | `wnc_ap_mic_errors_total`                         | Counter | MIC errors **(\*3)**                               |
@@ -161,7 +161,7 @@ The metrics below were observed at zero on every radio of the access points this
 | `wnc_ap_transmission_failures_total`     | Observed at zero while retries advanced. See note *4.                                                                       |
 | `wnc_ap_duplicate_frames_total`          | Observed at zero. A duplicate is counted on receive, so client retransmissions drive it.                                    |
 | `wnc_ap_rts_(successes\|failures)_total` | The RTS threshold sits at its maximum, so length-triggered RTS never happens.                                               |
-| `wnc_ap_fragmentation_(rx\|tx)_total`    | The fragmentation threshold sits at its maximum, and the controller labels the receive side an incomplete-fragment counter. |
+| `wnc_ap_(rx\|tx)_fragments_total`        | The fragmentation threshold sits at its maximum, and the controller labels the receive side an incomplete-fragment counter. |
 | `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Whether the counter would report a failure has not been confirmed.                             |
 | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                                                                          |
 

@@ -69,8 +69,8 @@ type APCollector struct {
 	transmissionFailuresTotalDesc *prometheus.Desc
 	duplicateFramesTotalDesc      *prometheus.Desc
 	fcsErrorsTotalDesc            *prometheus.Desc
-	fragmentationRxTotalDesc      *prometheus.Desc
-	fragmentationTxTotalDesc      *prometheus.Desc
+	rxFragmentsTotalDesc          *prometheus.Desc
+	txFragmentsTotalDesc          *prometheus.Desc
 	rtsFailuresTotalDesc          *prometheus.Desc
 	decryptionErrorsTotalDesc     *prometheus.Desc
 	micErrorsTotalDesc            *prometheus.Desc
@@ -344,15 +344,15 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.fragmentationRxTotalDesc = prometheus.NewDesc(
-			"wnc_ap_fragmentation_rx_total",
-			"RX fragmented packets",
+		collector.rxFragmentsTotalDesc = prometheus.NewDesc(
+			"wnc_ap_rx_fragments_total",
+			"RX fragments",
 			baseRadioLabels,
 			nil,
 		)
-		collector.fragmentationTxTotalDesc = prometheus.NewDesc(
-			"wnc_ap_fragmentation_tx_total",
-			"TX fragmented packets",
+		collector.txFragmentsTotalDesc = prometheus.NewDesc(
+			"wnc_ap_tx_fragments_total",
+			"TX fragments",
 			baseRadioLabels,
 			nil,
 		)
@@ -439,8 +439,8 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.transmissionFailuresTotalDesc
 		ch <- c.duplicateFramesTotalDesc
 		ch <- c.fcsErrorsTotalDesc
-		ch <- c.fragmentationRxTotalDesc
-		ch <- c.fragmentationTxTotalDesc
+		ch <- c.rxFragmentsTotalDesc
+		ch <- c.txFragmentsTotalDesc
 		ch <- c.rtsFailuresTotalDesc
 		ch <- c.decryptionErrorsTotalDesc
 		ch <- c.micErrorsTotalDesc
@@ -883,8 +883,8 @@ func (c *APCollector) collectErrorMetrics(
 		{c.transmissionFailuresTotalDesc, float64(stats.FailedCount)},
 		{c.duplicateFramesTotalDesc, float64(stats.FrameDuplicateCount)},
 		{c.fcsErrorsTotalDesc, float64(stats.FcsErrorCount)},
-		{c.fragmentationRxTotalDesc, float64(stats.RxFragmentCount)},
-		{c.fragmentationTxTotalDesc, float64(stats.TxFragmentCount)},
+		{c.rxFragmentsTotalDesc, float64(stats.RxFragmentCount)},
+		{c.txFragmentsTotalDesc, float64(stats.TxFragmentCount)},
 		{c.rtsFailuresTotalDesc, float64(stats.RtsFailureCount)},
 		{c.decryptionErrorsTotalDesc, float64(stats.MACDecryErrFrameCount)},
 		{c.micErrorsTotalDesc, float64(stats.MACMicErrFrameCount)},

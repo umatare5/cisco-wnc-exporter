@@ -6,6 +6,18 @@ This project is pre-1.0, so a minor release may rename or remove a metric. Read 
 
 ## Unreleased
 
+### Renamed
+
+Neither counter changes type, labels or value, so a rule or panel needs only the new name. Both now name the noun the leaf counts and put the direction first, which is what every other directional series here does.
+
+| v0.8.0                          | Unreleased                  |
+| :------------------------------ | :-------------------------- |
+| `wnc_ap_fragmentation_rx_total` | `wnc_ap_rx_fragments_total` |
+| `wnc_ap_fragmentation_tx_total` | `wnc_ap_tx_fragments_total` |
+
+> [!NOTE]
+> The receive side carries a caveat the new name does not resolve. The leaves are `rx-fragment-count` and `tx-fragment-count`, but note \*3 on the [AP](docs/collector.ap.md) page records the controller calling the receive one an incomplete-fragment counter, and that wording could not be re-checked: the per-radio frame counters are absent from the controller's own `show` surface. Both counters read zero on every radio measured, so the distinction has no observable consequence today.
+
 ### Added
 
 - `wnc_wlan_onboarding_clients{id,phase}` reports how many clients each WLAN currently holds in an onboarding phase, over the four phases `l2auth`, `mobility`, `iplearn` and `webauth_pending`. It joins the WLAN `traffic` module and adds no request: the record it reads is the one `wnc_wlan_data_usage_bytes_total` already fetches. It closes the gap the WLAN page documents against `wnc_wlan_clients`, which counts the run state only and therefore **falls** while clients pile up short of it. The counts are current rather than cumulative and are not additive with `wnc_wlan_clients` — see note \*2 on that page for what they detect and what they do not.
