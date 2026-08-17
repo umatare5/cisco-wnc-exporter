@@ -32,6 +32,7 @@ Neither counter changes type, labels or value, so a rule or panel needs only the
 
 ### Fixed
 
+- The [Overview](docs/README.md) page records a counter reset that reaches an AP which went nowhere. Both APs stayed joined and the controller's boot time did not change, yet the per-radio reset totals and the channel-change counts fell on every radio together — the controller rebuilds the per-radio statistics tables rather than one AP's. The existing guidance only covered the counters of the AP or client that re-joined.
 - The [Client](docs/collector.client.md) page lists `wnc_client_rx_group_total` among the error counters observed at zero. The page's own evidence block already showed it at zero and the list omitted it; a second measurement on every client of the controller agreed.
 
 ## v0.8.0

@@ -56,6 +56,7 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
 - A client's counters reset the same way when it re-associates, because the statistics belong to the association rather than to the device
 - Across 750 reads of the client traffic container, the byte and packet counters fell to zero together three times, each time in the same read that carried a new association timestamp for that client, matching the instant of the fall
+- **A reset can reach an AP that went nowhere.** In one measured interval the per-radio reset totals fell to their minimum on every radio and the channel-change counts fell to zero on every radio, with the controller's boot time unchanged and both APs still joined. A previously unseen AP appeared in the same interval, which is the likely trigger, though the reads do not order the two events — either way the controller rebuilt the per-radio statistics tables rather than one AP's, so a rule watching one AP can see a reset caused elsewhere
 - Query them with a range long enough to absorb a re-join or a re-association, such as `increase(...[1h])`
 
 ## States
