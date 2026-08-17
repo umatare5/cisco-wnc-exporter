@@ -75,7 +75,7 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 
 Each collector is enabled per module:
 
-- `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.info`
+- `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.spectrum`, `.info`
 - `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`
 - `--collector.wlan.general`, `.traffic`, `.config`, `.info`
 - `--collector.controller.general`
