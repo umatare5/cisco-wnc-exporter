@@ -4,13 +4,13 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
-## Unreleased
+## v0.9.0
 
 ### Renamed
 
 Neither counter changes type, labels or value, so a rule or panel needs only the new name. Both now name the noun the leaf counts and put the direction first, which is what every other directional series here does.
 
-| v0.8.0                          | Unreleased                  |
+| v0.8.0                          | v0.9.0                      |
 | :------------------------------ | :-------------------------- |
 | `wnc_ap_fragmentation_rx_total` | `wnc_ap_rx_fragments_total` |
 | `wnc_ap_fragmentation_tx_total` | `wnc_ap_tx_fragments_total` |
