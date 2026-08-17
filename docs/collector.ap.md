@@ -87,7 +87,7 @@ AP collector focuses on RF foundation and radio performance.
 `info` module provides `wnc_ap_info` contains following labels to join with other metrics:
 
 | Labels       | Description             | Example Value              | Default | Required |
-| :----------- | :---------------------- | :------------------------- | :------ | :------- |
+| :----------- | :---------------------- | :------------------------- | :-----: | :------: |
 | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0`        | **Yes** | **Yes**  |
 | `name`       | AP hostname             | `TEST-AP01`                | **Yes** | No       |
 | `ip`         | AP IP address           | `192.168.1.10`             | **Yes** | No       |
