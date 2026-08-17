@@ -208,8 +208,10 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_controller_client_ap_auth_dot11i_slow_roams_total", 6203},
 
 		// Bytes in both directions, from the leaf the controller reports as a string.
-		// The five phase counts in the same record are deliberately unpublished, and
-		// each carries its own value, so reading one of them lands elsewhere.
+		// The record's other counts each carry their own value, so reading one of them
+		// lands elsewhere. Four are the onboarding phases, pinned per phase in
+		// TestWLANCollector_OnboardingPhasesMatchLeaves; the run count and the
+		// random-MAC count remain unpublished.
 		{"wnc_wlan_data_usage_bytes_total", 7101},
 	}
 

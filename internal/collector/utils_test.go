@@ -2,7 +2,6 @@ package collector
 
 import (
 	"testing"
-	"time"
 )
 
 // TestBoolToFloat64 tests the boolToFloat64 function.
@@ -230,109 +229,5 @@ func TestMapWirelessProtocol_EveryValueIsReachable(t *testing.T) {
 		if !seen[protocol] {
 			t.Errorf("protocol %v is never returned for any documented input", protocol)
 		}
-	}
-}
-
-// TestCalculateUptimeFromBootTime tests the CalculateUptimeFromBootTime function.
-func TestCalculateUptimeFromBootTime(t *testing.T) {
-	t.Parallel()
-
-	// Generate a timestamp 1 hour ago dynamically
-	oneHourAgo := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
-
-	tests := []struct {
-		name        string
-		bootTimeStr string
-		expectError bool
-		expectedMin int64 // For range checking
-		expectedMax int64 // For range checking
-		description string
-	}{
-		{
-			name:        "Valid timestamp - 1 hour ago",
-			bootTimeStr: oneHourAgo,
-			expectError: false,
-			expectedMin: 3500,
-			expectedMax: 3700,
-			description: "Should return approximately 3600 seconds (1 hour)",
-		},
-		{
-			name:        "Invalid timestamp format",
-			bootTimeStr: "2024-01-01 12:00:00",
-			expectError: true,
-			expectedMin: 0,
-			expectedMax: 0,
-			description: "Should return error for invalid format",
-		},
-		{
-			name:        "Empty string",
-			bootTimeStr: "",
-			expectError: true,
-			expectedMin: 0,
-			expectedMax: 0,
-			description: "Should return error for empty string",
-		},
-		{
-			name:        "Invalid RFC3339 - missing timezone",
-			bootTimeStr: "2024-01-01T12:00:00",
-			expectError: true,
-			expectedMin: 0,
-			expectedMax: 0,
-			description: "Should return error for missing timezone",
-		},
-		{
-			name:        "Valid old timestamp",
-			bootTimeStr: "2020-01-01T00:00:00Z",
-			expectError: false,
-			expectedMin: 157680000,
-			expectedMax: 999999999,
-			description: "Should return large positive value for old timestamp",
-		},
-		{
-			name:        "Garbage input",
-			bootTimeStr: "not-a-timestamp",
-			expectError: true,
-			expectedMin: 0,
-			expectedMax: 0,
-			description: "Should return error for garbage input",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result, err := CalculateUptimeFromBootTime(tt.bootTimeStr)
-
-			// Check error expectation
-			if tt.expectError && err == nil {
-				t.Errorf(
-					"CalculateUptimeFromBootTime(%q) expected error but got nil",
-					tt.bootTimeStr,
-				)
-				return
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf(
-					"CalculateUptimeFromBootTime(%q) unexpected error: %v",
-					tt.bootTimeStr,
-					err,
-				)
-				return
-			}
-
-			// For valid cases, check range
-			if !tt.expectError {
-				if result < tt.expectedMin || result > tt.expectedMax {
-					t.Errorf(
-						"CalculateUptimeFromBootTime(%q) = %d; expected range [%d, %d] - %s",
-						tt.bootTimeStr,
-						result,
-						tt.expectedMin,
-						tt.expectedMax,
-						tt.description,
-					)
-				}
-			}
-		})
 	}
 }

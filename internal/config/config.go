@@ -123,7 +123,7 @@ type WLANCollectorModules struct {
 
 // ControllerCollectorModules represents Controller collector modules.
 type ControllerCollectorModules struct {
-	// General: boot time, client delete reasons
+	// General: boot time, client delete reasons, client roaming statistics
 	General bool `json:"general"`
 }
 

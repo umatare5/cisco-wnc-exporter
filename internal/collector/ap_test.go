@@ -1847,7 +1847,7 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		rtsFailuresTotalDesc:          prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
 		decryptionErrorsTotalDesc:     prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
 		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
-		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
+		coverageFailedClientsDesc:     prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
 		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
 		radioResetsTotalDesc:          prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
 	}

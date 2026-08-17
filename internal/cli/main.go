@@ -236,7 +236,7 @@ func registerControllerCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "collector.controller.general",
-			Usage:       "Enable controller-wide metrics",
+			Usage:       "Enable Controller general metrics",
 			Category:    "# Controller Collector Options",
 			HideDefault: true,
 		},

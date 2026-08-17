@@ -15,6 +15,11 @@ This project is pre-1.0, so a minor release may rename or remove a metric. Read 
 ### Changed
 
 - `--collector.ap.spectrum` is the only new flag. The two other new readings join existing modules, so a configuration that already enables `--collector.ap.radio` or `--collector.wlan.traffic` gains series without a flag change; `--collector.ap.radio` also gains one request per refresh.
+- `--collector.controller.general` describes itself as `Enable Controller general metrics`, which is how the same flag reads on the other three modules. No behaviour change.
+
+### Fixed
+
+- The [Client](docs/collector.client.md) page lists `wnc_client_rx_group_total` among the error counters observed at zero. The page's own evidence block already showed it at zero and the list omitted it; a second measurement on every client of the controller agreed.
 
 ## v0.8.0
 

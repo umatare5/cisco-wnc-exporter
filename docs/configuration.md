@@ -51,7 +51,7 @@ GLOBAL OPTIONS:
 
    # Controller Collector Options
 
-   --collector.controller.general  Enable controller-wide metrics
+   --collector.controller.general  Enable Controller general metrics
 
    # WLAN Collector Options
 

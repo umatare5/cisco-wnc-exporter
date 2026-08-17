@@ -73,7 +73,7 @@ type APCollector struct {
 	rtsFailuresTotalDesc          *prometheus.Desc
 	decryptionErrorsTotalDesc     *prometheus.Desc
 	micErrorsTotalDesc            *prometheus.Desc
-	coverageHoleEventsDesc        *prometheus.Desc
+	coverageFailedClientsDesc     *prometheus.Desc
 	lastRadarOnRadioAtDesc        *prometheus.Desc
 	radioResetsTotalDesc          *prometheus.Desc
 	cpuUtilizationDesc            *prometheus.Desc
@@ -367,7 +367,7 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
-		collector.coverageHoleEventsDesc = prometheus.NewDesc(
+		collector.coverageFailedClientsDesc = prometheus.NewDesc(
 			"wnc_ap_coverage_failed_clients",
 			"RRM coverage failed client count (current value, not cumulative)",
 			baseRadioLabels,
@@ -436,7 +436,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.rtsFailuresTotalDesc
 		ch <- c.decryptionErrorsTotalDesc
 		ch <- c.micErrorsTotalDesc
-		ch <- c.coverageHoleEventsDesc
+		ch <- c.coverageFailedClientsDesc
 		ch <- c.lastRadarOnRadioAtDesc
 		ch <- c.radioResetsTotalDesc
 	}
@@ -843,7 +843,7 @@ func (c *APCollector) collectErrorMetrics(
 	}
 	if coverage, exists := rrmCoverageMap[radioID]; exists {
 		ch <- prometheus.MustNewConstMetric(
-			c.coverageHoleEventsDesc, prometheus.GaugeValue,
+			c.coverageFailedClientsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
 	if radar, exists := apDot11RadarMap[radioID]; exists && radar.LastRadarOnRadio.Year() > 1970 {
@@ -1079,17 +1079,6 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 		c.metrics.General, c.metrics.Radio, c.metrics.Traffic, c.metrics.Errors,
 		c.metrics.Spectrum, c.metrics.Info,
 	)
-}
-
-// CalculateUptimeFromBootTime calculates uptime in seconds from boot time ISO 8601 timestamp.
-func CalculateUptimeFromBootTime(bootTimeStr string) (int64, error) {
-	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
-	if err != nil {
-		return 0, err
-	}
-
-	uptime := time.Since(bootTime)
-	return int64(uptime.Seconds()), nil
 }
 
 // noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,
