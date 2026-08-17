@@ -4,6 +4,12 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## Unreleased
+
+### Added
+
+- `wnc_wlan_onboarding_clients{id,phase}` reports how many clients each WLAN currently holds in an onboarding phase, over the four phases `l2auth`, `mobility`, `iplearn` and `webauth_pending`. It joins the WLAN `traffic` module and adds no request: the record it reads is the one `wnc_wlan_data_usage_bytes_total` already fetches. It closes the gap the WLAN page documents against `wnc_wlan_clients`, which counts the run state only and therefore **falls** while clients pile up short of it. The counts are current rather than cumulative and are not additive with `wnc_wlan_clients` — see note \*2 on that page for what they detect and what they do not.
+
 ## v0.8.0
 
 ### Renamed

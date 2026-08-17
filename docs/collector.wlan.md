@@ -9,6 +9,7 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                          |
 | traffic | `wnc_wlan_clients`                        | Gauge   | Run-state clients count (calculated) |
 | traffic | `wnc_wlan_data_usage_bytes_total`         | Counter | Bytes in both directions **(\*1)**   |
+| traffic | `wnc_wlan_onboarding_clients`             | Gauge   | Clients held in a phase **(\*2)**    |
 | config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled           |
 | config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled        |
 | config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled           |
@@ -23,13 +24,13 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                 |
 | config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled          |
 | config  | `wnc_wlan_policy_enabled`                 | Gauge   | Bound policy profile is active       |
-| config  | `wnc_wlan_pmf_state`                      | Gauge   | PMF setting **(\*2)**                |
+| config  | `wnc_wlan_pmf_state`                      | Gauge   | PMF setting **(\*3)**                |
 | config  | `wnc_wlan_ft_state`                       | Gauge   | 802.11r fast transition setting      |
-| config  | `wnc_wlan_policy_binding`                 | Gauge   | Policy tag binding **(\*3)**         |
+| config  | `wnc_wlan_policy_binding`                 | Gauge   | Policy tag binding **(\*4)**         |
 
 ## Notes
 
-`wnc_wlan_clients` counts only the clients the controller reports in the run state, so it does not count a client held short of it. During an onboarding failure the count therefore **falls** while clients pile up in an earlier phase, which is the opposite of what a rule written against a client-count rise expects. `wnc_client_state` is the series that covers a client short of the run state.
+`wnc_wlan_clients` counts only the clients the controller reports in the run state, so it does not count a client held short of it. During an onboarding failure the count therefore **falls** while clients pile up in an earlier phase, which is the opposite of what a rule written against a client-count rise expects. `wnc_wlan_onboarding_clients` counts those clients per phase, and `wnc_client_state` names them individually.
 
 Every WLAN module reads `wlan-cfg-entries`, and `config` also reads `wlan-policies` and `policy-list-entries`. The exporter asks the controller for the values in force on the first two, because a plain read omits every leaf whose value equals its default, whether the profile set that value or never touched it — observed on IOS-XE 17.12. The same criterion reaches a whole container, so a container missing from a plain read can mean every leaf in it is at its default rather than that the feature is off. A controller that answers `400` is read plainly instead, and `wnc_refresh_defaults_fallback_total` rises for as long as that lasts. The `traffic` module also reads the client list, and `wnc_wlan_clients` is withheld for every WLAN when that fetch fails.
 
@@ -47,7 +48,23 @@ The leaf is a string on the wire. A record whose leaf is missing or unparsable i
 
 </details>
 
-<details><summary><b>*2</b> What the PMF setting covers</summary><br/>
+<details><summary><b>*2</b> What the phase counts detect, and what they do not</summary><br/>
+
+The controller keeps one count per phase rather than one enumerated leaf, so the four `phase` values — `l2auth`, `mobility`, `iplearn` and `webauth_pending` — are this exporter's own names for those four leaves.
+
+**They are current counts, not cumulative ones.** The fifth count in the same record, the clients in the run state, equalled the per-WLAN client records exactly on every WLAN and in total, which is what types all five as gauges. They are **not additive** with `wnc_wlan_clients`, which counts the run state only.
+
+**What they detect is a stall, not a failure rate.** A client that onboards normally occupies a phase for milliseconds, so a scrape lands on it only by coincidence: all four leaves read zero in every one of ninety consecutive reads taken ten seconds apart. A client held in a phase, by contrast, stays there and is what the series is for. Alert on a count that persists rather than on any non-zero reading:
+
+```bash
+min_over_time(wnc_wlan_onboarding_clients[5m]) > 0
+```
+
+The four series are absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails. A record present with a phase leaf omitted cannot be told from a zero, so the error runs one way only — a stall can be under-reported and never invented.
+
+</details>
+
+<details><summary><b>*3</b> What the PMF setting covers</summary><br/>
 
 The leaf reports the setting that applies to the WLAN's 2.4 GHz and 5 GHz BSSes. A 6 GHz BSS requires PMF whichever value this series reports, and the controller reports that requirement separately in a form no leaf carries. So a rule that pages on anything other than the required spelling raises a false alarm on a WLAN advertised on 6 GHz. The error runs one way only — the series can under-report 6 GHz protection and never over-report it.
 
@@ -55,7 +72,7 @@ The setting has three values rather than two, and the middle one admits an unpro
 
 </details>
 
-<details><summary><b>*3</b> Reading which policy profile the six config series report</summary><br/>
+<details><summary><b>*4</b> Reading which policy profile the six config series report</summary><br/>
 
 `wnc_wlan_policy_binding` publishes one series per binding, carrying the `id` of the WLAN, the `policy_profile` it is bound to and the `policy_tag` carrying the binding, always with the value `1`. The six policy-derived series above name none of those, so where a WLAN is bound through more than one tag they report one of the profiles and nothing says which — this series is what makes that state visible.
 

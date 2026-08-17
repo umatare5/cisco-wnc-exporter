@@ -25,7 +25,10 @@ const (
 	labelWLAN     = "wlan"     // WLAN SSID name
 
 	// WLAN-specific labels.
-	labelID            = "id"             // WLAN identifier
+	labelID = "id" // WLAN identifier
+	// labelPhase names one of four sibling leaves rather than one value of an enum, so
+	// its values are this exporter's own and not the controller's spelling.
+	labelPhase         = "phase"          // Onboarding phase a client is held in
 	labelPolicyProfile = "policy_profile" // Policy profile a WLAN is bound to
 	labelPolicyTag     = "policy_tag"     // Policy tag carrying the binding
 

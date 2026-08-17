@@ -192,9 +192,11 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
-			"wnc_wlan_pmf_state", "wnc_wlan_ft_state",
+			"wnc_wlan_pmf_state", "wnc_wlan_ft_state", "wnc_wlan_onboarding_clients",
 		}},
-		{typeWLANClientStats, []string{"wnc_wlan_data_usage_bytes_total"}},
+		{typeWLANClientStats, []string{
+			"wnc_wlan_data_usage_bytes_total", "wnc_wlan_onboarding_clients",
+		}},
 		{typeWLANPolicies, policyDerived},
 		{typeWLANPolicyListEntries, policyDerived},
 	}
@@ -510,9 +512,10 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			LastRadarOnRadio: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}},
 
-		// The record carries every leaf of the container, including the five phase counts
-		// no series reads, so a descriptor pointed at one of those reports a number the
-		// value assertions do not expect.
+		// The record carries every leaf of the container. The four onboarding phases each
+		// carry a distinct number, so a descriptor pointed at the wrong phase reports a
+		// value the assertions do not expect while every count and label stays intact.
+		// The run count and the random-MAC count remain unread by any series.
 		WLANClientStats: []ap.WlanClientStats{{
 			WlanID:                  1,
 			WlanProfileName:         fixtureProfile,
