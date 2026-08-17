@@ -13,6 +13,7 @@ const (
 	labelEthMAC    = "eth_mac"    // AP Ethernet MAC address
 	labelIP        = "ip"         // AP IP address
 	labelModel     = "model"      // AP model number
+	labelProfile   = "profile"    // RRM profile a radio is judged against
 	labelRadio     = "radio"      // Radio slot identifier
 	labelSerial    = "serial"     // AP serial number
 	labelSWVersion = "sw_version" // AP software version
@@ -25,7 +26,10 @@ const (
 	labelWLAN     = "wlan"     // WLAN SSID name
 
 	// WLAN-specific labels.
-	labelID            = "id"             // WLAN identifier
+	labelID = "id" // WLAN identifier
+	// labelPhase names one of four sibling leaves rather than one value of an enum, so
+	// its values are this exporter's own and not the controller's spelling.
+	labelPhase         = "phase"          // Onboarding phase a client is held in
 	labelPolicyProfile = "policy_profile" // Policy profile a WLAN is bound to
 	labelPolicyTag     = "policy_tag"     // Policy tag carrying the binding
 

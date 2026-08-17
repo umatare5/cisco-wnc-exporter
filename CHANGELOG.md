@@ -4,6 +4,42 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.9.0
+
+> [!IMPORTANT]
+> **BREAKING CHANGE** — this release renames two counters and withholds two series that previously reported a fabricated `0`. Both are listed below; a rule or panel touching `wnc_ap_fragmentation_*`, `wnc_ap_radio_state` or `wnc_ap_admin_state` needs a change.
+
+### Renamed
+
+Neither counter changes type, labels or value, so a rule or panel needs only the new name. Both now name the noun the leaf counts and put the direction first, which is what every other directional series here does.
+
+| v0.8.0                          | v0.9.0                      |
+| :------------------------------ | :-------------------------- |
+| `wnc_ap_fragmentation_rx_total` | `wnc_ap_rx_fragments_total` |
+| `wnc_ap_fragmentation_tx_total` | `wnc_ap_tx_fragments_total` |
+
+> [!NOTE]
+> The receive side carries a caveat the new name does not resolve. The leaves are `rx-fragment-count` and `tx-fragment-count`, but note \*3 on the [AP](docs/collector.ap.md) page records the controller calling the receive one an incomplete-fragment counter, and that wording could not be re-checked: no `show` command was found that reports the per-radio frame counters. Both counters read zero on every radio measured, so the distinction has no observable consequence today.
+
+### Added
+
+- `wnc_wlan_onboarding_clients{id,phase}` reports how many clients each WLAN currently holds in an onboarding phase, over the four phases `l2auth`, `mobility`, `iplearn` and `webauth_pending`. It joins the WLAN `traffic` module and adds no request: the record it reads is the one `wnc_wlan_data_usage_bytes_total` already fetches. It closes the gap the WLAN page documents against `wnc_wlan_clients`, which counts the run state only and therefore **falls** while clients pile up short of it. The counts are current rather than cumulative — see note \*2 on that page for what they detect, what they do not, and where a failure that has already completed is counted instead.
+- `wnc_ap_rrm_profile_passed{mac,radio,profile}` reports the controller's RRM verdict per radio over the four profiles `coverage`, `load`, `interference` and `noise`, where `1` is a pass. It joins the existing AP `radio` module — its key is the same one every radio series already carries — and adds one request per refresh. **Three of the four have been observed failing in ordinary conditions**, so a rule of the form `== 0` fires from the first scrape; note \*4 on the [AP](docs/collector.ap.md) page gives two shapes that do not. The controller's own CLI agrees verdict for verdict on every radio checked.
+- `wnc_ap_channel_changes_total{mac,radio}` counts the channel changes the controller records for a radio, from its DCA assignment statistics. It comes from the same record as the RRM verdicts, so it joins the AP `radio` module and adds no request. **What it counts is not established** — the controller keeps a separate count of radar-driven changes that no leaf carries, and both read zero here. Where `wnc_ap_last_radar_timestamp_seconds` is absent no radar is on record, which is the most the pair supports — note \*6 on the [AP](docs/collector.ap.md) page. **It resets**, so read it with `rate()` rather than as a lifetime total.
+- `wnc_ap_air_quality_index{mac,radio}` reports the CleanAir air quality of the channel the radio operates on, behind the new `--collector.ap.spectrum` flag, off by default. **The value is an average over a window the controller does not declare.** The table it reads is the largest of the RRM reads and grows with the number of CleanAir APs, which is why it has its own flag and is fetched last. **The series is absent, not zero, wherever the reading cannot be reached** — the cases are listed in note \*11 on the AP page — so silence does not mean clean air.
+
+### Changed
+
+- `--collector.ap.spectrum` is the only new flag. The two other new readings join existing modules, so a configuration that already enables `--collector.ap.radio` or `--collector.wlan.traffic` gains series without a flag change; `--collector.ap.radio` also gains one request per refresh.
+- `--collector.controller.general` describes itself as `Enable Controller general metrics`, which is how the same flag reads on the other three modules. No behaviour change.
+
+### Fixed
+
+- `wnc_ap_radio_state` and `wnc_ap_admin_state` are now **absent** for a slot whose state leaf the controller omits, instead of reporting `0` — "radio down" and "admin disabled". The slot list carries entries that are not radios: a remote-LAN port arrives with both leaves omitted, measured on a controller, and the string comparison published a permanently failing radio for it. A rule of the form `wnc_ap_radio_state == 0` therefore fired on every AP carrying such a port. This applies to these two series the rule `wnc_ap_oper_state` has always followed. A rule that treated either series as always present needs `absent()` or `or vector(0)`.
+- The [Overview](docs/README.md) page records a counter reset that reaches an AP which went nowhere. Both APs stayed joined and the controller's boot time did not change, yet the per-radio reset totals and the channel-change counts fell on every radio together — the controller rebuilds the per-radio statistics tables rather than one AP's. The existing guidance only covered the counters of the AP or client that re-joined.
+- Three cross-references on the [AP](docs/collector.ap.md) page, and one in the v0.7.0 section below, pointed at the wrong note: this release inserts a note into that page and every number after it moved by one.
+- The [Client](docs/collector.client.md) page lists `wnc_client_rx_group_total` among the error counters observed at zero. The page's own evidence block already showed it at zero and the list omitted it; a second measurement on every client of the controller agreed.
+
 ## v0.8.0
 
 ### Renamed
@@ -59,7 +95,7 @@ None of the three containers behind this collector has a route in the SDK, so al
 
 Thirty-two metrics in all — more series than that per AP, because the five DTLS counters and the DTLS reason carry one series per tunnel channel — listed individually in [docs/collector.ap.md](docs/collector.ap.md). **The statistics list keeps a record for an AP that has left CAPWAP**, which is what the module is for: every other AP series is read from the AP inventory and disappears with it, so nothing distinguished a departed AP from a failed fetch. The signal that becomes available is `rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0`, an AP that reaches the controller and cannot complete a join, and it works because the discovery counters keep advancing while the session is gone.
 
-No series carries the AP name as a label. The counters and the join state carry `mac` alone, so a bare `and` between them matches — it requires identical label sets on both sides — and renaming an AP cannot start a fresh counter series. The DTLS series add `channel`, the reason series add `state`, and the name is published as `wnc_ap_join_info{mac,name}`, because the AP inventory no longer names a departed AP. Read note *6 on that page before writing a rule: the query has a known false positive for an AP that holds this controller as its secondary.
+No series carries the AP name as a label. The counters and the join state carry `mac` alone, so a bare `and` between them matches — it requires identical label sets on both sides — and renaming an AP cannot start a fresh counter series. The DTLS series add `channel`, the reason series add `state`, and the name is published as `wnc_ap_join_info{mac,name}`, because the AP inventory no longer names a departed AP. Read note *7 on that page before writing a rule: the query has a known false positive for an AP that holds this controller as its secondary.
 
 A timestamp leaf carrying the controller's epoch sentinel is withheld rather than published as an instant in 1970, so the failure timestamps are absent on a controller where nothing has failed.
 
@@ -168,7 +204,7 @@ These series are gone. Where a substitute exists, the reason names it.
 | `wnc_ap_tx_bytes_total`              | Same, against `wnc_ap_data_tx_frames_total`                                    |
 | `wnc_ap_rx_packets_total`            | Read the leaf `wnc_ap_data_rx_frames_total` reads; substitute that name        |
 | `wnc_ap_tx_packets_total`            | Same, against `wnc_ap_data_tx_frames_total`                                    |
-| `wnc_ap_tx_drops_total`              | Named a drop count but read `ack-failure-count` — see AP note \*4              |
+| `wnc_ap_tx_drops_total`              | Named a drop count but read `ack-failure-count` — see AP note \*5              |
 | `wnc_ap_tx_errors_total`             | Read `failed-count`, already published as `wnc_ap_transmission_failures_total` |
 | `wnc_ap_wep_undecryptable_total`     | Cannot leave zero unless a WLAN is configured for static WEP                   |
 | `wnc_client_retry_ratio_percent`     | Summed two retry counters over a packet counter, all three still published raw |

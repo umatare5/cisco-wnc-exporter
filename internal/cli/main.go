@@ -169,6 +169,12 @@ func registerAPCollectorFlags() []cli.Flag {
 			HideDefault: true,
 		},
 		&cli.BoolFlag{
+			Name:        "collector.ap.spectrum",
+			Usage:       "Enable AP CleanAir spectrum metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
 			Name:        "collector.ap.info",
 			Usage:       "Enable AP info metrics",
 			Category:    "# AP Collector Options",
@@ -230,7 +236,7 @@ func registerControllerCollectorFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "collector.controller.general",
-			Usage:       "Enable controller-wide metrics",
+			Usage:       "Enable Controller general metrics",
 			Category:    "# Controller Collector Options",
 			HideDefault: true,
 		},

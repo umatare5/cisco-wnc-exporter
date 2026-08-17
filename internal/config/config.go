@@ -86,6 +86,8 @@ type APCollectorModules struct {
 	Errors bool `json:"errors"`
 	// Join: CAPWAP discovery, join, configuration and DTLS statistics
 	Join bool `json:"join"`
+	// Spectrum: CleanAir air quality
+	Spectrum bool `json:"spectrum"`
 	// Info: info metric with labels
 	Info       bool     `json:"info"`
 	InfoLabels []string `json:"info_labels"`
@@ -121,7 +123,7 @@ type WLANCollectorModules struct {
 
 // ControllerCollectorModules represents Controller collector modules.
 type ControllerCollectorModules struct {
-	// General: boot time, client delete reasons
+	// General: boot time, client delete reasons, client roaming statistics
 	General bool `json:"general"`
 }
 
@@ -159,6 +161,7 @@ func Parse(cmd *cli.Command) (*Config, error) {
 				Traffic:    cmd.Bool("collector.ap.traffic"),
 				Errors:     cmd.Bool("collector.ap.errors"),
 				Join:       cmd.Bool("collector.ap.join"),
+				Spectrum:   cmd.Bool("collector.ap.spectrum"),
 				Info:       cmd.Bool("collector.ap.info"),
 				InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
 			},

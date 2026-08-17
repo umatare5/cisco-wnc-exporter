@@ -88,8 +88,13 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_ap_clients", 1},
 		{"wnc_ap_coverage_failed_clients", 7},
+		// The operating channel's row, not the padding row and not the neighboring
+		// channel the fixture table also carries.
+		{"wnc_ap_air_quality_index", 93},
 		// Both reset entries of this radio are totalled, not overwritten.
 		{"wnc_ap_radio_resets_total", 8},
+		// The change count, not one of the three energy or channel leaves beside it.
+		{"wnc_ap_channel_changes_total", 34},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
 		{"wnc_ap_last_radar_timestamp_seconds", 1767225600},
 
@@ -152,14 +157,14 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_ap_rx_errors_total", 3201},
 		{"wnc_ap_tx_retries_total", 3202},
-		// failed-count, not ack-failure-count: docs/collector.ap.md note *2 records
+		// failed-count, not ack-failure-count: docs/collector.ap.md note *5 records
 		// the Cisco bug that makes the latter unusable, so a one-token revert to it
 		// would leave every count and label intact.
 		{"wnc_ap_transmission_failures_total", 3203},
 		{"wnc_ap_duplicate_frames_total", 3204},
 		{"wnc_ap_fcs_errors_total", 3205},
-		{"wnc_ap_fragmentation_rx_total", 3206},
-		{"wnc_ap_fragmentation_tx_total", 3207},
+		{"wnc_ap_rx_fragments_total", 3206},
+		{"wnc_ap_tx_fragments_total", 3207},
 		{"wnc_ap_rts_failures_total", 3208},
 		{"wnc_ap_decryption_errors_total", 3209},
 		{"wnc_ap_mic_errors_total", 3210},
@@ -205,8 +210,10 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 		{"wnc_controller_client_ap_auth_dot11i_slow_roams_total", 6203},
 
 		// Bytes in both directions, from the leaf the controller reports as a string.
-		// The five phase counts in the same record are deliberately unpublished, and
-		// each carries its own value, so reading one of them lands elsewhere.
+		// The record's other counts each carry their own value, so reading one of them
+		// lands elsewhere. Four are the onboarding phases, pinned per phase in
+		// TestWLANCollector_OnboardingPhasesMatchLeaves; the run count and the
+		// random-MAC count remain unpublished.
 		{"wnc_wlan_data_usage_bytes_total", 7101},
 	}
 

@@ -5343,7 +5343,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "round(rate(wnc_ap_fragmentation_rx_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "round(rate(wnc_ap_rx_fragments_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "Frag RX: {{name}}:r{{radio}}",
           "refId": "C"
         },
@@ -5352,7 +5352,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "round(rate(wnc_ap_fragmentation_tx_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
+          "expr": "round(rate(wnc_ap_tx_fragments_total{radio=~\"$radio_id\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_ap_info{name=~\"$ap_name\"})",
           "legendFormat": "Frag TX: {{name}}:r{{radio}}",
           "refId": "D"
         }

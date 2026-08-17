@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -234,7 +235,9 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Radio module only",
 			APMetrics{Radio: true},
-			10, // channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util, rx_util, tx_util, noise_util, clients
+			// channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util,
+			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes
+			12,
 		},
 		{
 			"Traffic module only",
@@ -253,6 +256,11 @@ func TestAPCollector_Describe(t *testing.T) {
 			32,
 		},
 		{
+			"Spectrum module only",
+			APMetrics{Spectrum: true},
+			1, // air_quality_index
+		},
+		{
 			"Info module only",
 			APMetrics{Info: true},
 			1, // info metric
@@ -260,14 +268,15 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"All modules enabled",
 			APMetrics{
-				General: true,
-				Radio:   true,
-				Traffic: true,
-				Errors:  true,
-				Join:    true,
-				Info:    true,
+				General:  true,
+				Radio:    true,
+				Traffic:  true,
+				Errors:   true,
+				Join:     true,
+				Spectrum: true,
+				Info:     true,
 			},
-			73, // 7+10+10+13+32+1
+			76, // 7+12+10+13+32+1+1
 		},
 	}
 
@@ -1112,6 +1121,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		Radio:      true,
 		Traffic:    true,
 		Errors:     true,
+		Spectrum:   true,
 		Info:       true,
 		InfoLabels: []string{"name", "ip", "band", "model", "serial", "sw_version", "eth_mac"},
 	}
@@ -1138,7 +1148,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 41
+	expectedDescs := 44
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1439,7 +1449,7 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 			ch := make(chan prometheus.Metric, 20)
 			go func() {
 				defer close(ch)
-				collector.collectRadioMetrics(ch, radio, rrmMap, tt.clientCountsMap)
+				collector.collectRadioMetrics(ch, radio, rrmMap, tt.clientCountsMap, nil)
 			}()
 
 			metricCount := 0
@@ -1513,7 +1523,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 			ch := make(chan prometheus.Metric, 20)
 			go func() {
 				defer close(ch)
-				collector.collectRadioMetrics(ch, radio, rrmMap, map[string]map[int]int{})
+				collector.collectRadioMetrics(ch, radio, rrmMap, map[string]map[int]int{}, nil)
 			}()
 
 			metricCount := 0
@@ -1534,12 +1544,13 @@ type radioMetricsOnly struct {
 	radio           *ap.RadioOperData
 	rrmMap          map[string]*rrm.RRMMeasurement
 	clientCountsMap map[string]map[int]int
+	radioSlotMap    map[string]*rrm.RadioSlot
 }
 
 func (r radioMetricsOnly) Describe(_ chan<- *prometheus.Desc) {}
 
 func (r radioMetricsOnly) Collect(ch chan<- prometheus.Metric) {
-	r.collector.collectRadioMetrics(ch, r.radio, r.rrmMap, r.clientCountsMap)
+	r.collector.collectRadioMetrics(ch, r.radio, r.rrmMap, r.clientCountsMap, r.radioSlotMap)
 }
 
 // gatherRadioValues indexes the samples collectRadioMetrics produced by metric name.
@@ -1832,12 +1843,12 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		transmissionFailuresTotalDesc: prometheus.NewDesc("test_ack_failures", "test", []string{"mac", "radio"}, nil),
 		duplicateFramesTotalDesc:      prometheus.NewDesc("test_duplicates", "test", []string{"mac", "radio"}, nil),
 		fcsErrorsTotalDesc:            prometheus.NewDesc("test_fcs_errors", "test", []string{"mac", "radio"}, nil),
-		fragmentationRxTotalDesc:      prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
-		fragmentationTxTotalDesc:      prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
+		rxFragmentsTotalDesc:          prometheus.NewDesc("test_frag_rx", "test", []string{"mac", "radio"}, nil),
+		txFragmentsTotalDesc:          prometheus.NewDesc("test_frag_tx", "test", []string{"mac", "radio"}, nil),
 		rtsFailuresTotalDesc:          prometheus.NewDesc("test_rts_failures", "test", []string{"mac", "radio"}, nil),
 		decryptionErrorsTotalDesc:     prometheus.NewDesc("test_decrypt_errors", "test", []string{"mac", "radio"}, nil),
 		micErrorsTotalDesc:            prometheus.NewDesc("test_mic_errors", "test", []string{"mac", "radio"}, nil),
-		coverageHoleEventsDesc:        prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
+		coverageFailedClientsDesc:     prometheus.NewDesc("test_coverage_holes", "test", []string{"mac", "radio"}, nil),
 		lastRadarOnRadioAtDesc:        prometheus.NewDesc("test_last_radar", "test", []string{"mac", "radio"}, nil),
 		radioResetsTotalDesc:          prometheus.NewDesc("test_radio_resets", "test", []string{"mac", "radio"}, nil),
 	}
@@ -1914,7 +1925,7 @@ func TestAPCollector_collectMetrics_NilSafety(t *testing.T) {
 						for range ch {
 						}
 					}()
-					collector.collectRadioMetrics(ch, nil, nil, nil)
+					collector.collectRadioMetrics(ch, nil, nil, nil, nil)
 				}()
 				if panicked {
 					t.Log("collectRadioMetrics() panicked with nil radio (expected)")
@@ -2385,5 +2396,343 @@ func TestAPJoinModule_NameSeriesIgnoresTheInfoFlag(t *testing.T) {
 	values := gatherJoinValues(t, fullFixtureSnapshot(), labelName)
 	if got := values["wnc_ap_join_info"][fixtureAPName]; got != 1 {
 		t.Errorf("wnc_ap_join_info{name=%q} = %v with the info module disabled, want 1", fixtureAPName, got)
+	}
+}
+
+// TestAPCollector_RRMProfilesMatchLeaves binds each profile label value to its own
+// verdict leaf. Four booleans over one descriptor cannot be told apart by a single
+// fixture — a swap between two leaves reporting the same value is invisible — so each
+// case sets exactly one verdict, which makes every pairwise swap fail.
+func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+
+	tests := []struct {
+		profile string
+		data    *rrm.RadioData
+	}{
+		{"coverage", &rrm.RadioData{CoverageProfilePassed: true}},
+		{"load", &rrm.RadioData{LoadProfPassed: true}},
+		{"interference", &rrm.RadioData{InterferenceProfilePassed: true}},
+		{"noise", &rrm.RadioData{NoiseProfilePassed: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.profile, func(t *testing.T) {
+			t.Parallel()
+
+			collector := NewAPCollector(nil, nil, nil, APMetrics{Radio: true})
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(radioMetricsOnly{
+				collector: collector,
+				radio:     radio,
+				rrmMap:    map[string]*rrm.RRMMeasurement{},
+				radioSlotMap: map[string]*rrm.RadioSlot{
+					fixtureAPMAC + ":0": {WtpMAC: fixtureAPMAC, RadioSlotID: 0, RadioData: tt.data},
+				},
+			})
+
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+
+			got := make(map[string]float64)
+			for _, family := range families {
+				if family.GetName() != "wnc_ap_rrm_profile_passed" {
+					continue
+				}
+				for _, metric := range family.GetMetric() {
+					for _, pair := range metric.GetLabel() {
+						if pair.GetName() == labelProfile {
+							got[pair.GetValue()] = metric.GetGauge().GetValue()
+						}
+					}
+				}
+			}
+
+			if len(got) != len(tests) {
+				t.Fatalf("wnc_ap_rrm_profile_passed has %d series, want %d: %v", len(got), len(tests), got)
+			}
+			for _, other := range tests {
+				want := 0.0
+				if other.profile == tt.profile {
+					want = 1
+				}
+				if got[other.profile] != want {
+					t.Errorf("wnc_ap_rrm_profile_passed{profile=%q} = %v, want %v with only %s passing",
+						other.profile, got[other.profile], want, tt.profile)
+				}
+			}
+		})
+	}
+}
+
+// TestAPCollector_RRMVerdictsAbsentWithoutTheContainer covers the one absence the slot
+// list has of its own: a record present with no radio-data container. Publishing zero
+// there would report four failed profiles on a radio the controller judged nothing on.
+func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
+	t.Parallel()
+
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+
+	tests := []struct {
+		name string
+		slot map[string]*rrm.RadioSlot
+	}{
+		{"no record for this radio", map[string]*rrm.RadioSlot{}},
+		{"record without radio-data", map[string]*rrm.RadioSlot{
+			fixtureAPMAC + ":0": {WtpMAC: fixtureAPMAC, RadioSlotID: 0},
+		}},
+		{"fetch failed", nil},
+		{"record with radio-data but no dca-stats", map[string]*rrm.RadioSlot{
+			fixtureAPMAC + ":0": {
+				WtpMAC: fixtureAPMAC, RadioSlotID: 0,
+				RadioData: &rrm.RadioData{CoverageProfilePassed: true},
+			},
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			collector := NewAPCollector(nil, nil, nil, APMetrics{Radio: true})
+			registry := prometheus.NewRegistry()
+			registry.MustRegister(radioMetricsOnly{
+				collector:    collector,
+				radio:        radio,
+				rrmMap:       map[string]*rrm.RRMMeasurement{},
+				radioSlotMap: tt.slot,
+			})
+
+			families, err := registry.Gather()
+			if err != nil {
+				t.Fatalf("Gather() error = %v, want nil", err)
+			}
+			// The deeper container has its own rule: the last case carries radio-data
+			// without dca-stats, so the verdicts publish while the counter does not.
+			withVerdicts := tt.slot != nil && tt.slot[fixtureAPMAC+":0"] != nil &&
+				tt.slot[fixtureAPMAC+":0"].RadioData != nil
+			for _, family := range families {
+				switch family.GetName() {
+				case "wnc_ap_rrm_profile_passed":
+					if !withVerdicts {
+						t.Errorf("wnc_ap_rrm_profile_passed has %d series, want none",
+							len(family.GetMetric()))
+					}
+				case "wnc_ap_channel_changes_total":
+					t.Errorf("wnc_ap_channel_changes_total has %d series, want none: "+
+						"a zero there reads as a radio DCA has never moved",
+						len(family.GetMetric()))
+				}
+			}
+		})
+	}
+}
+
+// TestAirQualityOnCurrentChannel covers every way the join can miss. The table is keyed
+// by AP and band and its per-channel list is a padded array, so a reader that takes a
+// fixed index, ignores the band, or trusts a zero channel reports another radio's air
+// quality or a fabricated worst-case reading.
+func TestAirQualityOnCurrentChannel(t *testing.T) {
+	t.Parallel()
+
+	table := []rrm.SpectrumAqTable{
+		{
+			WtpMAC: fixtureAPMAC,
+			Band:   "dot11-2-dot-4-ghz-band",
+			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
+				{ChannelNum: 0, Aqi: 0},
+				{ChannelNum: 11, Aqi: 71},
+				{ChannelNum: 6, Aqi: 96},
+			}},
+		},
+		{
+			// The 6 GHz numbering restarts at 1, so this record carries a channel 6 too.
+			WtpMAC: fixtureAPMAC,
+			Band:   "dot11-6-ghz-band",
+			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
+				{ChannelNum: 6, Aqi: 100},
+			}},
+		},
+	}
+
+	radio := func(band string, channel int) *ap.RadioOperData {
+		return &ap.RadioOperData{
+			WtpMAC:            fixtureAPMAC,
+			CurrentActiveBand: band,
+			PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: channel}},
+		}
+	}
+
+	tests := []struct {
+		name      string
+		radio     *ap.RadioOperData
+		wantValue int
+		wantFound bool
+		reason    string
+	}{
+		{
+			"operating channel of the matching band", radio("dot11-2-dot-4-ghz-band", 6),
+			96, true, "the row for channel 6 of the 2.4 GHz record",
+		},
+		{
+			"same channel number in another band", radio("dot11-6-ghz-band", 6),
+			100, true, "matching the channel alone would cross bands",
+		},
+		{
+			"channel the band's list does not carry", radio("dot11-2-dot-4-ghz-band", 1),
+			0, false, "no reading rather than the first row",
+		},
+		{
+			"band the table has no record for", radio("dot11-5-ghz-band", 36),
+			0, false, "a radio whose spectrum operation is down has no record",
+		},
+		{
+			"monitor or sniffer radio with no primary channel", radio("dot11-2-dot-4-ghz-band", 0),
+			0, false, "the zero channel would match the padding row and report the worst reading",
+		},
+		{
+			"radio without the channel container",
+			&ap.RadioOperData{WtpMAC: fixtureAPMAC, CurrentActiveBand: "dot11-2-dot-4-ghz-band"},
+			0, false, "nothing says which channel to match",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, found := airQualityOnCurrentChannel(table, tt.radio)
+			if found != tt.wantFound || got != tt.wantValue {
+				t.Errorf("airQualityOnCurrentChannel() = (%d, %v), want (%d, %v): %s",
+					got, found, tt.wantValue, tt.wantFound, tt.reason)
+			}
+		})
+	}
+}
+
+// TestAirQualityOnCurrentChannel_AnotherAPsRecord keeps the AP key load-bearing. Both
+// records carry the same band and the same channel, so dropping the MAC test publishes
+// one AP's air quality on the other's radio.
+func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
+	t.Parallel()
+
+	const otherMAC = "11:22:33:44:55:00"
+	table := []rrm.SpectrumAqTable{
+		{
+			WtpMAC: otherMAC,
+			Band:   "dot11-2-dot-4-ghz-band",
+			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
+				{ChannelNum: 6, Aqi: 42},
+			}},
+		},
+	}
+
+	radio := &ap.RadioOperData{
+		WtpMAC:            fixtureAPMAC,
+		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
+		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6}},
+	}
+
+	if got, found := airQualityOnCurrentChannel(table, radio); found {
+		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the only "+
+			"record belongs to another AP", got)
+	}
+}
+
+// TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf covers the slot list carrying entries
+// that are not radios. A remote-LAN port arrives with both state leaves omitted, and a
+// string comparison against the up spelling reports it down — a permanently failing
+// radio on every AP that has such a port. Each leaf is guarded on its own, because the
+// controller omits per leaf rather than per record.
+func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		operState  string
+		adminState string
+		want       []string
+		reason     string
+	}{
+		{
+			"both leaves present", APRadioStateUp, "disabled",
+			[]string{"test_radio_state", "test_admin_state"},
+			"a real radio publishes both",
+		},
+		{
+			"remote-LAN port with both leaves omitted", "", "",
+			nil,
+			"neither series exists rather than reporting a down, disabled radio",
+		},
+		{
+			"operational state omitted alone", "", APAdminStateEnabled,
+			[]string{"test_admin_state"},
+			"the guards are independent",
+		},
+		{
+			"admin state omitted alone", APRadioStateUp, "",
+			[]string{"test_radio_state"},
+			"the guards are independent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			collector := &APCollector{
+				metrics:        APMetrics{General: true},
+				radioStateDesc: prometheus.NewDesc("test_radio_state", "test", []string{"mac", "radio"}, nil),
+				adminStateDesc: prometheus.NewDesc("test_admin_state", "test", []string{"mac", "radio"}, nil),
+			}
+			radio := &ap.RadioOperData{
+				WtpMAC: fixtureAPMAC, RadioSlotID: 2,
+				OperState: tt.operState, AdminState: tt.adminState,
+			}
+
+			ch := make(chan prometheus.Metric, 4)
+			go func() {
+				defer close(ch)
+				collector.collectGeneralMetrics(ch, radio)
+			}()
+
+			var got []string
+			for metric := range ch {
+				_, quoted, _ := strings.Cut(metric.Desc().String(), "fqName: \"")
+				name, _, _ := strings.Cut(quoted, "\"")
+				got = append(got, name)
+			}
+
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("collectGeneralMetrics() published %v, want %v: %s", got, tt.want, tt.reason)
+			}
+		})
+	}
+}
+
+// TestAirQualityOnCurrentChannel_RecordWithoutTheContainer covers the one branch the
+// table above cannot reach: the per-radio container is a pointer, so a matching record
+// can arrive without it. Dropping the nil test panics rather than misreporting, which is
+// why no other case exercises it.
+func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
+	t.Parallel()
+
+	table := []rrm.SpectrumAqTable{{
+		WtpMAC: fixtureAPMAC,
+		Band:   "dot11-2-dot-4-ghz-band",
+	}}
+	radio := &ap.RadioOperData{
+		WtpMAC:            fixtureAPMAC,
+		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
+		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6}},
+	}
+
+	if got, found := airQualityOnCurrentChannel(table, radio); found {
+		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the "+
+			"matching record carries no per-radio container", got)
 	}
 }

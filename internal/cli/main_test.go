@@ -16,7 +16,7 @@ func TestRegisterFlags(t *testing.T) {
 	}{
 		{
 			name:          "All flags registered",
-			expectedCount: 33,
+			expectedCount: 34,
 		},
 	}
 
@@ -193,8 +193,8 @@ func TestRegisterAPCollectorFlags(t *testing.T) {
 	}{
 		{
 			name:          "AP collector flags count",
-			expectedCount: 7,
-			expectedTypes: []string{"bool", "bool", "bool", "bool", "bool", "bool", "string"},
+			expectedCount: 8,
+			expectedTypes: []string{"bool", "bool", "bool", "bool", "bool", "bool", "bool", "string"},
 		},
 	}
 

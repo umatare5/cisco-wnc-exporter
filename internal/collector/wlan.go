@@ -33,6 +33,7 @@ type WLANCollector struct {
 
 	enabledDesc               *prometheus.Desc
 	clientCountDesc           *prometheus.Desc
+	onboardingDesc            *prometheus.Desc
 	dataUsageDesc             *prometheus.Desc
 	authPskDesc               *prometheus.Desc
 	authDot1xDesc             *prometheus.Desc
@@ -76,6 +77,12 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			"wnc_wlan_clients",
 			"Number of clients in the run state on this WLAN",
 			labels, nil,
+		)
+		collector.onboardingDesc = prometheus.NewDesc(
+			"wnc_wlan_onboarding_clients",
+			"Number of clients on this WLAN currently held in one onboarding phase, "+
+				"short of the run state wnc_wlan_clients counts",
+			[]string{labelID, labelPhase}, nil,
 		)
 		collector.dataUsageDesc = prometheus.NewDesc(
 			"wnc_wlan_data_usage_bytes_total",
@@ -204,6 +211,7 @@ func (c *WLANCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Traffic {
 		ch <- c.clientCountDesc
+		ch <- c.onboardingDesc
 		ch <- c.dataUsageDesc
 	}
 	if c.metrics.Config {
@@ -267,6 +275,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 
 	var wlanStatsMap map[int]wlanStats
 	var dataUsageMap map[int]uint64
+	var onboardingMap map[int]ap.WlanClientStats
 	if IsEnabled(c.metrics.Traffic) {
 		clientData, clientErr := c.clientSrc.GetClientData(ctx)
 		if clientErr != nil {
@@ -284,6 +293,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 			slog.Debug("Failed to get WLAN client statistics for traffic metrics", "error", statsErr)
 		} else {
 			dataUsageMap = buildWLANDataUsageMap(clientStats)
+			onboardingMap = buildWLANOnboardingMap(clientStats)
 		}
 	}
 
@@ -292,7 +302,7 @@ func (c *WLANCollector) Collect(ch chan<- prometheus.Metric) {
 			c.collectGeneralMetrics(ch, entry)
 		}
 		if c.metrics.Traffic {
-			c.collectTrafficMetrics(ch, entry, wlanStatsMap, dataUsageMap)
+			c.collectTrafficMetrics(ch, entry, wlanStatsMap, dataUsageMap, onboardingMap)
 		}
 		if c.metrics.Config {
 			c.collectConfigMetrics(ch, entry, wlanToPolicyMap)
@@ -336,6 +346,7 @@ func (c *WLANCollector) collectTrafficMetrics(
 	entry wlan.WlanCfgEntry,
 	wlanStatsMap map[int]wlanStats,
 	dataUsageMap map[int]uint64,
+	onboardingMap map[int]ap.WlanClientStats,
 ) {
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
@@ -362,6 +373,49 @@ func (c *WLANCollector) collectTrafficMetrics(
 			labels...,
 		)
 	}
+
+	// The four phases are absent for a WLAN with no statistics record, so a WLAN the
+	// controller says nothing about reports no phase rather than an empty one.
+	if stats, ok := onboardingMap[entry.WlanID]; ok {
+		for _, phase := range onboardingPhases {
+			ch <- prometheus.MustNewConstMetric(
+				c.onboardingDesc,
+				prometheus.GaugeValue,
+				float64(phase.count(stats)),
+				strconv.Itoa(entry.WlanID), phase.name,
+			)
+		}
+	}
+}
+
+// onboardingPhases pairs each phase label value with the leaf that counts it. The
+// controller keeps one leaf per phase rather than an enumeration, so the label values
+// are named here and are this exporter's own.
+var onboardingPhases = []struct {
+	name  string
+	count func(ap.WlanClientStats) int
+}{
+	{"l2auth", func(s ap.WlanClientStats) int { return s.ClientCurrStateL2Auth }},
+	{"mobility", func(s ap.WlanClientStats) int { return s.ClientCurrStateMobility }},
+	{"iplearn", func(s ap.WlanClientStats) int { return s.ClientCurrStateIplearn }},
+	{"webauth_pending", func(s ap.WlanClientStats) int { return s.CurrStateWebauthPending }},
+}
+
+// buildWLANOnboardingMap indexes the whole statistics record by WLAN identifier.
+//
+// The four phase counts are current counts rather than cumulative ones: the fifth
+// count in the same record, the clients in the run state, equalled the per-WLAN client
+// records exactly on every WLAN and in total, which is what types them as gauges.
+// Whether the five partition a WLAN's clients was not measured, so they are not summed
+// with wnc_wlan_clients, which counts only the run state.
+func buildWLANOnboardingMap(clientStats []ap.WlanClientStats) map[int]ap.WlanClientStats {
+	stats := make(map[int]ap.WlanClientStats, len(clientStats))
+
+	for _, entry := range clientStats {
+		stats[entry.WlanID] = entry
+	}
+
+	return stats
 }
 
 // buildWLANDataUsageMap indexes the byte counter by WLAN identifier.

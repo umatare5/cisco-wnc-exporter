@@ -165,7 +165,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 		{
 			"Traffic module only",
 			WLANMetrics{Traffic: true},
-			2, // client_count, data_usage
+			3, // client_count, onboarding_clients, data_usage
 		},
 		{
 			"Config module only",
@@ -189,7 +189,7 @@ func TestWLANCollector_Describe(t *testing.T) {
 				Config:  true,
 				Info:    true,
 			},
-			21, // 1+2+17+1
+			22, // 1+3+17+1
 		},
 	}
 
@@ -795,6 +795,7 @@ func TestWLANCollector_MetricNames(t *testing.T) {
 	}{
 		{collector.enabledDesc, "wnc_wlan_enabled"},
 		{collector.clientCountDesc, "wnc_wlan_clients"},
+		{collector.onboardingDesc, "wnc_wlan_onboarding_clients"},
 		{collector.authPskDesc, "wnc_wlan_auth_psk_enabled"},
 		{collector.authDot1xDesc, "wnc_wlan_auth_dot1x_enabled"},
 		{collector.wpa3EnabledDesc, "wnc_wlan_wpa3_enabled"},
@@ -1034,7 +1035,7 @@ func TestWLANCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 21
+	expectedDescs := 22
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1155,35 +1156,46 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 		1: 6884480,
 	}
 
+	onboardMap := map[int]ap.WlanClientStats{
+		1: {WlanID: 1, ClientCurrStateL2Auth: 1},
+	}
+
 	collector := &WLANCollector{
 		metrics:         WLANMetrics{Traffic: true},
 		clientCountDesc: prometheus.NewDesc("test_client_count", "test", []string{"id"}, nil),
 		dataUsageDesc:   prometheus.NewDesc("test_data_usage", "test", []string{"id"}, nil),
+		onboardingDesc: prometheus.NewDesc(
+			"test_onboarding", "test", []string{"id", "phase"}, nil,
+		),
 	}
 
-	// The two series come from different data types, so each polarity has to be
-	// exercised on its own: one map nil while the other is populated is the case a
-	// shared early return would get wrong.
+	// The three series come from two data types, so each polarity has to be exercised
+	// on its own: one map nil while another is populated is the case a shared early
+	// return would get wrong. The byte counter and the phase counts share one fetch but
+	// not one guard, because an unparsable byte leaf withholds only the counter.
 	tests := []struct {
-		name     string
-		statsMap map[int]wlanStats
-		usageMap map[int]uint64
-		want     int
-		reason   string
+		name       string
+		statsMap   map[int]wlanStats
+		usageMap   map[int]uint64
+		onboardMap map[int]ap.WlanClientStats
+		want       int
+		reason     string
 	}{
 		{
-			name:     "Both data types available",
-			statsMap: statsMap,
-			usageMap: usageMap,
-			want:     2,
-			reason:   "the client count and the byte counter",
+			name:       "Both data types available",
+			statsMap:   statsMap,
+			usageMap:   usageMap,
+			onboardMap: onboardMap,
+			want:       6,
+			reason:     "the client count, the byte counter and one series per onboarding phase",
 		},
 		{
-			name:     "Client data unavailable",
-			statsMap: nil,
-			usageMap: usageMap,
-			want:     1,
-			reason:   "a zero client count reads as an SSID with nobody on it, the counter still publishes",
+			name:       "Client data unavailable",
+			statsMap:   nil,
+			usageMap:   usageMap,
+			onboardMap: onboardMap,
+			want:       5,
+			reason:     "a zero client count reads as an SSID with nobody on it, the rest still publishes",
 		},
 		{
 			name:     "WLAN statistics unavailable",
@@ -1197,14 +1209,23 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 			statsMap: nil,
 			usageMap: nil,
 			want:     0,
-			reason:   "nothing is published rather than two fabricated zeros",
+			reason:   "nothing is published rather than fabricated zeros",
 		},
 		{
-			name:     "WLAN missing from the statistics list",
-			statsMap: statsMap,
-			usageMap: map[int]uint64{99: 1},
-			want:     1,
-			reason:   "the counter is absent for a WLAN the controller lists no record for",
+			name:       "WLAN missing from the statistics list",
+			statsMap:   statsMap,
+			usageMap:   map[int]uint64{99: 1},
+			onboardMap: map[int]ap.WlanClientStats{99: {WlanID: 99}},
+			want:       1,
+			reason:     "both statistics series are absent for a WLAN the controller lists no record for",
+		},
+		{
+			name:       "Byte leaf unparsable on a WLAN the controller does list",
+			statsMap:   statsMap,
+			usageMap:   nil,
+			onboardMap: onboardMap,
+			want:       5,
+			reason:     "the phase counts survive a byte leaf the parse rejected",
 		},
 	}
 
@@ -1215,7 +1236,7 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 			ch := make(chan prometheus.Metric, 10)
 			go func() {
 				defer close(ch)
-				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.usageMap)
+				collector.collectTrafficMetrics(ch, entry, tt.statsMap, tt.usageMap, tt.onboardMap)
 			}()
 
 			metricCount := 0
@@ -1491,7 +1512,9 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					}
 				}()
 				entry := wlan.WlanCfgEntry{WlanID: 1}
-				collector.collectTrafficMetrics(ch, entry, map[int]wlanStats{}, map[int]uint64{})
+				collector.collectTrafficMetrics(
+					ch, entry, map[int]wlanStats{}, map[int]uint64{}, map[int]ap.WlanClientStats{},
+				)
 			},
 		},
 		{
@@ -1777,6 +1800,53 @@ func TestWLANCollector_PolicyBindingIsOneSeriesPerResolvableBinding(t *testing.T
 	for key := range want {
 		if !got[key] {
 			t.Errorf("wnc_wlan_policy_binding is missing the series %q", key)
+		}
+	}
+}
+
+// TestWLANCollector_OnboardingPhasesMatchLeaves binds each phase label value to its
+// own leaf. The four counts share one descriptor and one value domain, so a pair
+// swapped in onboardingPhases keeps the series count, the label names and the label
+// values intact and changes only which number each phase reports.
+func TestWLANCollector_OnboardingPhasesMatchLeaves(t *testing.T) {
+	t.Parallel()
+
+	families, err := fixtureRegistry(t, "").Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	got := make(map[string]float64)
+	for _, family := range families {
+		if family.GetName() != "wnc_wlan_onboarding_clients" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			phase := ""
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelPhase {
+					phase = pair.GetValue()
+				}
+			}
+			got[phase] = metric.GetGauge().GetValue()
+		}
+	}
+
+	// The fixture record carries a distinct number per leaf, listed in the order the
+	// container declares them.
+	want := map[string]float64{
+		"l2auth":          7103,
+		"mobility":        7104,
+		"iplearn":         7105,
+		"webauth_pending": 7106,
+	}
+
+	if len(got) != len(want) {
+		t.Errorf("wnc_wlan_onboarding_clients has %d series, want %d: %v", len(got), len(want), got)
+	}
+	for phase, value := range want {
+		if got[phase] != value {
+			t.Errorf("wnc_wlan_onboarding_clients{phase=%q} = %v, want %v", phase, got[phase], value)
 		}
 	}
 }

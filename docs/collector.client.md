@@ -97,6 +97,7 @@ The client error metrics below were observed at zero on every client of the acce
 - `wnc_client_mic_missing_total`
 - `wnc_client_policy_errors_total`
 - `wnc_client_rts_retries_total`
+- `wnc_client_rx_group_total`
 - `wnc_client_tx_retries_total`
 
 This was verified through direct RESTCONF API access to the live WNC environment:
