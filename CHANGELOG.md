@@ -4,6 +4,14 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## Unreleased
+
+No metric, label, flag or HELP string changes: this release carries a test fix only.
+
+### Fixed
+
+- The test that pinned the refresher's snapshot ordering bounded its own gate, which bounds a race rather than removing it: a stall longer than the bound reopens it, and the assertion it then fails names the wrong cause. The racy assertion moves out of the test named for starting a refresh, and `TestRefresher_Get_DoesNotWaitForTheRefresh` now owns the contract `get()` documents — that a scrape never waits for the controller. A `get()` that runs the refresh itself is reported as the blocking it is rather than as an early publication. No production code changed.
+
 ## v0.9.1
 
 No metric, label, flag or HELP string changes: this release carries a test fix only.

@@ -25,31 +25,21 @@ func TestRefresher_FirstGetIsDue(t *testing.T) {
 	}
 }
 
-// TestRefresher_Get_StartsBackgroundRefresh holds the refresh until the first get has
-// returned: nothing orders the background store after that load, so an unheld refresh can
-// publish first and fail the nil assertion for the wrong reason. The hold is bounded so a
-// get that refreshes synchronously fails that assertion instead of hanging.
 func TestRefresher_Get_StartsBackgroundRefresh(t *testing.T) {
 	t.Parallel()
 
 	want := &WNCDataCache{RefreshedAt: time.Now()}
 	done := make(chan error, 1)
-	release := make(chan struct{})
 
 	r := newRefresher(time.Hour, func(context.Context) (*WNCDataCache, error) {
-		select {
-		case <-release:
-		case <-time.After(5 * time.Second):
-		}
 		return want, nil
 	}, func(err error, _ time.Duration) {
 		done <- err
 	})
 
-	if snap := r.get(); snap != nil {
-		t.Error("get() returned a snapshot before the first refresh completed, want nil")
-	}
-	close(release)
+	// What this get returns is deliberately unasserted: it races the refresh it starts.
+	// TestRefresher_Get_DoesNotWaitForTheRefresh pins that value where it is deterministic.
+	r.get()
 
 	select {
 	case err := <-done:
@@ -63,6 +53,34 @@ func TestRefresher_Get_StartsBackgroundRefresh(t *testing.T) {
 	if got := r.get(); got != want {
 		t.Errorf("get() = %p, want the published snapshot %p", got, want)
 	}
+}
+
+// TestRefresher_Get_DoesNotWaitForTheRefresh pins the reason this primitive exists: a
+// scrape must not wait for the controller. run is held for the whole assertion, so a get
+// that returned is a get that did not run the refresh itself, and one that runs it is
+// reported as the blocking it is instead of deadlocking the package.
+func TestRefresher_Get_DoesNotWaitForTheRefresh(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	returned := make(chan *WNCDataCache, 1)
+
+	r := newRefresher(time.Hour, func(context.Context) (*WNCDataCache, error) {
+		<-release
+		return &WNCDataCache{RefreshedAt: time.Now()}, nil
+	}, noopDone)
+
+	go func() { returned <- r.get() }()
+
+	select {
+	case snap := <-returned:
+		if snap != nil {
+			t.Error("get() returned a snapshot before the first refresh published one, want nil")
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("get() had not returned while the refresh it started was still running, want no waiting")
+	}
+	close(release)
 }
 
 // TestRefresher_Get_SingleFlight covers the guard from the caller's side: a second
