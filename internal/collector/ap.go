@@ -115,13 +115,15 @@ func NewAPCollector(
 	if metrics.General {
 		collector.radioStateDesc = prometheus.NewDesc(
 			"wnc_ap_radio_state",
-			"Radio state (0=down, 1=up)",
+			"Radio state (0=down, 1=up). Absent for a slot whose state the controller "+
+				"does not report, so a slot that is not a radio reads as no series",
 			baseRadioLabels,
 			nil,
 		)
 		collector.adminStateDesc = prometheus.NewDesc(
 			"wnc_ap_admin_state",
-			"Admin state (1=enabled, 0=any other value)",
+			"Admin state (1=enabled, 0=any other value). Absent for a slot whose state "+
+				"the controller does not report",
 			baseRadioLabels,
 			nil,
 		)
@@ -883,7 +885,7 @@ func (c *APCollector) collectErrorMetrics(
 			c.coverageFailedClientsDesc, prometheus.GaugeValue,
 			float64(coverage.FailedClientCount), labels...)
 	}
-	if radar, exists := apDot11RadarMap[radioID]; exists && radar.LastRadarOnRadio.Year() > 1970 {
+	if radar, exists := apDot11RadarMap[radioID]; exists && radar.LastRadarOnRadio.Year() > epochYear {
 		ch <- prometheus.MustNewConstMetric(
 			c.lastRadarOnRadioAtDesc, prometheus.GaugeValue,
 			float64(radar.LastRadarOnRadio.Unix()), labels...)

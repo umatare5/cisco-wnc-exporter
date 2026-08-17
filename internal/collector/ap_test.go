@@ -2713,3 +2713,26 @@ func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
 		})
 	}
 }
+
+// TestAirQualityOnCurrentChannel_RecordWithoutTheContainer covers the one branch the
+// table above cannot reach: the per-radio container is a pointer, so a matching record
+// can arrive without it. Dropping the nil test panics rather than misreporting, which is
+// why no other case exercises it.
+func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
+	t.Parallel()
+
+	table := []rrm.SpectrumAqTable{{
+		WtpMAC: fixtureAPMAC,
+		Band:   "dot11-2-dot-4-ghz-band",
+	}}
+	radio := &ap.RadioOperData{
+		WtpMAC:            fixtureAPMAC,
+		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
+		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6}},
+	}
+
+	if got, found := airQualityOnCurrentChannel(table, radio); found {
+		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the "+
+			"matching record carries no per-radio container", got)
+	}
+}
