@@ -202,7 +202,7 @@ $ ./cisco-wnc-exporter \
 
 #### Complete Usage
 
-For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) which enables all collectors with maximum info-labels.
+For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) which enables every collector module with maximum info-labels.
 
 ### Prometheus Configuration
 
