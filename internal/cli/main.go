@@ -169,6 +169,12 @@ func registerAPCollectorFlags() []cli.Flag {
 			HideDefault: true,
 		},
 		&cli.BoolFlag{
+			Name:        "collector.ap.spectrum",
+			Usage:       "Enable AP CleanAir spectrum metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
 			Name:        "collector.ap.info",
 			Usage:       "Enable AP info metrics",
 			Category:    "# AP Collector Options",

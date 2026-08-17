@@ -776,6 +776,10 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
 	"ap-dot11-radar-data": {dataRRMAPDot11RadarData, mockList(mockRRMOperModule, "ap-dot11-radar-data",
 		`{"wtp-mac":"`+mockAPMAC+`"}`)},
+	"radio-slot": {dataRRMRadioSlot, mockList(mockRRMOperModule, "radio-slot",
+		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
+	"spectrum-aq-table": {dataRRMSpectrumAqTable, mockList(mockRRMOperModule, "spectrum-aq-table",
+		`{"wtp-mac":"`+mockAPMAC+`","band":"dot11-2-dot-4-ghz-band"}`)},
 	// The two raw reads answer with the node itself as the only key rather than with a
 	// list, which is what mockContainer wraps and mockList cannot.
 	"boot-time": {dataControllerBootTime, mockContainer(mockDeviceHardwareModule, "boot-time",
@@ -868,7 +872,8 @@ func newTestDataSource(t *testing.T, controllerURL string, ttl time.Duration) *d
 func allModules() config.Collectors {
 	return config.Collectors{
 		AP: config.APCollectorModules{
-			General: true, Radio: true, Traffic: true, Errors: true, Join: true, Info: true,
+			General: true, Radio: true, Traffic: true, Errors: true, Join: true,
+			Spectrum: true, Info: true,
 		},
 		Client: config.ClientCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Info: true,

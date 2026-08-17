@@ -9,6 +9,12 @@ This project is pre-1.0, so a minor release may rename or remove a metric. Read 
 ### Added
 
 - `wnc_wlan_onboarding_clients{id,phase}` reports how many clients each WLAN currently holds in an onboarding phase, over the four phases `l2auth`, `mobility`, `iplearn` and `webauth_pending`. It joins the WLAN `traffic` module and adds no request: the record it reads is the one `wnc_wlan_data_usage_bytes_total` already fetches. It closes the gap the WLAN page documents against `wnc_wlan_clients`, which counts the run state only and therefore **falls** while clients pile up short of it. The counts are current rather than cumulative and are not additive with `wnc_wlan_clients` — see note \*2 on that page for what they detect and what they do not.
+- `wnc_ap_rrm_profile_passed{mac,radio,profile}` reports the controller's RRM verdict per radio over the four profiles `coverage`, `load`, `interference` and `noise`, where `1` is a pass. It joins the existing AP `radio` module — its key is the same one every radio series already carries — and adds one request per refresh. **Two of the four report a failure in ordinary conditions**, so a rule of the form `== 0` fires from the first scrape; note \*4 on the [AP](docs/collector.ap.md) page gives a shape that does not.
+- `wnc_ap_air_quality_index{mac,radio}` reports the CleanAir air quality of the channel the radio operates on, behind the new `--collector.ap.spectrum` flag, off by default. The table it reads is the largest single read this exporter makes and grows with the number of CleanAir APs, which is why it has its own flag and is fetched last. **The series is absent, not zero, wherever the reading cannot be reached** — four cases, listed in note \*11 on the AP page — so silence does not mean clean air.
+
+### Changed
+
+- `--collector.ap.spectrum` is the only new flag. The two other new readings join existing modules, so a configuration that already enables `--collector.ap.radio` or `--collector.wlan.traffic` gains series without a flag change; `--collector.ap.radio` also gains one request per refresh.
 
 ## v0.8.0
 

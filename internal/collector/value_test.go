@@ -88,6 +88,9 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_ap_clients", 1},
 		{"wnc_ap_coverage_failed_clients", 7},
+		// The operating channel's row, not the padding row and not the neighboring
+		// channel the fixture table also carries.
+		{"wnc_ap_air_quality_index", 93},
 		// Both reset entries of this radio are totalled, not overwritten.
 		{"wnc_ap_radio_resets_total", 8},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
@@ -152,7 +155,7 @@ func TestAllCollectors_CounterValuesMatchLeaves(t *testing.T) {
 
 		{"wnc_ap_rx_errors_total", 3201},
 		{"wnc_ap_tx_retries_total", 3202},
-		// failed-count, not ack-failure-count: docs/collector.ap.md note *2 records
+		// failed-count, not ack-failure-count: docs/collector.ap.md note *5 records
 		// the Cisco bug that makes the latter unusable, so a one-token revert to it
 		// would leave every count and label intact.
 		{"wnc_ap_transmission_failures_total", 3203},

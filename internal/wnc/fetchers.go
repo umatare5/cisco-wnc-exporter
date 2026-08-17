@@ -36,6 +36,8 @@ var dataTypeNames = []string{
 	dataAPRadioResetStats,
 	dataRRMCoverage,
 	dataRRMAPDot11RadarData,
+	dataRRMRadioSlot,
+	dataRRMSpectrumAqTable,
 }
 
 // boolToInt reports one item for a leaf the controller carries and none for one it
@@ -84,7 +86,7 @@ func requiredDataTypes(modules config.Collectors) []string {
 // withholding one relies on the caller marking it absent.
 func isDataTypeRequired(name string, modules config.Collectors) bool {
 	anyAP := anyOf(modules.AP.General, modules.AP.Radio,
-		modules.AP.Traffic, modules.AP.Errors, modules.AP.Info)
+		modules.AP.Traffic, modules.AP.Errors, modules.AP.Info, modules.AP.Spectrum)
 	anyClient := anyOf(modules.Client.General, modules.Client.Radio,
 		modules.Client.Traffic, modules.Client.Errors, modules.Client.Info)
 	anyWLAN := anyOf(modules.WLAN.General, modules.WLAN.Traffic,
@@ -105,6 +107,10 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
 		return modules.AP.Errors
+	case dataRRMRadioSlot:
+		return modules.AP.Radio
+	case dataRRMSpectrumAqTable:
+		return modules.AP.Spectrum
 	case dataControllerBootTime, dataCoClientDelReason, dataClientRoamingStats:
 		return modules.Controller.General
 	case dataWLANCfgEntries:
@@ -333,6 +339,22 @@ func (s *dataSource) fetchers() []dataFetcher {
 			}
 			c.ApDot11RadarData = data.ApDot11RadarData
 			return len(c.ApDot11RadarData), nil
+		}},
+		{dataRRMRadioSlot, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.RRM().ListRadioSlot(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.RadioSlots = data.RadioSlot
+			return len(c.RadioSlots), nil
+		}},
+		{dataRRMSpectrumAqTable, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.RRM().ListSpectrumAqTable(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.SpectrumAqTable = data.SpectrumAqTable
+			return len(c.SpectrumAqTable), nil
 		}},
 	}
 }

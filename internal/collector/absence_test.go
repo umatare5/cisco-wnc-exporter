@@ -40,6 +40,8 @@ const (
 	typeRRMMeasurement        = "rrm_measurement"
 	typeRRMCoverage           = "rrm_coverage"
 	typeRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
+	typeRRMRadioSlot          = "rrm_radio_slot"
+	typeRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
 	typeWLANCfgEntries        = "wlan_cfg_entries"
 	typeWLANPolicies          = "wlan_policies"
 	typeWLANPolicyListEntries = "wlan_policy_list_entries"
@@ -52,7 +54,8 @@ var allDataTypes = []string{
 	typeControllerBootTime, typeCoClientDelReason, typeClientRoamingStats,
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
-	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData,
+	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData, typeRRMRadioSlot,
+	typeRRMSpectrumAqTable,
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
@@ -190,6 +193,8 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeRRMCoverage, []string{"wnc_ap_coverage_failed_clients"}},
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
+		{typeRRMRadioSlot, []string{"wnc_ap_rrm_profile_passed"}},
+		{typeRRMSpectrumAqTable, []string{"wnc_ap_air_quality_index"}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 			"wnc_wlan_pmf_state", "wnc_wlan_ft_state", "wnc_wlan_onboarding_clients",
@@ -323,7 +328,10 @@ func fixtureCollectors(t *testing.T, data *wnc.WNCDataCache) []prometheus.Collec
 
 	src := fixtureSource{data: data}
 
-	apMetrics := APMetrics{General: true, Radio: true, Traffic: true, Errors: true, Join: true, Info: true}
+	apMetrics := APMetrics{
+		General: true, Radio: true, Traffic: true, Errors: true, Join: true,
+		Spectrum: true, Info: true,
+	}
 	clientMetrics := ClientMetrics{General: true, Radio: true, Traffic: true, Errors: true, Info: true}
 	wlanMetrics := WLANMetrics{General: true, Traffic: true, Config: true, Info: true}
 
@@ -505,6 +513,28 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		}},
 		RRMCoverage: []rrm.RRMCoverage{{
 			WtpMAC: fixtureAPMAC, RadioSlotID: 0, FailedClientCount: 7,
+		}},
+		RadioSlots: []rrm.RadioSlot{{
+			WtpMAC:      fixtureAPMAC,
+			RadioSlotID: 0,
+			RadioData: &rrm.RadioData{
+				CoverageProfilePassed:     true,
+				LoadProfPassed:            false,
+				InterferenceProfilePassed: false,
+				NoiseProfilePassed:        true,
+			},
+		}},
+		SpectrumAqTable: []rrm.SpectrumAqTable{{
+			WtpMAC: fixtureAPMAC,
+			Band:   "dot11-2-dot-4-ghz-band",
+			PerRadioAqData: &rrm.PerRadioAqData{
+				ChannelCount: 3,
+				PerChannelAqList: []rrm.PerChannelAqList{
+					{ChannelNum: 0, Aqi: 0, MinAqi: 0},
+					{ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90},
+					{ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92},
+				},
+			},
 		}},
 		ApDot11RadarData: []rrm.ApDot11RadarData{{
 			WtpMAC:           fixtureAPMAC,

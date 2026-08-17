@@ -214,8 +214,15 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			config.Collectors{AP: config.APCollectorModules{Radio: true}},
 			[]string{
 				dataAPCAPWAPData, dataAPRadioOperData, dataAPNameMACMap,
-				dataRRMMeasurement, dataClientCommonOperData,
+				dataRRMMeasurement, dataClientCommonOperData, dataRRMRadioSlot,
 			},
+		},
+		{
+			// The air quality table is keyed by band, so the reading is joined to the
+			// radio through the radio list, which this module has to pay for as well.
+			"AP spectrum reads the radio list its band and channel come from",
+			config.Collectors{AP: config.APCollectorModules{Spectrum: true}},
+			[]string{dataAPCAPWAPData, dataAPRadioOperData, dataRRMSpectrumAqTable},
 		},
 		{
 			"AP info reads only the two the AP collector fetches unconditionally",

@@ -13,6 +13,7 @@ const (
 	labelEthMAC    = "eth_mac"    // AP Ethernet MAC address
 	labelIP        = "ip"         // AP IP address
 	labelModel     = "model"      // AP model number
+	labelProfile   = "profile"    // RRM profile a radio is judged against
 	labelRadio     = "radio"      // Radio slot identifier
 	labelSerial    = "serial"     // AP serial number
 	labelSWVersion = "sw_version" // AP software version

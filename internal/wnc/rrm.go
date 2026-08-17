@@ -13,6 +13,8 @@ type RRMSource interface {
 	GetRRMMeasurements(ctx context.Context) ([]rrm.RRMMeasurement, error)
 	GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error)
 	GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error)
+	GetRadioSlots(ctx context.Context) ([]rrm.RadioSlot, error)
+	GetSpectrumAqTable(ctx context.Context) ([]rrm.SpectrumAqTable, error)
 }
 
 // rrmSource implements RRMSource using SharedDataSource for caching.
@@ -52,4 +54,22 @@ func (s *rrmSource) GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11Radar
 		return nil, err
 	}
 	return data.ApDot11RadarData, nil
+}
+
+// GetRadioSlots returns the per-radio RRM slot data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRadioSlots(ctx context.Context) ([]rrm.RadioSlot, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMRadioSlot)
+	if err != nil {
+		return nil, err
+	}
+	return data.RadioSlots, nil
+}
+
+// GetSpectrumAqTable returns the per-band air quality table from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetSpectrumAqTable(ctx context.Context) ([]rrm.SpectrumAqTable, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMSpectrumAqTable)
+	if err != nil {
+		return nil, err
+	}
+	return data.SpectrumAqTable, nil
 }
