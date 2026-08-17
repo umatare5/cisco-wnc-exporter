@@ -4,6 +4,14 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.9.1
+
+No metric, label, flag or HELP string changes: this release carries a test fix only.
+
+### Fixed
+
+- A unit test for the background refresher asserted an ordering the code does not provide, so it failed at a low rate in CI and passed on a re-run. `get()` starts the refresh in a goroutine and then reads the published snapshot, and nothing orders the two, so a refresh that completed first made the test see the snapshot it asserts is absent. Under the flags the coverage job uses it failed 8 times in 20000 iterations before the change and none after. The test now holds the refresh until the first `get()` has returned, bounded so a `get()` regressed to refresh synchronously fails the assertion rather than hanging. No production code changed.
+
 ## v0.9.0
 
 > [!IMPORTANT]

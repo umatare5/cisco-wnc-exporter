@@ -25,13 +25,22 @@ func TestRefresher_FirstGetIsDue(t *testing.T) {
 	}
 }
 
+// TestRefresher_Get_StartsBackgroundRefresh holds the refresh until the first get has
+// returned: nothing orders the background store after that load, so an unheld refresh can
+// publish first and fail the nil assertion for the wrong reason. The hold is bounded so a
+// get that refreshes synchronously fails that assertion instead of hanging.
 func TestRefresher_Get_StartsBackgroundRefresh(t *testing.T) {
 	t.Parallel()
 
 	want := &WNCDataCache{RefreshedAt: time.Now()}
 	done := make(chan error, 1)
+	release := make(chan struct{})
 
 	r := newRefresher(time.Hour, func(context.Context) (*WNCDataCache, error) {
+		select {
+		case <-release:
+		case <-time.After(5 * time.Second):
+		}
 		return want, nil
 	}, func(err error, _ time.Duration) {
 		done <- err
@@ -40,6 +49,7 @@ func TestRefresher_Get_StartsBackgroundRefresh(t *testing.T) {
 	if snap := r.get(); snap != nil {
 		t.Error("get() returned a snapshot before the first refresh completed, want nil")
 	}
+	close(release)
 
 	select {
 	case err := <-done:
