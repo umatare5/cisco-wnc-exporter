@@ -165,6 +165,53 @@ func TestClientCollector_WithholdsStateTransitionWithoutAMeasurement(t *testing.
 	}
 }
 
+// TestClientCollector_RoamTypeReadsTheCurrentAssociation pins which end of the mobility
+// history this series reads. The list is ordered newest first, so reading the other end
+// reports how the client arrived at an association it no longer holds.
+func TestClientCollector_RoamTypeReadsTheCurrentAssociation(t *testing.T) {
+	t.Parallel()
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewClientCollector(
+		wnc.NewClientSource(fixtureSource{data: fullFixtureSnapshot()}), ClientMetrics{General: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	spellings := map[string]bool{}
+	for _, family := range families {
+		if family.GetName() != "wnc_client_roam_type" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelState {
+					spellings[pair.GetValue()] = true
+				}
+			}
+		}
+	}
+
+	if !spellings[fixtureRoamType] {
+		t.Errorf("wnc_client_roam_type carries %v, want the spelling of the current association %q",
+			spellings, fixtureRoamType)
+	}
+
+	if spellings[fixtureOlderRoamType] {
+		t.Errorf("wnc_client_roam_type carries %q, which belongs to an association the client "+
+			"no longer holds", fixtureOlderRoamType)
+	}
+
+	// The clients whose history records no spelling are withheld rather than labeled with
+	// an empty one, so exactly one client of the fixture is published here.
+	if len(spellings) != 1 {
+		t.Errorf("wnc_client_roam_type carries %d spellings, want 1: %v", len(spellings), spellings)
+	}
+}
+
 func TestNewClientCollector(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -322,7 +369,7 @@ func TestClientCollector_Describe(t *testing.T) {
 		{
 			"General module only",
 			ClientMetrics{General: true},
-			4, // state, uptime, state_transition, power_save_state
+			5, // state, uptime, state_transition, roam_type, power_save_state
 		},
 		{
 			"Radio module only",
@@ -353,7 +400,7 @@ func TestClientCollector_Describe(t *testing.T) {
 				Errors:  true,
 				Info:    true,
 			},
-			26, // 4+6+4+11+1
+			27, // 5+6+4+11+1
 		},
 	}
 
@@ -1102,7 +1149,7 @@ func TestClientCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 26
+	expectedDescs := 27
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}

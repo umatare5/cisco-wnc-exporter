@@ -79,6 +79,11 @@ const (
 	fixturePMFOptions = "apf-vap-pmf-required"
 	fixtureFTMode     = "dot11r-disabled"
 
+	// The two roam spellings the mobility history carries, newest first. Both are values
+	// the controller's own schema declares.
+	fixtureRoamType      = "dot11-roam-type-fast-okc"
+	fixtureOlderRoamType = "dot11-roam-type-slow-11i"
+
 	// The two clients the state transition withhold needs, one per branch of its
 	// condition. Both MACs sort before fixtureClientMAC, because value_test.go reads
 	// only the first sample of each family and a series leaking behind that one is seen
@@ -204,7 +209,10 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},
 		{typeClientTrafficStats, clientTrafficDerived},
-		{typeClientMMIFHistory, []string{"wnc_client_state_transition_seconds"}},
+		{typeClientMMIFHistory, []string{
+			"wnc_client_state_transition_seconds",
+			"wnc_client_roam_type",
+		}},
 		{typeRRMMeasurement, []string{
 			"wnc_ap_channel_utilization_ratio", "wnc_ap_rx_utilization_ratio",
 			"wnc_ap_tx_utilization_ratio", "wnc_ap_noise_utilization_ratio",
@@ -751,7 +759,7 @@ func newFixtureJoinStats() ap.ApJoinStats {
 // newFixtureMobilityHistory fills the anonymous nested entry the SDK declares.
 func newFixtureMobilityHistory() client.MmIfClientHistory {
 	history := client.MmIfClientHistory{ClientMAC: fixtureClientMAC}
-	history.MobilityHistory.Entry = append(history.MobilityHistory.Entry, struct {
+	history.MobilityHistory.Entry = make([]struct {
 		InstanceID    int       `json:"instance-id"`
 		MsApSlotID    int       `json:"ms-ap-slot-id"`
 		MsAssocTime   time.Time `json:"ms-assoc-time"`
@@ -760,11 +768,21 @@ func newFixtureMobilityHistory() client.MmIfClientHistory {
 		ApName        string    `json:"ap-name"`
 		RunLatency    int       `json:"run-latency"`
 		Dot11RoamType string    `json:"dot11-roam-type"`
-	}{
-		ApName:     fixtureAPName,
-		Role:       "mm-client-role-local",
-		RunLatency: 120,
-	})
+	}, 2)
+
+	entries := history.MobilityHistory.Entry
+	entries[0].ApName = fixtureAPName
+	entries[0].Role = "mm-client-role-local"
+	entries[0].RunLatency = 120
+	entries[0].Dot11RoamType = fixtureRoamType
+
+	// The association before the current one. Both of its readings differ, so a series
+	// reading the wrong end of the list reports how the client arrived last time.
+	entries[1].ApName = fixtureAPName
+	entries[1].Role = "mm-client-role-local"
+	entries[1].RunLatency = 340
+	entries[1].Dot11RoamType = fixtureOlderRoamType
+
 	return history
 }
 

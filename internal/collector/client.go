@@ -34,6 +34,7 @@ type ClientCollector struct {
 	stateDesc                  *prometheus.Desc
 	associationUptimeDesc      *prometheus.Desc
 	stateTransitionSecondsDesc *prometheus.Desc
+	roamTypeDesc               *prometheus.Desc
 	protocolDesc               *prometheus.Desc
 	mcsIndexDesc               *prometheus.Desc
 	spatialStreamsDesc         *prometheus.Desc
@@ -71,6 +72,13 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		collector.stateDesc = prometheus.NewDesc(
 			"wnc_client_state",
 			"Client connection state reported in the state label, always 1",
+			[]string{labelMAC, labelState}, nil,
+		)
+		collector.roamTypeDesc = prometheus.NewDesc(
+			"wnc_client_roam_type",
+			"How the client reached the association it currently holds, reported in the "+
+				"state label, always 1. It is a property of that association rather than a "+
+				"count, so it does not move until the client associates again",
 			[]string{labelMAC, labelState}, nil,
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
@@ -234,6 +242,7 @@ func (c *ClientCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.stateDesc
 		ch <- c.associationUptimeDesc
 		ch <- c.stateTransitionSecondsDesc
+		ch <- c.roamTypeDesc
 		ch <- c.powerSaveStateDesc
 	}
 	if c.metrics.Info {
@@ -390,6 +399,7 @@ func (c *ClientCollector) collectGeneralMetrics(
 	if latency, ok := determineLastRunLatency(mobilityMap[data.ClientMAC]); ok {
 		metrics = append(metrics, Float64Metric{c.stateTransitionSecondsDesc, latency})
 	}
+	emitStateReading(ch, c.roamTypeDesc, firstRoamType(mobilityMap[data.ClientMAC]), data.ClientMAC)
 	if traffic, ok := trafficMap[data.ClientMAC]; ok {
 		metrics = append(metrics,
 			Float64Metric{c.powerSaveStateDesc, float64(traffic.PowerSaveState)})
@@ -638,6 +648,21 @@ func determineIPv6FromSISF(sisf client.SisfDBMac) string {
 		}
 	}
 	return ""
+}
+
+// firstRoamType reports how the client reached the association it currently holds, and
+// reports an empty spelling when the controller records none.
+//
+// The history is ordered by association time, newest first, so the first entry is the
+// current association. The list carries no key and declares no order, which is why the
+// ordering is measured rather than modeled.
+func firstRoamType(mobility client.MmIfClientHistory) string {
+	entries := mobility.MobilityHistory.Entry
+	if len(entries) == 0 {
+		return ""
+	}
+
+	return entries[0].Dot11RoamType
 }
 
 // determineLastRunLatency reports the run latency the controller recorded for the
