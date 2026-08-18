@@ -4,7 +4,7 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
-## Unreleased
+## v0.10.0
 
 > [!IMPORTANT]
 > **BREAKING CHANGE** — this release renames one gauge and withholds twenty-one per-radio series that previously reported a fabricated `0` for a slot that is not a radio. Both are listed below; a rule or panel touching `wnc_ap_air_quality_index`, or reading the AP `traffic` and `errors` counters or `wnc_ap_clients` as one series per slot, needs a change.
