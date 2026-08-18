@@ -45,6 +45,7 @@ const (
 	dataRRMCoverage           = "rrm_coverage"
 	dataRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	dataRRMRadioSlot          = "rrm_radio_slot"
+	dataRRMSpectrumAqWorst    = "rrm_spectrum_aq_worst_table"
 	dataRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
 	dataControllerBootTime    = "controller_boot_time"
 	dataCoClientDelReason     = "co_client_del_reason"
@@ -88,6 +89,7 @@ type WNCDataCache struct {
 	ApDot11RadarData []rrm.ApDot11RadarData
 	RadioSlots       []rrm.RadioSlot
 	SpectrumAqTable  []rrm.SpectrumAqTable
+	SpectrumAqWorst  []rrm.SpectrumAqWorstTable
 
 	// Controller-wide data. Each comes from a container the SDK has no route for, and
 	// each is empty rather than absent when the controller does not carry it.

@@ -33,6 +33,7 @@ type APCollector struct {
 	infoDesc       *prometheus.Desc
 	infoLabelNames []string
 	join           *apJoinDescs
+	band           *apBandDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -237,6 +238,7 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
+		collector.band = newAPBandDescs()
 	}
 
 	if metrics.General {
@@ -457,6 +459,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Spectrum {
 		ch <- c.airQualityDesc
+		c.band.describe(ch)
 	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
@@ -526,14 +529,9 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 		radioSources = c.readRadioJoins(ctx)
 	}
 
-	var spectrumAqTable []rrm.SpectrumAqTable
+	var spectrumSources spectrumReads
 	if IsEnabled(c.metrics.Spectrum) {
-		table, err := c.rrmSrc.GetSpectrumAqTable(ctx)
-		if err != nil {
-			slog.Debug("Failed to get the air quality table for spectrum metrics", "error", err)
-		} else {
-			spectrumAqTable = table
-		}
+		spectrumSources = c.readSpectrum(ctx)
 	}
 
 	var radioResetStatsMap map[string]map[int]int
@@ -585,11 +583,17 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 		if c.metrics.Spectrum {
-			c.collectSpectrumMetrics(ch, radio, spectrumAqTable)
+			c.collectSpectrumMetrics(ch, radio, spectrumSources.aqTable)
 		}
 		if c.metrics.Info {
 			c.collectInfoMetrics(ch, radio, capwapMap)
 		}
+	}
+
+	// Outside the loop above: the band label is the whole identifier of these series, so
+	// emitting them per radio would repeat one label set and fail the whole scrape.
+	if IsEnabled(c.metrics.Spectrum) {
+		c.band.collect(ch, spectrumSources.worst)
 	}
 }
 
@@ -781,6 +785,33 @@ type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
 	slots        map[string]*rrm.RadioSlot
 	clientCounts map[string]map[int]int
+}
+
+// spectrumReads holds the two air quality reads of the spectrum module. They key on
+// different things — one on the radio, one on the band — so one failing leaves the other
+// published rather than withholding both.
+type spectrumReads struct {
+	aqTable []rrm.SpectrumAqTable
+	worst   []rrm.SpectrumAqWorstTable
+}
+
+// readSpectrum reads the two data types the spectrum module publishes from.
+func (c *APCollector) readSpectrum(ctx context.Context) spectrumReads {
+	var reads spectrumReads
+
+	table, err := c.rrmSrc.GetSpectrumAqTable(ctx)
+	if err != nil {
+		slog.Debug("Failed to get the air quality table for spectrum metrics", "error", err)
+	}
+	reads.aqTable = table
+
+	worst, worstErr := c.rrmSrc.GetSpectrumAqWorstTable(ctx)
+	if worstErr != nil {
+		slog.Debug("Failed to get the worst air quality table for spectrum metrics", "error", worstErr)
+	}
+	reads.worst = worst
+
+	return reads
 }
 
 // readRadioJoins reads the three data types the radio module joins against. Each keeps

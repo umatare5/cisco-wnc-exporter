@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -258,7 +259,8 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
-			1, // air_quality_index_avg
+			// air_quality_index_avg, and the four band-keyed worst channel series
+			5,
 		},
 		{
 			"Info module only",
@@ -276,7 +278,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			76, // 7+12+10+13+32+1+1
+			80, // 7+12+10+13+32+5+1
 		},
 	}
 
@@ -1148,7 +1150,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 44
+	expectedDescs := 48
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -2809,6 +2811,85 @@ func gatherAPSeriesByRadio(t *testing.T, data *wnc.WNCDataCache) map[string]map[
 	}
 
 	return byRadio
+}
+
+// TestAPCollector_BandKeyedSeriesNameOnlyTheBandsTheyCanName pins both guards of the
+// band-keyed rows. The fixture carries a row per named band plus the two shapes that are
+// withheld: a row whose band identifier has no name, and a row reporting no channel.
+func TestAPCollector_BandKeyedSeriesNameOnlyTheBandsTheyCanName(t *testing.T) {
+	t.Parallel()
+
+	byBand := gatherAPValuesByBand(t, fullFixtureSnapshot())
+
+	for _, name := range []string{
+		"wnc_rrm_worst_channel_air_quality_index_avg",
+		"wnc_rrm_worst_channel_air_quality_index_min",
+		"wnc_rrm_worst_channel_interferers",
+		"wnc_rrm_worst_channel_number",
+	} {
+		bands := slices.Sorted(maps.Keys(byBand[name]))
+		if want := []string{Band24GHz, Band5GHz}; !slices.Equal(bands, want) {
+			t.Errorf("%s carries bands %v, want %v", name, bands, want)
+		}
+	}
+
+	// The channel of the withheld row would have read as a channel, and its air quality
+	// as the cleanest reading the scale has.
+	if got, ok := byBand["wnc_rrm_worst_channel_number"][Band6GHz]; ok {
+		t.Errorf("wnc_rrm_worst_channel_number = %f for the band reporting no channel, want it withheld", got)
+	}
+}
+
+// TestAPCollector_BandKeyedSeriesAreEmittedOnceForTwoRadios pins that the band-keyed
+// rows leave the per-radio loop once. Emitting them from inside it repeats one label set,
+// which fails the whole scrape rather than the series.
+func TestAPCollector_BandKeyedSeriesAreEmittedOnceForTwoRadios(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.RadioOperData = append(data.RadioOperData, ap.RadioOperData{
+		WtpMAC:      fixtureAPMAC,
+		RadioSlotID: 1,
+		RadioType:   "radio-80211a",
+		OperState:   APRadioStateUp,
+	})
+
+	byBand := gatherAPValuesByBand(t, data)
+	if got := len(byBand["wnc_rrm_worst_channel_number"]); got != 2 {
+		t.Errorf("wnc_rrm_worst_channel_number carries %d series over two radios, want 2", got)
+	}
+}
+
+// gatherAPValuesByBand indexes the spectrum module's families by the band label.
+func gatherAPValuesByBand(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]float64 {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Spectrum: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]map[string]float64, len(families))
+	for _, family := range families {
+		byBand := make(map[string]float64, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelBand {
+					byBand[pair.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+		values[family.GetName()] = byBand
+	}
+
+	return values
 }
 
 // TestAirQualityOnCurrentChannel_RecordWithoutTheContainer covers the one branch the

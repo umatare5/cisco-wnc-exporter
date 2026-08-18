@@ -15,6 +15,7 @@ type RRMSource interface {
 	GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error)
 	GetRadioSlots(ctx context.Context) ([]rrm.RadioSlot, error)
 	GetSpectrumAqTable(ctx context.Context) ([]rrm.SpectrumAqTable, error)
+	GetSpectrumAqWorstTable(ctx context.Context) ([]rrm.SpectrumAqWorstTable, error)
 }
 
 // rrmSource implements RRMSource using SharedDataSource for caching.
@@ -72,4 +73,15 @@ func (s *rrmSource) GetSpectrumAqTable(ctx context.Context) ([]rrm.SpectrumAqTab
 		return nil, err
 	}
 	return data.SpectrumAqTable, nil
+}
+
+// GetSpectrumAqWorstTable returns the worst air quality row of each band from WNC via
+// SharedDataSource (cached).
+func (s *rrmSource) GetSpectrumAqWorstTable(ctx context.Context) ([]rrm.SpectrumAqWorstTable, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMSpectrumAqWorst)
+	if err != nil {
+		return nil, err
+	}
+
+	return data.SpectrumAqWorst, nil
 }

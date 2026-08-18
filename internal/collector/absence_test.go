@@ -42,6 +42,7 @@ const (
 	typeRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	typeRRMRadioSlot          = "rrm_radio_slot"
 	typeRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
+	typeRRMSpectrumAqWorst    = "rrm_spectrum_aq_worst_table"
 	typeWLANCfgEntries        = "wlan_cfg_entries"
 	typeWLANPolicies          = "wlan_policies"
 	typeWLANPolicyListEntries = "wlan_policy_list_entries"
@@ -55,7 +56,7 @@ var allDataTypes = []string{
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData, typeRRMRadioSlot,
-	typeRRMSpectrumAqTable,
+	typeRRMSpectrumAqTable, typeRRMSpectrumAqWorst,
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
@@ -207,6 +208,12 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
 		{typeRRMRadioSlot, []string{"wnc_ap_rrm_profile_passed", "wnc_ap_channel_changes_total"}},
 		{typeRRMSpectrumAqTable, []string{"wnc_ap_air_quality_index_avg"}},
+		{typeRRMSpectrumAqWorst, []string{
+			"wnc_rrm_worst_channel_air_quality_index_avg",
+			"wnc_rrm_worst_channel_air_quality_index_min",
+			"wnc_rrm_worst_channel_interferers",
+			"wnc_rrm_worst_channel_number",
+		}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 			"wnc_wlan_pmf_state", "wnc_wlan_ft_state", "wnc_wlan_onboarding_clients",
@@ -590,6 +597,18 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 				},
 			},
 		}},
+		// One row per band the mapping names, plus the two shapes the guards withhold. The
+		// row of band three reports no channel while carrying readings that are not zero:
+		// the controller ties those together, and breaking the tie here is what lets the
+		// channel guard be tested on its own. Two rows carry an unnamed band identifier,
+		// because one alone would leave the label collision unobserved.
+		SpectrumAqWorst: []rrm.SpectrumAqWorstTable{
+			{BandID: 1, ChannelNum: 11, MinAqi: 8101, Aqi: 8102, TotalIntfDeviceCount: 8103},
+			{BandID: 2, ChannelNum: 44, MinAqi: 8201, Aqi: 8202, TotalIntfDeviceCount: 8203},
+			{BandID: 3, ChannelNum: 0, MinAqi: 8301, Aqi: 8302, TotalIntfDeviceCount: 8303},
+			{BandID: 0, ChannelNum: 33, MinAqi: 8401, Aqi: 8402, TotalIntfDeviceCount: 8403},
+			{BandID: 4, ChannelNum: 55, MinAqi: 8501, Aqi: 8502, TotalIntfDeviceCount: 8503},
+		},
 		ApDot11RadarData: []rrm.ApDot11RadarData{{
 			WtpMAC:           fixtureAPMAC,
 			RadioSlotID:      0,
