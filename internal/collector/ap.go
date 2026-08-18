@@ -46,6 +46,7 @@ type APCollector struct {
 	txPowerDesc                   *prometheus.Desc
 	rrmProfilePassedDesc          *prometheus.Desc
 	channelChangesTotalDesc       *prometheus.Desc
+	channelEnergyDesc             *prometheus.Desc
 	airQualityDesc                *prometheus.Desc
 	airQualityMinDesc             *prometheus.Desc
 	interferersDesc               *prometheus.Desc
@@ -221,6 +222,14 @@ func NewAPCollector(
 			"Whether the radio passes this RRM profile (1=passed, 0=failed or the "+
 				"verdict was not reported)",
 			[]string{labelMAC, labelRadio, labelProfile},
+			nil,
+		)
+		collector.channelEnergyDesc = prometheus.NewDesc(
+			"wnc_ap_channel_energy_dbm",
+			"Energy the controller measured on the channel it assigned this radio, from its "+
+				"DCA statistics. It is a step: the reading holds until DCA next runs for "+
+				"that band",
+			baseRadioLabels,
 			nil,
 		)
 		collector.channelChangesTotalDesc = prometheus.NewDesc(
@@ -444,6 +453,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.associatedClientsDesc
 		ch <- c.rrmProfilePassedDesc
 		ch <- c.channelChangesTotalDesc
+		ch <- c.channelEnergyDesc
 	}
 	if c.metrics.Traffic {
 		ch <- c.dataRxFramesTotalDesc
@@ -777,12 +787,34 @@ func (c *APCollector) collectRadioMetrics(
 				float64(dca.ChanChanges),
 				labels...,
 			)
+
+			if hasChannelEnergy(dca.CurrentChanEnergy) {
+				metrics = append(metrics,
+					Float64Metric{c.channelEnergyDesc, float64(dca.CurrentChanEnergy)})
+			}
 		}
 	}
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
 	}
+}
+
+// The two readings the energy leaf carries that are not measurements. Neither can be one:
+// the sentinel is the lower bound of the leaf's own signed type and sits far below the
+// thermal noise floor of any channel width, and zero sits far above every measured
+// energy and above the controller's own lower limit for the assignment. The sentinel is
+// what a radio reads until DCA next runs for its band, measured on several radios with an
+// untouched radio as a control; zero has not been observed and is guarded because the
+// leaf is a plain integer, so an omitted one would decode to it.
+const (
+	channelEnergyAbsent   = 0
+	channelEnergySentinel = -128
+)
+
+// hasChannelEnergy reports whether the energy leaf carries a measurement.
+func hasChannelEnergy(energy int) bool {
+	return energy != channelEnergyAbsent && energy != channelEnergySentinel
 }
 
 // rrmProfiles pairs each profile label value with the verdict leaf it is read from.

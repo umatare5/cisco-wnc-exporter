@@ -237,8 +237,9 @@ func TestAPCollector_Describe(t *testing.T) {
 			"Radio module only",
 			APMetrics{Radio: true},
 			// channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util,
-			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes
-			12,
+			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes,
+			// channel_energy
+			13,
 		},
 		{
 			"Traffic module only",
@@ -278,7 +279,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			82, // 7+12+10+13+32+7+1
+			83, // 7+13+10+13+32+7+1
 		},
 	}
 
@@ -1150,7 +1151,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 50
+	expectedDescs := 51
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -2536,6 +2537,64 @@ func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 						"a zero there reads as a radio DCA has never moved",
 						len(family.GetMetric()))
 				}
+			}
+		})
+	}
+}
+
+// TestAPCollector_ChannelEnergyWithholdsTheSentinels pins the two readings the energy
+// leaf carries that are not measurements. Publishing either would report a channel far
+// quieter than any radio can measure, in the direction that reads as a free channel.
+func TestAPCollector_ChannelEnergyWithholdsTheSentinels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		energy int
+		want   bool
+		reason string
+	}{
+		{"a measurement", -32, true, "an ordinary reading is published"},
+		{"the sentinel", channelEnergySentinel, false, "it is the lower bound of the leaf's own type"},
+		{"zero", channelEnergyAbsent, false, "an omitted leaf decodes to it, and it is above every reading"},
+	}
+
+	radioLabels := []string{labelMAC, labelRadio}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			radio := &ap.RadioOperData{
+				WtpMAC:      fixtureAPMAC,
+				RadioSlotID: 0,
+				OperState:   APRadioStateUp,
+			}
+			values := gatherRadioValues(t, radioMetricsOnly{
+				collector: &APCollector{
+					metrics: APMetrics{Radio: true},
+					channelEnergyDesc: prometheus.NewDesc(
+						"wnc_ap_channel_energy_dbm", "t", radioLabels, nil),
+					channelChangesTotalDesc: prometheus.NewDesc(
+						"wnc_ap_channel_changes_total", "t", radioLabels, nil),
+					rrmProfilePassedDesc: prometheus.NewDesc(
+						"wnc_ap_rrm_profile_passed", "t", append(radioLabels, "profile"), nil),
+				},
+				radio: radio,
+				radioSlotMap: map[string]*rrm.RadioSlot{
+					fixtureAPMAC + ":0": {RadioData: &rrm.RadioData{
+						DCAStats: &rrm.DCAStats{CurrentChanEnergy: tt.energy, LastChanEnergy: -33},
+					}},
+				},
+			})
+
+			got, published := values["wnc_ap_channel_energy_dbm"]
+			if published != tt.want {
+				t.Fatalf("wnc_ap_channel_energy_dbm published = %v, want %v: %s", published, tt.want, tt.reason)
+			}
+
+			if published && got != float64(tt.energy) {
+				t.Errorf("wnc_ap_channel_energy_dbm = %f, want %d", got, tt.energy)
 			}
 		})
 	}

@@ -105,6 +105,8 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_radio_resets_total", 8},
 		// The change count, not one of the three energy or channel leaves beside it.
 		{"wnc_ap_channel_changes_total", 34},
+		// The energy DCA measured on the assigned channel, not the previous one beside it.
+		{"wnc_ap_channel_energy_dbm", -32},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
 		{"wnc_ap_last_radar_timestamp_seconds", 1767225600},
 
