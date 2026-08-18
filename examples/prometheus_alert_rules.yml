@@ -139,3 +139,134 @@ groups:
             at the epoch. Both clauses are anchored on an items series that
             exists only while --collector.controller.general is enabled, so this
             stays silent where it is off.
+
+      - alert: WNCBandAirQualityDipping
+        expr: >-
+          wnc_rrm_worst_channel_air_quality_index_avg
+          - wnc_rrm_worst_channel_air_quality_index_min > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The worst channel of band {{ $labels.band }} dips below its own average air quality"
+          description: >-
+            Both series read the same channel of the same report and carry band
+            alone, so a bare subtraction matches them and no on() is needed. The
+            index rises with cleanliness, so a wide difference is a dirty burst
+            under a clean average, on the one channel the controller ranks worst
+            across the APs that scan the band. A deeper dip on another channel is
+            invisible here, and an AP that stops reporting raises the band reading
+            with the air unchanged, so this rule fails quiet rather than loud; the
+            per-radio wnc_ap_air_quality_index_avg and
+            wnc_ap_air_quality_index_min follow the channel each radio operates
+            on. The controller recomputes both once per air quality reporting
+            period and holds them unchanged in between, so scraping more often
+            adds nothing, the detection delay is at least one period plus for, and
+            a held reading is indistinguishable from a stale snapshot - pair this
+            with WNCDataStale. Read the period from the controller's CleanAir
+            configuration and keep for well inside it: a burst that fills one
+            report raises the difference for that report alone, and a for as long
+            as the period stays pending and never fires. The threshold is
+            provisional - 30 is a placeholder and not a measured normal. Set it
+            from max_over_time((wnc_rrm_worst_channel_air_quality_index_avg -
+            wnc_rrm_worst_channel_air_quality_index_min)[7d:5m]) on your own
+            estate, and do not borrow the controller's air quality alarm
+            threshold, which is a floor on the index itself rather than on this
+            difference. wnc_rrm_worst_channel_number reports which channel of the
+            band this is, in the same label set - an annotation cannot template it,
+            so read it beside this alert. Needs --collector.ap.spectrum.
+
+      - alert: WNCClientSessionFlapping
+        expr: >-
+          resets(wnc_client_uptime_seconds[3h]) > 3
+          and max_over_time(wnc_client_uptime_seconds[3h]) < 300
+        labels:
+          severity: warning
+        annotations:
+          summary: "Client {{ $labels.mac }} cannot hold an association"
+          description: >-
+            The gauge rises with the session and drops when the association
+            restarts, which is the break in monotonicity resets() counts. It counts
+            a roam, a re-association to the same BSS and a disconnect-reconnect
+            alike, because all three rewrite the one association-time leaf it is
+            measured from, so read it as session churn rather than as roaming.
+            Counting restarts alone is not enough: a client the controller drops on
+            a timer returns as soon as it wakes and cycles for as long as it is on
+            the network, without anything being wrong. The second clause excludes
+            that class by construction, because a session the idle timeout ended
+            lasted at least as long as the timeout: set 300 to the idle timeout the
+            policy profiles carry, and the rule then fires only for a client whose
+            longest session in the range is shorter than the shortest that timer can
+            produce. A client that joined moments ago stays silent too, since it has
+            no restart to count. Both clauses carry the client MAC alone, so a bare
+            and matches them, and neither names the AP: an AP that loses CAPWAP
+            restarts every client on it and raises one alert per client, so group by
+            alertname and read WNCAPNotJoining for the AP side.
+            wnc_controller_client_deletes_total names the reason the sessions end.
+            No for is needed, because the range is the persistence window. Needs
+            --collector.client.general.
+
+      - alert: WNCRadioChannelChurning
+        expr: increase(wnc_ap_channel_changes_total[1h]) >= 4
+        labels:
+          severity: warning
+        annotations:
+          summary: "Radio {{ $labels.radio }} on AP {{ $labels.mac }} is moved to another channel repeatedly"
+          description: >-
+            The controller declares a channel-assignment interval, which bounds how
+            often a radio can be moved but is not an upper bound on the moves an
+            hour holds. Take the threshold from your own baseline of this counter
+            and keep the range well above that interval, or a healthy radio and a
+            churning one both read zero. The comparison is >= 4 and not > 3 because
+            increase() extrapolates to the range edges, which lifts exactly three
+            moves to just above three on a radio that had already moved before the
+            range began while leaving it at three on one that had not: >= 4 reads
+            the same on both. The counter resets when the controller rebuilds its
+            per-radio statistics rather than only on a reboot, and increase()
+            adjusts for a reset on its own, so no guard on the association uptime
+            is needed and adding one would hide real churn for an hour after every
+            re-association. Needs --collector.ap.radio.
+
+      - alert: WNCWLANOnboardingStalled
+        expr: wnc_wlan_onboarding_clients > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WLAN {{ $labels.id }} holds a client in the {{ $labels.phase }} phase"
+          description: >-
+            The four phase counts are current counts and not rates, so a client
+            that onboards normally is caught only by coincidence while one that is
+            held stays counted. A slow but successful onboarding still takes a
+            couple of minutes, which is why the window is minutes rather than one
+            scrape: this is the min_over_time shape the WLAN page teaches,
+            lengthened. The count is per WLAN and phase rather than per client, so
+            a queue of successive slow clients holds it above zero with nothing
+            stuck, and the client is named by wnc_client_state instead. The series
+            is withheld while the statistics read fails and absence resets for,
+            which is intended: pair this with WNCDataTypeFailing rather than
+            reading the gap as recovery. Needs --collector.wlan.traffic.
+
+      - alert: WNCRadioRRMProfilesFailing
+        expr: >-
+          count by (job, instance, mac, radio)
+          (wnc_ap_rrm_profile_passed{profile!="load"} == 0) >= 2
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Radio {{ $labels.radio }} on AP {{ $labels.mac }} fails two RRM profiles at once"
+          description: >-
+            A single failed verdict is ordinary, and the series reads 0 both for a
+            failed verdict and for one the controller did not report, so a rule on
+            one profile fires from the first scrape on a healthy estate. Two at
+            once, held for half an hour, is the shape that is not. The load verdict
+            is left out because it is judged against client-count and utilization
+            thresholds configured on the controller rather than against measured
+            RF, so a radio that simply carries many clients fails it with nothing
+            wrong in the air: read the capacity side from wnc_ap_clients and
+            wnc_ap_channel_utilization_ratio instead. count by drops the profile
+            label on purpose so the alert names the radio once rather than once per
+            profile; read which profiles failed with
+            wnc_ap_rrm_profile_passed{mac="...", radio="..."} == 0. Needs
+            --collector.ap.radio.
