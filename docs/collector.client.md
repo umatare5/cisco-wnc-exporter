@@ -65,7 +65,7 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 `wnc_client_uptime_seconds` is withheld for a client whose record carries no association time, and for the epoch the controller writes where an event has not happened — the same rule the AP uptime and the AP timestamp series follow. Measuring from either would report a session centuries long, so absence is the ordinary reading for a record the controller has not filled in rather than a fault.
 
-No series here counts roams. The controller maintains a roam count for itself rather than per client, and the exporter publishes it on the [Controller](collector.controller.md) page; the per-client roam type the controller reports was left unpublished because it read the same value for every client while the controller counted tens of thousands of roams.
+No series here counts roams. The controller maintains a roam count for itself rather than per client, and the exporter publishes it on the [Controller](collector.controller.md) page. The controller reports two per-client roam-type leaves and they are not the same reading: `wnc_client_roam_type` publishes `dot11-roam-type` from the association the client currently holds, while the mobility manager's own `mm-client-roam-type` stays unpublished because it read the same value for every client while the controller counted tens of thousands of roams. Neither is a count.
 
 Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module, and the ratio series removed in v0.3.0 sat in the errors module alone. Both flags default off.
 

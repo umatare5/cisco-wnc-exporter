@@ -70,14 +70,16 @@ func NewControllerCollector(src wnc.ControllerSource, metrics ControllerMetrics)
 			"Roams the controller counted on the FlexConnect local-authentication path, "+
 				"from an instant the container does not report. A WLAN whose roams do "+
 				"not take that path is not counted here at all, so read a flat zero as no roam "+
-				"took this path rather than as nobody roamed. The two dot11i counters are not a "+
-				"partition of this one",
+				"took this path rather than as nobody roamed. It advances on a roam and not on "+
+				"a fresh association, and the two dot11i counters "+
+				"are not a partition of it",
 			nil, nil,
 		)
 		collector.apAuthFastRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_dot11i_fast_roams_total",
 			"802.11i fast roams on the same path and from the same unreported instant. "+
-				"Zero here while the slow counter moves means a cached key is not being used",
+				"The two dot11i counters are not a partition of the total, so zero here does "+
+				"not describe how the roams behind the total authenticated",
 			nil, nil,
 		)
 		collector.apAuthSlowRoamsDesc = prometheus.NewDesc(

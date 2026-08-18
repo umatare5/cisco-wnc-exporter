@@ -254,7 +254,8 @@ func NewAPCollector(
 		collector.airQualityDesc = prometheus.NewDesc(
 			"wnc_ap_air_quality_index_avg",
 			"Average CleanAir air quality index of the channel the radio operates on, over "+
-				"a window the controller does not declare",
+				"the air quality reporting period the controller declares. A higher index is "+
+				"cleaner, and the controller's own alarm threshold is a lower bound on it",
 			baseRadioLabels,
 			nil,
 		)
