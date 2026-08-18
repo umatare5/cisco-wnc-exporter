@@ -84,6 +84,7 @@ type APCollector struct {
 	cpuUtilizationDesc            *prometheus.Desc
 	memoryUtilizationDesc         *prometheus.Desc
 	uptimeSecondsDesc             *prometheus.Desc
+	associationUptimeSecondsDesc  *prometheus.Desc
 }
 
 // NewAPCollector creates a new AP collector.
@@ -148,6 +149,14 @@ func NewAPCollector(
 			"AP uptime in seconds. Withheld rather than reported as 0 when the controller "+
 				"reports no boot time this exporter can use, so a reboot check has no reading "+
 				"instead of a false one",
+			baseAPLabels,
+			nil,
+		)
+		collector.associationUptimeSecondsDesc = prometheus.NewDesc(
+			"wnc_ap_association_uptime_seconds",
+			"Seconds since the CAPWAP association this AP currently holds began. It is "+
+				"withheld rather than reported as 0 where the controller reports no join "+
+				"time this exporter can use",
 			baseAPLabels,
 			nil,
 		)
@@ -437,6 +446,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.operStateDesc
 		ch <- c.configStateDesc
 		ch <- c.uptimeSecondsDesc
+		ch <- c.associationUptimeSecondsDesc
 		ch <- c.cpuUtilizationDesc
 		ch <- c.memoryUtilizationDesc
 	}
@@ -636,9 +646,10 @@ func (c *APCollector) collectSystemMetrics(
 ) {
 	labels := []string{wtpMAC}
 
-	// The controller lists only APs that have joined, so an AP that leaves CAPWAP
-	// loses this series rather than reporting a state. An empty leaf is not a state,
-	// and an empty label reads as no label at all.
+	// The controller lists only APs that have joined. A record is replaced rather than
+	// removed while an AP rejoins, so this series can carry the state from before it left,
+	// and it disappears only for an AP the controller drops from the list. An empty leaf
+	// is not a state, and an empty label reads as no label at all.
 	if operState := capwapMap[wtpMAC].ApState.ApOperationState; operState != "" {
 		ch <- prometheus.MustNewConstMetric(
 			c.operStateDesc,
@@ -653,7 +664,17 @@ func (c *APCollector) collectSystemMetrics(
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 	}
 
-	if uptime, ok := determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime); ok {
+	timeInfo := capwapMap[wtpMAC].ApTimeInfo
+	if uptime, ok := determineUptimeFromTimestamp(timeInfo.JoinTime); ok {
+		ch <- prometheus.MustNewConstMetric(
+			c.associationUptimeSecondsDesc,
+			prometheus.GaugeValue,
+			float64(uptime),
+			wtpMAC,
+		)
+	}
+
+	if uptime, ok := determineUptimeFromTimestamp(timeInfo.BootTime); ok {
 		metrics = append(metrics, Float64Metric{c.uptimeSecondsDesc, float64(uptime)})
 	}
 
@@ -1190,24 +1211,24 @@ func buildRadioClientCountsMap(
 	return countsMap
 }
 
-// determineUptimeFromBootTime derives uptime from the boot time timestamp, and
-// reports false when the leaf is absent, unparsable, or at the Unix epoch. Neither
-// zero nor five decades is a usable substitute: the first reads as an AP that booted
-// this instant, which is what a reboot rule fires on, and the second silences one.
+// determineUptimeFromTimestamp derives elapsed seconds from a timestamp leaf, and reports
+// false when the leaf is absent, unparsable, or at the Unix epoch. Neither zero nor five
+// decades is a usable substitute: the first reads as an event that happened this instant,
+// which is what a reboot rule fires on, and the second silences one.
 //
-// No AP booted in 1970, so an instant there is a placeholder whatever the controller
-// meant by it. This is the same guard the join module applies to its own timestamps.
-func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
-	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
+// Nothing here happened in 1970, so an instant there is a placeholder whatever the
+// controller meant by it. This is the same guard the join module applies to its own
+// timestamps.
+func determineUptimeFromTimestamp(timestamp string) (int64, bool) {
+	instant, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
 		return 0, false
 	}
-	if bootTime.Year() <= epochYear {
+	if instant.Year() <= epochYear {
 		return 0, false
 	}
 
-	uptime := time.Since(bootTime)
-	return int64(uptime.Seconds()), true
+	return int64(time.Since(instant).Seconds()), true
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {

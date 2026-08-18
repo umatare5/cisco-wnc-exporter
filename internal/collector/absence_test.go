@@ -115,6 +115,11 @@ const (
 	// that a descriptor reading one of those reports another day.
 	fixtureBootTime = "2026-01-13T00:00:00Z"
 
+	// The AP boots before it joins, and the two instants are days apart here so that a
+	// series reading the wrong leaf reports another day.
+	fixtureAPBootTime = "2026-01-01T00:00:00Z"
+	fixtureAPJoinTime = "2026-01-02T00:00:00Z"
+
 	// The two delete reasons carry distinct values, and the second is there because one
 	// entry cannot tell a per-reason loop from a single emit.
 	fixtureDeleteReason      = "ap-delete"
@@ -169,6 +174,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}{
 		{typeAPCAPWAPData, []string{
 			"wnc_ap_config_state", "wnc_ap_uptime_seconds", "wnc_ap_oper_state",
+			"wnc_ap_association_uptime_seconds",
 		}},
 		{typeAPOperData, []string{"wnc_ap_cpu_utilization_ratio", "wnc_ap_memory_utilization_ratio"}},
 		{typeAPRadioOperData, []string{
@@ -383,7 +389,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WtpMAC:     fixtureAPMAC,
 			IPAddr:     "192.0.2.11",
 			Name:       fixtureAPName,
-			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+			ApTimeInfo: ap.ApTimeInfo{BootTime: fixtureAPBootTime, JoinTime: fixtureAPJoinTime},
 			ApState:    ap.ApState{ApOperationState: "registered"},
 		}},
 		ApOperData: []ap.OperData{{

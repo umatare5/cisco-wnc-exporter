@@ -231,7 +231,9 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"General module only",
 			APMetrics{General: true},
-			7, // radio_state, admin_state, oper_state, config_state, uptime, cpu_utilization, memory_utilization
+			// radio_state, admin_state, oper_state, config_state, uptime,
+			// association_uptime, cpu_utilization, memory_utilization
+			8,
 		},
 		{
 			"Radio module only",
@@ -279,7 +281,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			83, // 7+13+10+13+32+7+1
+			84, // 8+13+10+13+32+7+1
 		},
 	}
 
@@ -863,7 +865,7 @@ func TestBuildRadioClientCountsMap(t *testing.T) {
 	}
 }
 
-func TestDetermineUptimeFromBootTime(t *testing.T) {
+func TestDetermineUptimeFromTimestamp(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	oneHourAgo := now.Add(-1 * time.Hour).Format(time.RFC3339)
@@ -933,20 +935,20 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := determineUptimeFromBootTime(tt.bootTimeStr)
+			got, ok := determineUptimeFromTimestamp(tt.bootTimeStr)
 
 			if tt.expectNotOK {
 				if ok {
-					t.Errorf("determineUptimeFromBootTime(%q) reported %d as usable, want it unusable",
+					t.Errorf("determineUptimeFromTimestamp(%q) reported %d as usable, want it unusable",
 						tt.bootTimeStr, got)
 				}
 			} else {
 				if !ok {
-					t.Errorf("determineUptimeFromBootTime(%q) reported no usable uptime", tt.bootTimeStr)
+					t.Errorf("determineUptimeFromTimestamp(%q) reported no usable uptime", tt.bootTimeStr)
 				}
 				if got < tt.minExpected || got > tt.maxExpected {
 					t.Errorf(
-						"determineUptimeFromBootTime(%q) = %d, want between %d and %d",
+						"determineUptimeFromTimestamp(%q) = %d, want between %d and %d",
 						tt.bootTimeStr,
 						got,
 						tt.minExpected,
@@ -992,6 +994,70 @@ func TestAPCollector_UptimeWithheldWhenBootTimeUnusable(t *testing.T) {
 			// with the AP-level config state, which reads a leaf of its own.
 			if _, ok := values["wnc_ap_config_state"]; !ok {
 				t.Error("wnc_ap_config_state is absent, so the assertion above proves nothing")
+			}
+		})
+	}
+}
+
+// TestAPCollector_AssociationUptimeReadsTheJoinTime pins which of the two instants of
+// the time container this series reads. The AP boots before it joins, so a series reading
+// the boot time reports an association older than the one the AP holds.
+func TestAPCollector_AssociationUptimeReadsTheJoinTime(t *testing.T) {
+	t.Parallel()
+
+	values := apSnapshotValues(t, fullFixtureSnapshot())
+
+	association, ok := values["wnc_ap_association_uptime_seconds"]
+	if !ok {
+		t.Fatal("wnc_ap_association_uptime_seconds is absent, so nothing below can be asserted")
+	}
+
+	boot, ok := values["wnc_ap_uptime_seconds"]
+	if !ok {
+		t.Fatal("wnc_ap_uptime_seconds is absent, so the comparison below proves nothing")
+	}
+
+	// Both are elapsed seconds against the same clock, so only their difference is
+	// stable enough to assert. The fixture puts the two instants one day apart.
+	const oneDay = 24 * 60 * 60
+	if got := boot - association; got != oneDay {
+		t.Errorf("wnc_ap_uptime_seconds - wnc_ap_association_uptime_seconds = %f, want %d",
+			got, oneDay)
+	}
+}
+
+// TestAPCollector_AssociationUptimeWithheldWhenJoinTimeUnusable pins the emission side of
+// the withhold, which the helper test cannot reach.
+func TestAPCollector_AssociationUptimeWithheldWhenJoinTimeUnusable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		joinTime    string
+		wantPresent bool
+	}{
+		{"absent leaf", "", false},
+		{"unparsable leaf", "2026-01-02", false},
+		{"epoch placeholder", "1970-01-01T00:00:00+00:00", false},
+		{"usable leaf", fixtureAPJoinTime, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].ApTimeInfo.JoinTime = tt.joinTime
+
+			values := apSnapshotValues(t, data)
+			if _, ok := values["wnc_ap_association_uptime_seconds"]; ok != tt.wantPresent {
+				t.Errorf("wnc_ap_association_uptime_seconds present = %v for join time %q, want %v",
+					ok, tt.joinTime, tt.wantPresent)
+			}
+
+			// The withhold is scoped to this series: the boot-time one reads its own leaf.
+			if _, ok := values["wnc_ap_uptime_seconds"]; !ok {
+				t.Error("wnc_ap_uptime_seconds is absent, so the assertion above proves nothing")
 			}
 		})
 	}
@@ -1151,7 +1217,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 51
+	expectedDescs := 52
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
