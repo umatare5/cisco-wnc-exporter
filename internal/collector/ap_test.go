@@ -259,8 +259,8 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
-			// air_quality_index_avg, and the four band-keyed worst channel series
-			5,
+			// The three per-radio air quality series and the four band-keyed ones
+			7,
 		},
 		{
 			"Info module only",
@@ -278,7 +278,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			80, // 7+12+10+13+32+5+1
+			82, // 7+12+10+13+32+7+1
 		},
 	}
 
@@ -1150,7 +1150,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 48
+	expectedDescs := 50
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -2553,9 +2553,9 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			WtpMAC: fixtureAPMAC,
 			Band:   "dot11-2-dot-4-ghz-band",
 			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
-				{ChannelNum: 0, Aqi: 0},
-				{ChannelNum: 11, Aqi: 71},
-				{ChannelNum: 6, Aqi: 96},
+				{ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0},
+				{ChannelNum: 11, Aqi: 71, MinAqi: 61, TotalIntfDeviceCount: 51},
+				{ChannelNum: 6, Aqi: 96, MinAqi: 86, TotalIntfDeviceCount: 76},
 			}},
 		},
 		{
@@ -2563,7 +2563,7 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			WtpMAC: fixtureAPMAC,
 			Band:   "dot11-6-ghz-band",
 			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
-				{ChannelNum: 6, Aqi: 100},
+				{ChannelNum: 6, Aqi: 100, MinAqi: 90, TotalIntfDeviceCount: 80},
 			}},
 		},
 	}
@@ -2615,9 +2615,22 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			t.Parallel()
 
 			got, found := airQualityOnCurrentChannel(table, tt.radio)
-			if found != tt.wantFound || got != tt.wantValue {
-				t.Errorf("airQualityOnCurrentChannel() = (%d, %v), want (%d, %v): %s",
-					got, found, tt.wantValue, tt.wantFound, tt.reason)
+			if found != tt.wantFound {
+				t.Fatalf("airQualityOnCurrentChannel() found = %v, want %v: %s",
+					found, tt.wantFound, tt.reason)
+			}
+
+			if !found {
+				return
+			}
+
+			// Every leaf of the row carries a distinct number, so a caller reading the
+			// wrong one reports a value this assertion does not expect.
+			if got.Aqi != tt.wantValue || got.MinAqi != tt.wantValue-10 ||
+				got.TotalIntfDeviceCount != tt.wantValue-20 {
+				t.Errorf("airQualityOnCurrentChannel() row = (%d, %d, %d), want (%d, %d, %d): %s",
+					got.Aqi, got.MinAqi, got.TotalIntfDeviceCount,
+					tt.wantValue, tt.wantValue-10, tt.wantValue-20, tt.reason)
 			}
 		})
 	}
@@ -2647,7 +2660,7 @@ func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
-		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the only "+
+		t.Errorf("airQualityOnCurrentChannel() = (%v, true), want no reading: the only "+
 			"record belongs to another AP", got)
 	}
 }
@@ -2910,7 +2923,7 @@ func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
-		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the "+
+		t.Errorf("airQualityOnCurrentChannel() = (%v, true), want no reading: the "+
 			"matching record carries no per-radio container", got)
 	}
 }

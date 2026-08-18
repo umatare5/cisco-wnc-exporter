@@ -91,6 +91,9 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		// The operating channel's row, not the padding row and not the neighboring
 		// channel the fixture table also carries.
 		{"wnc_ap_air_quality_index_avg", 93},
+		{"wnc_ap_air_quality_index_min", 92},
+		// The interferer count of that same row, not of the padding or neighboring one.
+		{"wnc_ap_interferers", 41},
 		// The band-keyed rows are sorted by label value, so these read the 2.4 GHz row.
 		// Each leaf of that row carries a distinct number, so a descriptor reading its
 		// neighbor reports a value these pins do not expect.

@@ -47,6 +47,8 @@ type APCollector struct {
 	rrmProfilePassedDesc          *prometheus.Desc
 	channelChangesTotalDesc       *prometheus.Desc
 	airQualityDesc                *prometheus.Desc
+	airQualityMinDesc             *prometheus.Desc
+	interferersDesc               *prometheus.Desc
 	channelDesc                   *prometheus.Desc
 	channelWidthDesc              *prometheus.Desc
 	associatedClientsDesc         *prometheus.Desc
@@ -235,6 +237,22 @@ func NewAPCollector(
 			"wnc_ap_air_quality_index_avg",
 			"Average CleanAir air quality index of the channel the radio operates on, over "+
 				"a window the controller does not declare",
+			baseRadioLabels,
+			nil,
+		)
+		collector.airQualityMinDesc = prometheus.NewDesc(
+			"wnc_ap_air_quality_index_min",
+			"Lowest CleanAir air quality index the controller saw on the channel the radio "+
+				"operates on, over the same reporting period as the average. It never "+
+				"exceeds the average, and a higher index is cleaner",
+			baseRadioLabels,
+			nil,
+		)
+		collector.interferersDesc = prometheus.NewDesc(
+			"wnc_ap_interferers",
+			"Interference devices CleanAir attributes to the channel the radio operates on. "+
+				"Zero is a reading rather than a missing one, and the series is absent "+
+				"instead where no reading can be reached",
 			baseRadioLabels,
 			nil,
 		)
@@ -459,6 +477,8 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Spectrum {
 		ch <- c.airQualityDesc
+		ch <- c.airQualityMinDesc
+		ch <- c.interferersDesc
 		c.band.describe(ch)
 	}
 	if c.metrics.Info {
@@ -860,17 +880,19 @@ func (c *APCollector) collectSpectrumMetrics(
 	radio *ap.RadioOperData,
 	spectrumAqTable []rrm.SpectrumAqTable,
 ) {
-	aqi, found := airQualityOnCurrentChannel(spectrumAqTable, radio)
+	row, found := airQualityOnCurrentChannel(spectrumAqTable, radio)
 	if !found {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		c.airQualityDesc,
-		prometheus.GaugeValue,
-		float64(aqi),
-		radio.WtpMAC, strconv.Itoa(radio.RadioSlotID),
-	)
+	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+	for _, metric := range []Float64Metric{
+		{c.airQualityDesc, float64(row.Aqi)},
+		{c.airQualityMinDesc, float64(row.MinAqi)},
+		{c.interferersDesc, float64(row.TotalIntfDeviceCount)},
+	} {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
+	}
 }
 
 func (c *APCollector) collectTrafficMetrics(
@@ -1169,8 +1191,9 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 	)
 }
 
-// airQualityOnCurrentChannel returns the CleanAir index for the channel the radio
-// operates on, and reports whether the reading was found.
+// airQualityOnCurrentChannel returns the CleanAir row for the channel the radio operates
+// on, and reports whether it was found. The row is returned rather than one of its leaves
+// because the series published from it must agree on which row they read.
 //
 // The table is keyed by AP and band, and its per-channel list spans the band's channel
 // set, so the reading is reached by matching the band first and the primary channel
@@ -1179,14 +1202,16 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 // rows whose channel number is zero, and the primary channel is likewise absent as a
 // zero on a radio in monitor or sniffer mode, so rejecting the zero channel excludes
 // both without a second test.
-func airQualityOnCurrentChannel(table []rrm.SpectrumAqTable, radio *ap.RadioOperData) (int, bool) {
+func airQualityOnCurrentChannel(
+	table []rrm.SpectrumAqTable, radio *ap.RadioOperData,
+) (*rrm.PerChannelAqList, bool) {
 	if radio.PhyHtCfg == nil {
-		return 0, false
+		return nil, false
 	}
 
 	channel := radio.PhyHtCfg.CfgData.CurrFreq
 	if channel == 0 {
-		return 0, false
+		return nil, false
 	}
 
 	for i := range table {
@@ -1195,15 +1220,17 @@ func airQualityOnCurrentChannel(table []rrm.SpectrumAqTable, radio *ap.RadioOper
 			continue
 		}
 		if record.PerRadioAqData == nil {
-			return 0, false
+			return nil, false
 		}
-		for _, row := range record.PerRadioAqData.PerChannelAqList {
-			if row.ChannelNum == channel {
-				return row.Aqi, true
+
+		rows := record.PerRadioAqData.PerChannelAqList
+		for j := range rows {
+			if rows[j].ChannelNum == channel {
+				return &rows[j], true
 			}
 		}
 	}
-	return 0, false
+	return nil, false
 }
 
 // noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,
