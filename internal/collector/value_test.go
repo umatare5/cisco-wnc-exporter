@@ -90,11 +90,23 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_coverage_failed_clients", 7},
 		// The operating channel's row, not the padding row and not the neighboring
 		// channel the fixture table also carries.
-		{"wnc_ap_air_quality_index", 93},
+		{"wnc_ap_air_quality_index_avg", 93},
+		{"wnc_ap_air_quality_index_min", 92},
+		// The interferer count of that same row, not of the padding or neighboring one.
+		{"wnc_ap_interferers", 41},
+		// The band-keyed rows are sorted by label value, so these read the 2.4 GHz row.
+		// Each leaf of that row carries a distinct number, so a descriptor reading its
+		// neighbor reports a value these pins do not expect.
+		{"wnc_rrm_worst_channel_air_quality_index_min", 8101},
+		{"wnc_rrm_worst_channel_air_quality_index_avg", 8102},
+		{"wnc_rrm_worst_channel_interferers", 8103},
+		{"wnc_rrm_worst_channel_number", 11},
 		// Both reset entries of this radio are totalled, not overwritten.
 		{"wnc_ap_radio_resets_total", 8},
 		// The change count, not one of the three energy or channel leaves beside it.
 		{"wnc_ap_channel_changes_total", 34},
+		// The energy DCA measured on the assigned channel, not the previous one beside it.
+		{"wnc_ap_channel_energy_dbm", -32},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
 		{"wnc_ap_last_radar_timestamp_seconds", 1767225600},
 

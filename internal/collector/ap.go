@@ -33,6 +33,7 @@ type APCollector struct {
 	infoDesc       *prometheus.Desc
 	infoLabelNames []string
 	join           *apJoinDescs
+	band           *apBandDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -45,7 +46,10 @@ type APCollector struct {
 	txPowerDesc                   *prometheus.Desc
 	rrmProfilePassedDesc          *prometheus.Desc
 	channelChangesTotalDesc       *prometheus.Desc
+	channelEnergyDesc             *prometheus.Desc
 	airQualityDesc                *prometheus.Desc
+	airQualityMinDesc             *prometheus.Desc
+	interferersDesc               *prometheus.Desc
 	channelDesc                   *prometheus.Desc
 	channelWidthDesc              *prometheus.Desc
 	associatedClientsDesc         *prometheus.Desc
@@ -80,6 +84,7 @@ type APCollector struct {
 	cpuUtilizationDesc            *prometheus.Desc
 	memoryUtilizationDesc         *prometheus.Desc
 	uptimeSecondsDesc             *prometheus.Desc
+	associationUptimeSecondsDesc  *prometheus.Desc
 }
 
 // NewAPCollector creates a new AP collector.
@@ -144,6 +149,14 @@ func NewAPCollector(
 			"AP uptime in seconds. Withheld rather than reported as 0 when the controller "+
 				"reports no boot time this exporter can use, so a reboot check has no reading "+
 				"instead of a false one",
+			baseAPLabels,
+			nil,
+		)
+		collector.associationUptimeSecondsDesc = prometheus.NewDesc(
+			"wnc_ap_association_uptime_seconds",
+			"Seconds since the CAPWAP association this AP currently holds began. It is "+
+				"withheld rather than reported as 0 where the controller reports no join "+
+				"time this exporter can use",
 			baseAPLabels,
 			nil,
 		)
@@ -220,6 +233,14 @@ func NewAPCollector(
 			[]string{labelMAC, labelRadio, labelProfile},
 			nil,
 		)
+		collector.channelEnergyDesc = prometheus.NewDesc(
+			"wnc_ap_channel_energy_dbm",
+			"Energy the controller measured on the channel it assigned this radio, from its "+
+				"DCA statistics. It is a step: the reading holds until DCA next runs for "+
+				"that band",
+			baseRadioLabels,
+			nil,
+		)
 		collector.channelChangesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_channel_changes_total",
 			"Channel changes on this radio, from the controller's DCA assignment statistics. "+
@@ -231,12 +252,30 @@ func NewAPCollector(
 
 	if metrics.Spectrum {
 		collector.airQualityDesc = prometheus.NewDesc(
-			"wnc_ap_air_quality_index",
+			"wnc_ap_air_quality_index_avg",
 			"Average CleanAir air quality index of the channel the radio operates on, over "+
-				"a window the controller does not declare",
+				"the air quality reporting period the controller declares. A higher index is "+
+				"cleaner, and the controller's own alarm threshold is a lower bound on it",
 			baseRadioLabels,
 			nil,
 		)
+		collector.airQualityMinDesc = prometheus.NewDesc(
+			"wnc_ap_air_quality_index_min",
+			"Lowest CleanAir air quality index the controller saw on the channel the radio "+
+				"operates on, over the same reporting period as the average. It never "+
+				"exceeds the average, and a higher index is cleaner",
+			baseRadioLabels,
+			nil,
+		)
+		collector.interferersDesc = prometheus.NewDesc(
+			"wnc_ap_interferers",
+			"Interference devices CleanAir attributes to the channel the radio operates on. "+
+				"Zero is a reading rather than a missing one, and the series is absent "+
+				"instead where no reading can be reached",
+			baseRadioLabels,
+			nil,
+		)
+		collector.band = newAPBandDescs()
 	}
 
 	if metrics.General {
@@ -408,6 +447,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.operStateDesc
 		ch <- c.configStateDesc
 		ch <- c.uptimeSecondsDesc
+		ch <- c.associationUptimeSecondsDesc
 		ch <- c.cpuUtilizationDesc
 		ch <- c.memoryUtilizationDesc
 	}
@@ -424,6 +464,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.associatedClientsDesc
 		ch <- c.rrmProfilePassedDesc
 		ch <- c.channelChangesTotalDesc
+		ch <- c.channelEnergyDesc
 	}
 	if c.metrics.Traffic {
 		ch <- c.dataRxFramesTotalDesc
@@ -457,6 +498,9 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	if c.metrics.Spectrum {
 		ch <- c.airQualityDesc
+		ch <- c.airQualityMinDesc
+		ch <- c.interferersDesc
+		c.band.describe(ch)
 	}
 	if c.metrics.Info {
 		ch <- c.infoDesc
@@ -526,14 +570,9 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 		radioSources = c.readRadioJoins(ctx)
 	}
 
-	var spectrumAqTable []rrm.SpectrumAqTable
+	var spectrumSources spectrumReads
 	if IsEnabled(c.metrics.Spectrum) {
-		table, err := c.rrmSrc.GetSpectrumAqTable(ctx)
-		if err != nil {
-			slog.Debug("Failed to get the air quality table for spectrum metrics", "error", err)
-		} else {
-			spectrumAqTable = table
-		}
+		spectrumSources = c.readSpectrum(ctx)
 	}
 
 	var radioResetStatsMap map[string]map[int]int
@@ -585,11 +624,17 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 		if c.metrics.Spectrum {
-			c.collectSpectrumMetrics(ch, radio, spectrumAqTable)
+			c.collectSpectrumMetrics(ch, radio, spectrumSources.aqTable)
 		}
 		if c.metrics.Info {
 			c.collectInfoMetrics(ch, radio, capwapMap)
 		}
+	}
+
+	// Outside the loop above: the band label is the whole identifier of these series, so
+	// emitting them per radio would repeat one label set and fail the whole scrape.
+	if IsEnabled(c.metrics.Spectrum) {
+		c.band.collect(ch, spectrumSources.worst)
 	}
 }
 
@@ -602,9 +647,10 @@ func (c *APCollector) collectSystemMetrics(
 ) {
 	labels := []string{wtpMAC}
 
-	// The controller lists only APs that have joined, so an AP that leaves CAPWAP
-	// loses this series rather than reporting a state. An empty leaf is not a state,
-	// and an empty label reads as no label at all.
+	// The controller lists only APs that have joined. A record is replaced rather than
+	// removed while an AP rejoins, so this series can carry the state from before it left,
+	// and it disappears only for an AP the controller drops from the list. An empty leaf
+	// is not a state, and an empty label reads as no label at all.
 	if operState := capwapMap[wtpMAC].ApState.ApOperationState; operState != "" {
 		ch <- prometheus.MustNewConstMetric(
 			c.operStateDesc,
@@ -619,7 +665,17 @@ func (c *APCollector) collectSystemMetrics(
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
 	}
 
-	if uptime, ok := determineUptimeFromBootTime(capwapMap[wtpMAC].ApTimeInfo.BootTime); ok {
+	timeInfo := capwapMap[wtpMAC].ApTimeInfo
+	if uptime, ok := determineUptimeFromTimestamp(timeInfo.JoinTime); ok {
+		ch <- prometheus.MustNewConstMetric(
+			c.associationUptimeSecondsDesc,
+			prometheus.GaugeValue,
+			float64(uptime),
+			wtpMAC,
+		)
+	}
+
+	if uptime, ok := determineUptimeFromTimestamp(timeInfo.BootTime); ok {
 		metrics = append(metrics, Float64Metric{c.uptimeSecondsDesc, float64(uptime)})
 	}
 
@@ -635,6 +691,15 @@ func (c *APCollector) collectSystemMetrics(
 	}
 }
 
+// isRadio reports whether an entry of the slot list is a radio. The list carries
+// entries that are not: a remote-LAN port arrives with three leaves and neither state,
+// measured, and that absence is the only thing identifying it. The controller does send
+// a counter record for such an entry, and every counter in it is zero, so a reading
+// taken from it would report a radio that never carries traffic.
+func isRadio(radio *ap.RadioOperData) bool {
+	return radio.OperState != ""
+}
+
 // collectGeneralMetrics collects general radio metrics.
 func (c *APCollector) collectGeneralMetrics(
 	ch chan<- prometheus.Metric,
@@ -645,11 +710,8 @@ func (c *APCollector) collectGeneralMetrics(
 	metrics := []Float64Metric{}
 
 	// An absent leaf is not a state, and comparing it against the up spelling reports
-	// the radio down. The slot list carries entries that are not radios — a remote-LAN
-	// port arrives with both leaves omitted, measured — so the equality test alone
-	// would publish a down radio for every such port. The AP-level state above applies
-	// the same rule.
-	if radio.OperState != "" {
+	// the radio down. The AP-level state above applies the same rule.
+	if isRadio(radio) {
 		metrics = append(metrics,
 			Float64Metric{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 		)
@@ -674,6 +736,10 @@ func (c *APCollector) collectRadioMetrics(
 	clientCountsMap map[string]map[int]int,
 	radioSlotMap map[string]*rrm.RadioSlot,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
@@ -743,12 +809,34 @@ func (c *APCollector) collectRadioMetrics(
 				float64(dca.ChanChanges),
 				labels...,
 			)
+
+			if hasChannelEnergy(dca.CurrentChanEnergy) {
+				metrics = append(metrics,
+					Float64Metric{c.channelEnergyDesc, float64(dca.CurrentChanEnergy)})
+			}
 		}
 	}
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
 	}
+}
+
+// The two readings the energy leaf carries that are not measurements. Neither can be one:
+// the sentinel is the lower bound of the leaf's own signed type and sits far below the
+// thermal noise floor of any channel width, and zero sits far above every measured
+// energy and above the controller's own lower limit for the assignment. The sentinel is
+// what a radio reads until DCA next runs for its band, measured on several radios with an
+// untouched radio as a control; zero has not been observed and is guarded because the
+// leaf is a plain integer, so an omitted one would decode to it.
+const (
+	channelEnergyAbsent   = 0
+	channelEnergySentinel = -128
+)
+
+// hasChannelEnergy reports whether the energy leaf carries a measurement.
+func hasChannelEnergy(energy int) bool {
+	return energy != channelEnergyAbsent && energy != channelEnergySentinel
 }
 
 // rrmProfiles pairs each profile label value with the verdict leaf it is read from.
@@ -771,6 +859,33 @@ type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
 	slots        map[string]*rrm.RadioSlot
 	clientCounts map[string]map[int]int
+}
+
+// spectrumReads holds the two air quality reads of the spectrum module. They key on
+// different things — one on the radio, one on the band — so one failing leaves the other
+// published rather than withholding both.
+type spectrumReads struct {
+	aqTable []rrm.SpectrumAqTable
+	worst   []rrm.SpectrumAqWorstTable
+}
+
+// readSpectrum reads the two data types the spectrum module publishes from.
+func (c *APCollector) readSpectrum(ctx context.Context) spectrumReads {
+	var reads spectrumReads
+
+	table, err := c.rrmSrc.GetSpectrumAqTable(ctx)
+	if err != nil {
+		slog.Debug("Failed to get the air quality table for spectrum metrics", "error", err)
+	}
+	reads.aqTable = table
+
+	worst, worstErr := c.rrmSrc.GetSpectrumAqWorstTable(ctx)
+	if worstErr != nil {
+		slog.Debug("Failed to get the worst air quality table for spectrum metrics", "error", worstErr)
+	}
+	reads.worst = worst
+
+	return reads
 }
 
 // readRadioJoins reads the three data types the radio module joins against. Each keeps
@@ -819,17 +934,19 @@ func (c *APCollector) collectSpectrumMetrics(
 	radio *ap.RadioOperData,
 	spectrumAqTable []rrm.SpectrumAqTable,
 ) {
-	aqi, found := airQualityOnCurrentChannel(spectrumAqTable, radio)
+	row, found := airQualityOnCurrentChannel(spectrumAqTable, radio)
 	if !found {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		c.airQualityDesc,
-		prometheus.GaugeValue,
-		float64(aqi),
-		radio.WtpMAC, strconv.Itoa(radio.RadioSlotID),
-	)
+	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
+	for _, metric := range []Float64Metric{
+		{c.airQualityDesc, float64(row.Aqi)},
+		{c.airQualityMinDesc, float64(row.MinAqi)},
+		{c.interferersDesc, float64(row.TotalIntfDeviceCount)},
+	} {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
+	}
 }
 
 func (c *APCollector) collectTrafficMetrics(
@@ -837,6 +954,10 @@ func (c *APCollector) collectTrafficMetrics(
 	radio *ap.RadioOperData,
 	radioOperStatsMap map[string]map[int]ap.RadioOperStats,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
 	if !ok {
 		return
@@ -869,6 +990,10 @@ func (c *APCollector) collectErrorMetrics(
 	rrmCoverageMap map[string]*rrm.RRMCoverage,
 	apDot11RadarMap map[string]*rrm.ApDot11RadarData,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
@@ -1087,24 +1212,24 @@ func buildRadioClientCountsMap(
 	return countsMap
 }
 
-// determineUptimeFromBootTime derives uptime from the boot time timestamp, and
-// reports false when the leaf is absent, unparsable, or at the Unix epoch. Neither
-// zero nor five decades is a usable substitute: the first reads as an AP that booted
-// this instant, which is what a reboot rule fires on, and the second silences one.
+// determineUptimeFromTimestamp derives elapsed seconds from a timestamp leaf, and reports
+// false when the leaf is absent, unparsable, or at the Unix epoch. Neither zero nor five
+// decades is a usable substitute: the first reads as an event that happened this instant,
+// which is what a reboot rule fires on, and the second silences one.
 //
-// No AP booted in 1970, so an instant there is a placeholder whatever the controller
-// meant by it. This is the same guard the join module applies to its own timestamps.
-func determineUptimeFromBootTime(bootTimeStr string) (int64, bool) {
-	bootTime, err := time.Parse(time.RFC3339, bootTimeStr)
+// Nothing here happened in 1970, so an instant there is a placeholder whatever the
+// controller meant by it. This is the same guard the join module applies to its own
+// timestamps.
+func determineUptimeFromTimestamp(timestamp string) (int64, bool) {
+	instant, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
 		return 0, false
 	}
-	if bootTime.Year() <= epochYear {
+	if instant.Year() <= epochYear {
 		return 0, false
 	}
 
-	uptime := time.Since(bootTime)
-	return int64(uptime.Seconds()), true
+	return int64(time.Since(instant).Seconds()), true
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {
@@ -1120,8 +1245,9 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 	)
 }
 
-// airQualityOnCurrentChannel returns the CleanAir index for the channel the radio
-// operates on, and reports whether the reading was found.
+// airQualityOnCurrentChannel returns the CleanAir row for the channel the radio operates
+// on, and reports whether it was found. The row is returned rather than one of its leaves
+// because the series published from it must agree on which row they read.
 //
 // The table is keyed by AP and band, and its per-channel list spans the band's channel
 // set, so the reading is reached by matching the band first and the primary channel
@@ -1130,14 +1256,16 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 // rows whose channel number is zero, and the primary channel is likewise absent as a
 // zero on a radio in monitor or sniffer mode, so rejecting the zero channel excludes
 // both without a second test.
-func airQualityOnCurrentChannel(table []rrm.SpectrumAqTable, radio *ap.RadioOperData) (int, bool) {
+func airQualityOnCurrentChannel(
+	table []rrm.SpectrumAqTable, radio *ap.RadioOperData,
+) (*rrm.PerChannelAqList, bool) {
 	if radio.PhyHtCfg == nil {
-		return 0, false
+		return nil, false
 	}
 
 	channel := radio.PhyHtCfg.CfgData.CurrFreq
 	if channel == 0 {
-		return 0, false
+		return nil, false
 	}
 
 	for i := range table {
@@ -1146,15 +1274,17 @@ func airQualityOnCurrentChannel(table []rrm.SpectrumAqTable, radio *ap.RadioOper
 			continue
 		}
 		if record.PerRadioAqData == nil {
-			return 0, false
+			return nil, false
 		}
-		for _, row := range record.PerRadioAqData.PerChannelAqList {
-			if row.ChannelNum == channel {
-				return row.Aqi, true
+
+		rows := record.PerRadioAqData.PerChannelAqList
+		for j := range rows {
+			if rows[j].ChannelNum == channel {
+				return &rows[j], true
 			}
 		}
 	}
-	return 0, false
+	return nil, false
 }
 
 // noiseOnCurrentChannel returns the RRM noise for the channel the radio operates on,

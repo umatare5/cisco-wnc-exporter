@@ -22,7 +22,7 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - A refresh reads only the data types the enabled modules need, so a narrower flag set leaves more of that budget per data type
 - `wnc_refresh_errors_total` names the data types a configuration reads — a type absent from both refresh series is one no enabled module reads
 - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
-- Every read is a registered data type, so it is gated by a module flag, bounded by the refresh deadline and counted in both refresh series alike — twenty-two of the twenty-five go through a typed SDK accessor, and the three the SDK has no route for build their path directly and check the container they were answered with, as [Controller](collector.controller.md) note *4 describes
+- Every read is a registered data type, so it is gated by a module flag, bounded by the refresh deadline and counted in both refresh series alike — twenty-three of the twenty-six go through a typed SDK accessor, and the three the SDK has no route for build their path directly and check the container they were answered with, as [Controller](collector.controller.md) note *4 describes
 
 ### Request timeout (`--wnc.timeout`)
 
@@ -50,13 +50,19 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - `show ap dot11 {24ghz | 5ghz | 6ghz} monitor` reports the coverage, load, measurement and reporting intervals in force
 - Use a range of **15 minutes or more** for `rate()` and `increase()`
 - A shorter range spans too few controller updates to be meaningful
+- The per-radio statistics carry the instant the controller last updated them and no series publishes it, so a scrape cannot tell a record just refreshed from one untouched since before the previous scrape — a second reason for the range above
+- The CleanAir readings — `wnc_ap_air_quality_index_avg` and `_min`, `wnc_ap_interferers` and the four `wnc_rrm_worst_channel_*` series — are refreshed on the reporting period the controller declares for air quality, hold their value between reports, and carry no timestamp either
+- Whether a reading is one the controller aggregated cannot be decided from the metric name: `_avg` and `_min` name the statistic where it is established, their absence elsewhere is not a claim that a reading is instantaneous, and where a series is one the controller aggregated its HELP says so — where neither the name nor the HELP says, this exporter has not established it
 
 ### Counter reset timing
 
 - Counters also reset when an AP re-joins CAPWAP, because the controller allocates fresh statistics
 - A client's counters reset the same way when it re-associates, because the statistics belong to the association rather than to the device
 - Across 750 reads of the client traffic container, the byte and packet counters fell to zero together three times, each time in the same read that carried a new association timestamp for that client, matching the instant of the fall
-- **A reset can reach an AP that went nowhere.** In one measured interval the per-radio reset totals fell to their minimum on every radio and the channel-change counts fell to zero on every radio, with the controller's boot time unchanged and both APs still joined. A previously unseen AP appeared in the same interval, which is the likely trigger, though the reads do not order the two events — either way the controller rebuilt the per-radio statistics tables rather than one AP's, so a rule watching one AP can see a reset caused elsewhere
+- **A per-radio counter is anchored per radio, at some instant at or after its own AP's CAPWAP join.** An access point left untouched while another rebooted kept every leaf of its own records and every counter anchor, so a reset that reaches one AP does not reach another's series
+- Do not read the AP's boot time as the anchor. The instant a radio was enabled coincided with the CAPWAP join on every radio measured, so a boot-anchored and a join-anchored counter cannot be told apart from the values; where boot and join were far apart, the counters agreed with the join
+- Two radios of one AP can anchor at different instants. A radio on a DFS channel anchored later than the instant it was enabled while its sibling on a non-DFS channel did not, so treat the anchor as per radio even within one AP
+- Only `wnc_ap_management_tx_frames_total` supports recovering an anchor by dividing the counter by its own rate. The other per-radio leaves put the anchor before the AP had booted or implausibly far back, so a reproduction that reads them will disagree
 - Query them with a range long enough to absorb a re-join or a re-association, such as `increase(...[1h])`
 
 ## States
@@ -96,6 +102,8 @@ group by (mac) (wnc_client_state{state!="client-status-run"})
 - Client band comes from the PHY generation the client associated with
 - `unknown` means the controller reported a value this exporter does not map
 - `unknown` is a label value, not a missing series: the other labels stay joinable
+- The four `wnc_rrm_worst_channel_*` series are the one exception: `band` is their whole identifier, so a band this exporter cannot name is withheld as a row rather than published as `unknown`
+- Two such rows would carry the same label set, and a duplicate fails the whole `/metrics` endpoint instead of one series, so that exception protects every other metric in the scrape
 - A band change takes up to `--collector.info-cache-ttl` to appear
 
 ### Multi-link clients

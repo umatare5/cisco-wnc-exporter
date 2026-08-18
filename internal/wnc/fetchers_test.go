@@ -222,7 +222,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			// radio through the radio list, which this module has to pay for as well.
 			"AP spectrum reads the radio list its band and channel come from",
 			config.Collectors{AP: config.APCollectorModules{Spectrum: true}},
-			[]string{dataAPCAPWAPData, dataAPRadioOperData, dataRRMSpectrumAqTable},
+			[]string{dataAPCAPWAPData, dataAPRadioOperData, dataRRMSpectrumAqWorst, dataRRMSpectrumAqTable},
 		},
 		{
 			"AP info reads only the two the AP collector fetches unconditionally",

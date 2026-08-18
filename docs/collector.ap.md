@@ -11,6 +11,7 @@ AP collector focuses on RF foundation and radio performance.
 | general  | `wnc_ap_radio_state`                              | Gauge   | Radio state, absent if unreported **(\*12)**       |
 | general  | `wnc_ap_config_state`                             | Gauge   | Tag config state (0=valid, 1=invalid)              |
 | general  | `wnc_ap_uptime_seconds`                           | Gauge   | AP uptime in seconds, absent without boot time     |
+| general  | `wnc_ap_association_uptime_seconds`               | Gauge   | Age of the current association **(\*14)**          |
 | general  | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1) **(\*1)**              |
 | general  | `wnc_ap_memory_utilization_ratio`                 | Gauge   | Memory utilization ratio (0-1) **(\*1)**           |
 | radio    | `wnc_ap_channel_number`                           | Gauge   | Operating channel number **(\*2)**                 |
@@ -25,6 +26,7 @@ AP collector focuses on RF foundation and radio performance.
 | radio    | `wnc_ap_clients`                                  | Gauge   | Run-state clients count (calculated)               |
 | radio    | `wnc_ap_rrm_profile_passed`                       | Gauge   | RRM profile verdict per `profile` **(\*4)**        |
 | radio    | `wnc_ap_channel_changes_total`                    | Counter | Channel changes, DCA statistics **(\*4)**          |
+| radio    | `wnc_ap_channel_energy_dbm`                       | Gauge   | Energy DCA measured on the channel **(\*13)**      |
 | traffic  | `wnc_ap_total_tx_frames_total`                    | Counter | TX frames, not a sum of the frame series           |
 | traffic  | `wnc_ap_data_rx_frames_total`                     | Counter | Data RX frames                                     |
 | traffic  | `wnc_ap_data_tx_frames_total`                     | Counter | Data TX frames                                     |
@@ -80,7 +82,13 @@ AP collector focuses on RF foundation and radio performance.
 | join     | `wnc_ap_last_dtls_failure_reason`                 | Gauge   | DTLS outcome in `state`, per `channel` **(\*10)**  |
 | join     | `wnc_ap_last_reboot_reason`                       | Gauge   | Reboot reason in `state` **(\*10)**                |
 | join     | `wnc_ap_last_disconnect_reason`                   | Gauge   | Disconnect reason in `state` **(\*10)**            |
-| spectrum | `wnc_ap_air_quality_index`                        | Gauge   | CleanAir air quality of the channel **(\*11)**     |
+| spectrum | `wnc_ap_air_quality_index_avg`                    | Gauge   | CleanAir air quality of the channel **(\*11)**     |
+| spectrum | `wnc_ap_air_quality_index_min`                    | Gauge   | CleanAir air quality minimum **(\*11)**            |
+| spectrum | `wnc_ap_interferers`                              | Gauge   | Interference devices on that channel **(\*11)**    |
+| spectrum | `wnc_rrm_worst_channel_air_quality_index_avg`     | Gauge   | Worst channel air quality per band **(\*15)**      |
+| spectrum | `wnc_rrm_worst_channel_air_quality_index_min`     | Gauge   | Worst channel minimum per band **(\*15)**          |
+| spectrum | `wnc_rrm_worst_channel_interferers`               | Gauge   | Interference devices on that channel **(\*15)**    |
+| spectrum | `wnc_rrm_worst_channel_number`                    | Gauge   | Which channel that is, as a value **(\*15)**       |
 
 ## Labels
 
@@ -268,14 +276,16 @@ max_over_time(wnc_ap_rrm_profile_passed[30m]) == 0
 Or several verdicts failing at once on one radio, which is the shape that survives a profile flapping:
 
 ```bash
-count by (job, instance, mac, radio) (wnc_ap_rrm_profile_passed == 0) >= 2
+count by (job, instance, mac, radio) (wnc_ap_rrm_profile_passed{profile!="load"} == 0) >= 2
 ```
+
+`load` is excluded because its verdict is the controller's judgement against a client-count threshold configured on the controller, so a radio carrying a crowd fails it while nothing about the RF is wrong. Read capacity from `wnc_ap_clients` and `wnc_ap_channel_utilization_ratio` instead. The recipe above keeps every profile on purpose: it reports which one is failing in the `profile` label, so nothing is conflated there — the exclusion matters only where verdicts are counted together.
 
 The thresholds each profile is judged against are configured on the controller and are not read here, so the series says a profile failed and never by how much. `wnc_ap_channel_utilization_ratio` and `wnc_ap_noise_floor_dbm` are the measured quantities behind the `load` and `noise` verdicts, and `wnc_ap_coverage_failed_clients`, which the `errors` module publishes, counts the clients behind the `coverage` one.
 
-The four series are absent for a radio the slot list has no record for, for a record that carries no radio data, and for every radio while the `rrm_radio_slot` fetch fails. A verdict leaf the controller omits from a record it did send cannot be told from a reported failure, so the error runs one way only — the series can report a failure that was never measured and never hide one.
+The four series are absent for a radio the slot list has no record for, for a record that carries no radio data, and for every radio while the `rrm_radio_slot` fetch fails. A verdict leaf the controller omits from a record it did send cannot be told from a reported failure, so a verdict can report a failure that was never measured. **The error runs the other way as well.** Just after a radio re-joined, all four verdicts were present and reading `1` while the channel energy the controller reports for that radio still read its unmeasured sentinel, and the radio had been failing interference before the re-join and failed it again afterwards — so the controller serves verdicts it has not yet measured, and the fabrication is the controller's rather than this exporter's decode. Read a verdict taken shortly after a re-join as unmeasured in either direction.
 
-`wnc_ap_channel_changes_total` comes from the same record and adds no request. **It is read from the controller's DCA assignment statistics, and what it counts is not established.** The controller's CLI prints the same count under a DCA heading and keeps a separate count of radar-driven changes, which no leaf carries, so whether a radar move also advances this count could not be measured — both read zero on every radio here. `wnc_ap_last_radar_timestamp_seconds`, which the `errors` module publishes, dates a DFS event, so where it is absent no radar is on record and a move was not radar-driven. That inference is the most the pair supports, and on a controller that has seen no radar it is absent everywhere — see note *6. The counter was monotonic non-decreasing on every radio across fifteen consecutive reads two minutes apart, with one radio observed stepping by one as its best channel moved — and it was later observed **falling to zero on every radio at once**, with the controller's boot time unchanged, in the same interval a previously unseen AP appeared. So it resets when the controller rebuilds its per-radio statistics and not only on a reboot. `rate()` and `increase()` absorb that; a rule reading the raw value as a lifetime total does not. Keep the range well above the controller's channel-assignment interval, ten minutes by default, or a healthy radio and a churning one both read zero. It sits one container deeper than the verdicts and is absent on its own when the controller reports no assignment statistics for a radio, which a zero would misreport as a radio that has never moved.
+`wnc_ap_channel_changes_total` comes from the same record and adds no request. **It is read from the controller's DCA assignment statistics, and what it counts is not established.** The controller's CLI prints the same count under a DCA heading and keeps a separate count of radar-driven changes, which no leaf carries, so whether a radar move also advances this count could not be measured — both read zero on every radio here. `wnc_ap_last_radar_timestamp_seconds`, which the `errors` module publishes, dates a DFS event, so where it is absent no radar is on record and a move was not radar-driven. That inference is the most the pair supports, and on a controller that has seen no radar it is absent everywhere — see note *6. The counter was monotonic non-decreasing on every radio across fifteen consecutive reads two minutes apart, with one radio observed stepping by one as its best channel moved — and it was later observed **falling to zero on the one radio that had a count to lose**, with the controller's boot time unchanged, while every radio already reading zero stayed there. **The anchor is the radio's own AP joining CAPWAP rather than a controller-wide rebuild of the statistics tables** — an access point left untouched through the same interval kept its counters and its anchor, so a reset reaching one AP does not reach another's series, as [Counter reset timing](README.md#counter-reset-timing) describes. `rate()` and `increase()` absorb that; a rule reading the raw value as a lifetime total does not. Keep the range well above the controller's channel-assignment interval, ten minutes by default, or a healthy radio and a churning one both read zero. It sits one container deeper than the verdicts and is absent on its own when the controller reports no assignment statistics for a radio, which a zero would misreport as a radio that has never moved.
 
 </details>
 
@@ -350,7 +360,9 @@ The record also carries two free-text leaves — a prose disconnect description 
 
 The controller publishes air quality per AP and band, and the reading here is the one for the channel the radio operates on. **The series is absent rather than zero wherever that reading cannot be reached**, chiefly an AP without CleanAir, a radio whose spectrum operation is down, a radio in monitor or sniffer mode with no primary channel, a slot that is not a radio at all and so has no channel to match — see note \*12 — and every radio while the `rrm_spectrum_aq_table` fetch fails. Silence therefore does not mean clean air — on the controller measured here most radios reported a reading and the rest did not, and which ones moved as APs joined.
 
-**The value is an average**, over a window the controller does not declare — no output of the controller, through either interface, states its length. The CLI names the same per-channel figures the average and the minimum, and the two matched this exporter's source leaves row for row on every channel checked. The minimum is not published here; it carries a signal the average does not, measured at 47 points below it during an interference event, and whether to publish it is open.
+One of those cases was narrowed. A radio whose spectrum operation reads down belonged, on every such radio measured, to an access point carrying Spectrum Intelligence rather than full CleanAir, with spectrum intelligence itself left disabled — **whether such a radio reports a reading once spectrum intelligence is enabled could not be measured**, because none measured had it enabled. Silence can also be early rather than settled: after an AP joins, a refresh can publish every other per-radio series for it while the air quality table still carries no row for it, so this reading appears later than the rest of the radio. And **a reading present is not a reading now** — across an AP reboot the controller served the value from before the reboot, marked in no way, until the AP reported again. The controller keeps a second and unrelated air quality as well, `ap-sensor-air-quality`, which a sensor radio reports and no series here reads.
+
+**The value is an average**, over the air quality reporting period the controller declares — `show ap dot11 <band> cleanair config` reports its length. No configuration leaf carries it, so the CLI is the only place to read it, and an operator can change it rather than relying on this page. **A higher index is cleaner**: the controller's own air-quality alarm threshold is a lower bound on the index, and so is the sensitivity its event-driven RRM acts on, though which of the two readings that sensitivity is compared against could not be read. The CLI names the same per-channel figures the average and the minimum, and the two matched this exporter's source leaves row for row on every channel checked. `wnc_ap_air_quality_index_min` publishes the minimum of the same reporting period and `wnc_ap_interferers` the number of interference devices CleanAir attributes to that channel; both read the row this average reads, so the three are published and withheld together. The minimum carries a signal the average does not — it was measured well below the average during an interference event — which is why it is published rather than left as a note. None of the three is guarded on its value, so a zero from `wnc_ap_interferers` is the controller's reading rather than a fabricated one.
 
 The reading covers the **operating channel only**, whatever the channel width. Interference elsewhere in the same band does not move it: measured, an interferer drove five of the thirteen channels of one band to an average of 91 and a minimum of 43 while this series held at 98 on the 20 MHz radio of that band. A radio on a bonded channel likewise reports its primary and not the rest of its width.
 
@@ -360,8 +372,54 @@ The table is the largest of the RRM reads — some seven times the whole RRM slo
 
 <details><summary><b>*12</b> Why a slot can carry no state at all</summary><br/>
 
-The slot list is not a list of radios. A remote-LAN port arrives as a slot whose type names it as such and whose state leaves the controller omits entirely, measured on a controller. Both series are therefore **absent** for such a slot rather than reading `0`, which would say "radio down, admin disabled" about something that is not a radio and would fire a rule on every AP that carries one. Each leaf is guarded on its own, because this controller omits per leaf and not per record.
+The slot list is not a list of radios. A remote-LAN port arrives as a slot whose type names it as such and whose state leaves the controller omits entirely, measured on a controller. Every per-radio reading is therefore **absent** for such a slot rather than reading `0` — the two state series, the `traffic` and `errors` counters and `wnc_ap_clients` alike. A `0` there would say "radio down, admin disabled, no traffic, no errors, no clients" of a port that is none of those, and the controller does send a counter record for such a slot with every counter in it zero, so the reading came from the controller rather than from a lookup that missed.
 
-A rule that treated either series as always present needs `absent()` or `or vector(0)`.
+A rule that treated any of them as always present needs `absent()` or `or vector(0)`, and a `sum()` over a controller carrying such a port now reads lower.
+
+</details>
+
+<details><summary><b>*13</b> Channel energy comes from DCA, and two of its values are not measurements</summary><br/>
+
+`wnc_ap_channel_energy_dbm` is the energy the controller measured on the channel it assigned the radio, read from the DCA assignment statistics — the record `wnc_ap_channel_changes_total` comes from, so it adds no request. It is not a CleanAir reading: it is reported for a radio the air quality table has no record for at all, so it reaches radios `wnc_ap_air_quality_index_avg` cannot, which is why it sits in the `radio` module rather than behind `--collector.ap.spectrum`.
+
+**It is a step rather than a sample.** The controller recomputes it when DCA next runs for the band, so it holds its value between runs and a range shorter than the channel-assignment interval sees no change at all — the same caution note \*4 gives for `wnc_ap_channel_changes_total`. After a radio joins, the series is absent until that band's next run, and the wait is a property of the band rather than of the radio.
+
+**Two values are withheld rather than published, because neither can be a measurement.** One is `-128`, the lower bound of the leaf's own signed type, which sits far below the thermal noise floor of any channel width this reports; the other is `0`, which sits far above the energies the controller assigns channels on and above the lower limit it declares for the assignment. The first is what a radio reads until DCA next runs for its band, measured with an untouched radio as a control. The second has not been observed, and it is guarded because the leaf is a plain integer: one the controller omits decodes to zero, and no absence guard would catch it.
+
+The series is absent as well for a radio the slot list has no record for, for a record carrying no radio data or no DCA statistics, and for every radio while the `rrm_radio_slot` fetch fails.
+
+</details>
+
+<details><summary><b>*14</b> Association uptime, and why no series here measures an outage</summary><br/>
+
+`wnc_ap_association_uptime_seconds` counts from the start of the CAPWAP association the AP currently holds, read from the join time in the record `wnc_ap_uptime_seconds` already fetches, so it adds no request. The controller prints the two under separate headings of its own, and they answer different questions: the pair diverges for an AP that re-joined without rebooting and agrees for one that joined straight after booting. Both are withheld rather than reported as `0` where the controller carries no instant this exporter can use, the epoch included — the rule every timestamp-derived series here follows.
+
+**Neither series measures how long an AP was gone.** A reboot does not delete the AP's record: the controller replaces it in place, so a read taken right after one can still serve the association the AP held before it, and once the new association is in place the count starts from that instant. The outage leaves no mark in either series. Watch the re-join instead:
+
+```bash
+changes(wnc_ap_last_join_success_timestamp_seconds[1h]) > 0
+```
+
+Three cautions on the alternatives. Whether an AP that has gone silent leaves the inventory at all, and how long its record keeps the reading it had, was not the same on every model measured, so do not build an outage rule on the absence of these series. `wnc_ap_last_reboot_reason` classifies a cause and dates nothing: it reports the controller's spelling in a `state` label and always reads `1`, so two reboots recorded with the same reason cannot be told from one. And a state that lasts less than the interval between refreshes, which `--wnc.cache-ttl` sets, may never be sampled at all.
+
+</details>
+
+<details><summary><b>*15</b> The band-worst series are keyed by band alone, and one read carries all four</summary><br/>
+
+The controller ranks the channels of a band across every AP that scans it and keeps one row per band for the worst of them; a higher index is cleaner, so the worst channel is the one with the lowest average. The four `wnc_rrm_worst_channel_*` series publish that row — the average, the minimum, the interference device count and the channel number — behind `--collector.ap.spectrum`, and they cost one read per refresh whatever the number of APs, because the table is per band rather than per AP.
+
+The row is chosen on the average, so its minimum is the minimum of that one channel and not the deepest of the band: a channel with a better average can carry a worse minimum, and the per-radio pair is what reports the channels radios actually use.
+
+**They carry `band` and nothing else, which is the whole identifier the controller gives the row.** Neither an AP nor a radio keys it, so none of these series can be joined with the per-AP series. The controller does name the AP that detected the channel, and that name is not published: it changes while the reading does not, and it could not be joined against `wnc_ap_info`, which is keyed by MAC.
+
+`wnc_rrm_worst_channel_number` is a **value rather than a label**, because the worst channel of a band moves — a label would start a new series on every move and leave the previous one to go stale. Read the other three together with it: they describe whichever channel it names at that moment.
+
+**A band this exporter cannot name is withheld as a whole row rather than published as `unknown`.** That is the one exception to the rule on the [Overview](README.md#the-band-label) page, and it holds for two reasons: `band` is the whole identifier here, so an `unknown` row would name nothing to act on, and two such rows would carry the same label set, which fails the whole `/metrics` endpoint instead of one series. A row reporting no channel is withheld the same way — the controller returns that shape for a band it has not ranked, and a zero there cannot be told from a reading: it would report the worst possible air quality, no interference at all, and a channel that does not exist.
+
+**The row set follows the controller's table rather than the radios that have joined**, so fewer bands than the controller supports can appear, and a band no CleanAir-capable radio scans never does. Treat one, two or three bands as ordinary, and read a band's absence as no ranking rather than as clean air.
+
+These four are the only series behind the release's one new read, `rrm_spectrum_aq_worst_table`, which is also its one new failure path. **A controller or an image that does not carry the table answers `404`, and a `404` is a failure rather than an absence** — the rule note \*4 on the [Controller](collector.controller.md) page describes, with the expression that excludes such a data type. There, `wnc_refresh_errors_total{data="rrm_spectrum_aq_worst_table"}` rises on every refresh, no `wnc_refresh_items` series appears for it, and all four families disappear from the scrape rather than reading zero, while `wnc_up` stays `1`. The error series is there either way — it is seeded at `0` for every data type the enabled modules read — so read its value and not its presence.
+
+The reading is refreshed on the reporting period the controller declares for air quality and carries no timestamp, so a value held between reports cannot be told from one just taken; the range guidance on the [Overview](README.md#controller-side-update-schedule) page covers that.
 
 </details>

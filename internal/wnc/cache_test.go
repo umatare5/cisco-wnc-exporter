@@ -780,6 +780,8 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
 	"spectrum-aq-table": {dataRRMSpectrumAqTable, mockList(mockRRMOperModule, "spectrum-aq-table",
 		`{"wtp-mac":"`+mockAPMAC+`","band":"dot11-2-dot-4-ghz-band"}`)},
+	"spectrum-aq-worst-table": {dataRRMSpectrumAqWorst, mockList(mockRRMGlobalOperModule, "spectrum-aq-worst-table",
+		`{"band-id":1,"channel-num":11}`)},
 	// The two raw reads answer with the node itself as the only key rather than with a
 	// list, which is what mockContainer wraps and mockList cannot.
 	"boot-time": {dataControllerBootTime, mockContainer(mockDeviceHardwareModule, "boot-time",

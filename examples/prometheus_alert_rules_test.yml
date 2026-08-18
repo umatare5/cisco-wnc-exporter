@@ -217,3 +217,164 @@ tests:
       - eval_time: 25m
         alertname: WNCControllerBootTimeMissing
         exp_alerts: []
+
+  # The average holds while the minimum drops, which is what the pair exists to
+  # separate. The dip fills one reporting period and no more, so the rule has to fire
+  # inside one: a for as long as a period would stay pending and never fire, which the
+  # firing cases at 12m and 19m rule out, and dropping for altogether fires at 9m.
+  # Band 5 sits at exactly the threshold and must stay silent, so a comparison widened
+  # to >= or to a lower threshold fails here, and band 6 dips deeper than the threshold
+  # for four minutes, which is shorter than for and is why 3m is silent too.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_rrm_worst_channel_air_quality_index_avg{job="cisco_wnc",instance="localhost:10039",band="2.4"}'
+        values: "95+0x40"
+      - series: 'wnc_rrm_worst_channel_air_quality_index_min{job="cisco_wnc",instance="localhost:10039",band="2.4"}'
+        values: "90+0x4 60+0x14 90+0x21"
+      - series: 'wnc_rrm_worst_channel_air_quality_index_avg{job="cisco_wnc",instance="localhost:10039",band="5"}'
+        values: "100+0x40"
+      - series: 'wnc_rrm_worst_channel_air_quality_index_min{job="cisco_wnc",instance="localhost:10039",band="5"}'
+        values: "70+0x40"
+      - series: 'wnc_rrm_worst_channel_air_quality_index_avg{job="cisco_wnc",instance="localhost:10039",band="6"}'
+        values: "96+0x40"
+      - series: 'wnc_rrm_worst_channel_air_quality_index_min{job="cisco_wnc",instance="localhost:10039",band="6"}'
+        values: "60+0x3 96+0x36"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: WNCBandAirQualityDipping
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: WNCBandAirQualityDipping
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: WNCBandAirQualityDipping
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCBandAirQualityDipping"}
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCBandAirQualityDipping", alertstate="firing", band="2.4", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="WNCBandAirQualityDipping"}
+        eval_time: 19m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCBandAirQualityDipping", alertstate="firing", band="2.4", instance="localhost:10039", job="cisco_wnc", severity="warning"}'
+            value: 1
+
+  # Three restarts must stay silent and fourteen must fire, so a threshold widened to
+  # > 2 fails at 15m. The second client restarts as often but every session outlives
+  # the idle timeout, which is what the second clause exists for: dropping it makes
+  # this case fire. The third holds one session throughout.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_client_uptime_seconds{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff"}'
+        values: "60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3 60+60x3"
+      - series: 'wnc_client_uptime_seconds{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66"}'
+        values: "60+60x7 60+60x7 60+60x7 60+60x7 60+60x7 60+60x7 60+60x7 60+60x7"
+      - series: 'wnc_client_uptime_seconds{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
+        values: "60+60x59"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: WNCClientSessionFlapping
+        exp_alerts: []
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCClientSessionFlapping"}
+        eval_time: 59m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCClientSessionFlapping", alertstate="firing", instance="localhost:10039", job="cisco_wnc", mac="aa:bb:cc:dd:ee:ff", severity="warning"}'
+            value: 1
+
+  # The first radio is moved four times in the hour. The second is moved three times
+  # from a counter that was already non-zero when the range opened, which extrapolates
+  # to just above three and is the case that pins >= 4 against > 3. The third is moved
+  # three times after the AP re-associated, and increase() adjusts for the restart on
+  # its own, so it must read three and stay silent rather than adding the pre-restart
+  # total.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_ap_channel_changes_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff",radio="0"}'
+        values: "0+0x14 1+0x14 2+0x14 3+0x14 4+0x14"
+      - series: 'wnc_ap_channel_changes_total{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66",radio="0"}'
+        values: "9+0x18 10+0x18 11+0x18 12+0x18"
+      - series: 'wnc_ap_channel_changes_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01",radio="1"}'
+        values: "7+0x19 0+0x14 1+0x14 2+0x14 3+0x11"
+    promql_expr_test:
+      - expr: ALERTS{alertname="WNCRadioChannelChurning"}
+        eval_time: 70m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCRadioChannelChurning", alertstate="firing", instance="localhost:10039", job="cisco_wnc", mac="aa:bb:cc:dd:ee:ff", radio="0", severity="warning"}'
+            value: 1
+
+  # One phase holds a client throughout, so the 14m silent case and the 15m firing case
+  # pin for: 15m from both sides. The second WLAN recovers before the window closes and
+  # is the control that must stay silent at 20m.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_wlan_onboarding_clients{job="cisco_wnc",instance="localhost:10039",id="1",phase="l2auth"}'
+        values: "1+0x30"
+      - series: 'wnc_wlan_onboarding_clients{job="cisco_wnc",instance="localhost:10039",id="1",phase="iplearn"}'
+        values: "0+0x30"
+      - series: 'wnc_wlan_onboarding_clients{job="cisco_wnc",instance="localhost:10039",id="5",phase="iplearn"}'
+        values: "1+0x9 0+0x21"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: WNCWLANOnboardingStalled
+        exp_alerts: []
+    promql_expr_test:
+      # The firing edge itself, so a for lengthened inside the window below is caught.
+      - expr: ALERTS{alertname="WNCWLANOnboardingStalled",alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCWLANOnboardingStalled", alertstate="firing", id="1", instance="localhost:10039", job="cisco_wnc", phase="l2auth", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="WNCWLANOnboardingStalled"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCWLANOnboardingStalled", alertstate="firing", id="1", instance="localhost:10039", job="cisco_wnc", phase="l2auth", severity="warning"}'
+            value: 1
+
+  # The first radio fails two RF profiles throughout, and its load verdict passes, so
+  # the alert names it alone. The second fails one for the whole test, which is the
+  # ordinary case a >= 1 comparison would fire on. The third fails two RF profiles for
+  # twenty minutes only, which pins for: 30m; dropping for makes the first radio fire
+  # at 29m. The fourth fails load and interference for the whole test and must stay
+  # silent, because the load verdict is not counted: dropping the profile!="load"
+  # matcher makes it the second firing radio at 35m.
+  - interval: 1m
+    input_series:
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff",radio="0",profile="interference"}'
+        values: "0+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff",radio="0",profile="noise"}'
+        values: "0+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff",radio="0",profile="load"}'
+        values: "1+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:dd:ee:ff",radio="0",profile="coverage"}'
+        values: "1+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66",radio="1",profile="interference"}'
+        values: "0+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="11:22:33:44:55:66",radio="1",profile="noise"}'
+        values: "1+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01",radio="2",profile="interference"}'
+        values: "0+0x19 1+0x21"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01",radio="2",profile="noise"}'
+        values: "0+0x19 1+0x21"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:02",radio="0",profile="load"}'
+        values: "0+0x40"
+      - series: 'wnc_ap_rrm_profile_passed{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:02",radio="0",profile="interference"}'
+        values: "0+0x40"
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: WNCRadioRRMProfilesFailing
+        exp_alerts: []
+    promql_expr_test:
+      # The firing edge itself, so a for lengthened inside the window below is caught.
+      - expr: ALERTS{alertname="WNCRadioRRMProfilesFailing",alertstate="firing"}
+        eval_time: 30m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCRadioRRMProfilesFailing", alertstate="firing", instance="localhost:10039", job="cisco_wnc", mac="aa:bb:cc:dd:ee:ff", radio="0", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="WNCRadioRRMProfilesFailing"}
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WNCRadioRRMProfilesFailing", alertstate="firing", instance="localhost:10039", job="cisco_wnc", mac="aa:bb:cc:dd:ee:ff", radio="0", severity="warning"}'
+            value: 1

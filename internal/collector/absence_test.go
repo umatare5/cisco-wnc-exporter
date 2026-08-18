@@ -42,6 +42,7 @@ const (
 	typeRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	typeRRMRadioSlot          = "rrm_radio_slot"
 	typeRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
+	typeRRMSpectrumAqWorst    = "rrm_spectrum_aq_worst_table"
 	typeWLANCfgEntries        = "wlan_cfg_entries"
 	typeWLANPolicies          = "wlan_policies"
 	typeWLANPolicyListEntries = "wlan_policy_list_entries"
@@ -55,7 +56,7 @@ var allDataTypes = []string{
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData, typeRRMRadioSlot,
-	typeRRMSpectrumAqTable,
+	typeRRMSpectrumAqTable, typeRRMSpectrumAqWorst,
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
@@ -71,10 +72,27 @@ const (
 	fixtureChannel = 6
 	// fixtureBandID ties radio-band-info to current-band-id.
 	fixtureBandID = 0
+	// fixturePseudoRadioSlot is the slot of the list entry that is not a radio.
+	fixturePseudoRadioSlot = 2
 	// The two state leaves carry distinct spellings so that a descriptor reading
 	// the wrong one publishes a label value the assertions do not expect.
 	fixturePMFOptions = "apf-vap-pmf-required"
 	fixtureFTMode     = "dot11r-disabled"
+
+	// The two roam spellings the mobility history carries, newest first. Both are values
+	// the controller's own schema declares.
+	fixtureRoamType      = "dot11-roam-type-fast-okc"
+	fixtureOlderRoamType = "dot11-roam-type-slow-11i"
+
+	// The two clients the state transition withhold needs, one per branch of its
+	// condition. Both MACs sort before fixtureClientMAC, because value_test.go reads
+	// only the first sample of each family and a series leaking behind that one is seen
+	// by nothing. Their AP is absent from the name map and their WLAN is not the
+	// configured one, so neither client moves the per-AP or per-WLAN client counts.
+	fixtureNoHistoryClientMAC   = "01:02:03:04:05:06"
+	fixtureZeroLatencyClientMAC = "02:03:04:05:06:07"
+	fixtureUnmappedAPName       = "ap-absent-from-the-name-map"
+	fixtureUnconfiguredWLANID   = 9
 )
 
 // The eleven timestamps of the join record, one day apart so that every pair is
@@ -101,6 +119,11 @@ const (
 	// fixtureBootTime is the controller boot instant, a day past the join timestamps so
 	// that a descriptor reading one of those reports another day.
 	fixtureBootTime = "2026-01-13T00:00:00Z"
+
+	// The AP boots before it joins, and the two instants are days apart here so that a
+	// series reading the wrong leaf reports another day.
+	fixtureAPBootTime = "2026-01-01T00:00:00Z"
+	fixtureAPJoinTime = "2026-01-02T00:00:00Z"
 
 	// The two delete reasons carry distinct values, and the second is there because one
 	// entry cannot tell a per-reason loop from a single emit.
@@ -156,6 +179,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 	}{
 		{typeAPCAPWAPData, []string{
 			"wnc_ap_config_state", "wnc_ap_uptime_seconds", "wnc_ap_oper_state",
+			"wnc_ap_association_uptime_seconds",
 		}},
 		{typeAPOperData, []string{"wnc_ap_cpu_utilization_ratio", "wnc_ap_memory_utilization_ratio"}},
 		{typeAPRadioOperData, []string{
@@ -185,7 +209,10 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeClientDot11OperData, []string{"wnc_client_protocol", "wnc_client_uptime_seconds"}},
 		{typeClientTrafficStats, clientTrafficDerived},
-		{typeClientMMIFHistory, []string{"wnc_client_state_transition_seconds"}},
+		{typeClientMMIFHistory, []string{
+			"wnc_client_state_transition_seconds",
+			"wnc_client_roam_type",
+		}},
 		{typeRRMMeasurement, []string{
 			"wnc_ap_channel_utilization_ratio", "wnc_ap_rx_utilization_ratio",
 			"wnc_ap_tx_utilization_ratio", "wnc_ap_noise_utilization_ratio",
@@ -193,8 +220,22 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 		}},
 		{typeRRMCoverage, []string{"wnc_ap_coverage_failed_clients"}},
 		{typeRRMAPDot11RadarData, []string{"wnc_ap_last_radar_timestamp_seconds"}},
-		{typeRRMRadioSlot, []string{"wnc_ap_rrm_profile_passed", "wnc_ap_channel_changes_total"}},
-		{typeRRMSpectrumAqTable, []string{"wnc_ap_air_quality_index"}},
+		{typeRRMRadioSlot, []string{
+			"wnc_ap_rrm_profile_passed",
+			"wnc_ap_channel_changes_total",
+			"wnc_ap_channel_energy_dbm",
+		}},
+		{typeRRMSpectrumAqTable, []string{
+			"wnc_ap_air_quality_index_avg",
+			"wnc_ap_air_quality_index_min",
+			"wnc_ap_interferers",
+		}},
+		{typeRRMSpectrumAqWorst, []string{
+			"wnc_rrm_worst_channel_air_quality_index_avg",
+			"wnc_rrm_worst_channel_air_quality_index_min",
+			"wnc_rrm_worst_channel_interferers",
+			"wnc_rrm_worst_channel_number",
+		}},
 		{typeWLANCfgEntries, []string{
 			"wnc_wlan_enabled", "wnc_wlan_clients", "wnc_wlan_auth_psk_enabled", "wnc_wlan_info",
 			"wnc_wlan_pmf_state", "wnc_wlan_ft_state", "wnc_wlan_onboarding_clients",
@@ -356,7 +397,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WtpMAC:     fixtureAPMAC,
 			IPAddr:     "192.0.2.11",
 			Name:       fixtureAPName,
-			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+			ApTimeInfo: ap.ApTimeInfo{BootTime: fixtureAPBootTime, JoinTime: fixtureAPJoinTime},
 			ApState:    ap.ApState{ApOperationState: "registered"},
 		}},
 		ApOperData: []ap.OperData{{
@@ -387,6 +428,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 					CfgData: ap.PhyTxPwrLvlCfgData{CurrTxPowerInDbm: 14, TxPowerLevel1: 20},
 				},
 			}},
+		}, {
+			// The slot list carries entries that are not radios. A remote-LAN port
+			// arrives with these three leaves and neither state leaf, and that absence
+			// is the only thing identifying it.
+			WtpMAC:      fixtureAPMAC,
+			RadioSlotID: fixturePseudoRadioSlot,
+			RadioType:   "radio-remote-lan",
 		}},
 		// Every counter leaf carries a distinct value, including the ones no
 		// descriptor reads: those are the numbers a mis-wired or a summing
@@ -423,12 +471,25 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			MultipleRetryCount: 3902,
 			RxDataPktCount:     3903,
 			TxDataPktCount:     3904,
+		}, {
+			// The controller does send a counter record for the entry that is not a
+			// radio, and every counter in it is zero, so a series taken from it reports a
+			// radio that never carries traffic. ap-radio-stats is left unset on purpose:
+			// the controller sends that container for such an entry with its timestamps
+			// at the epoch, so a nil check on it never fires.
+			ApMAC:  fixtureAPMAC,
+			SlotID: fixturePseudoRadioSlot,
 		}},
 		// A controller returns several entries for one radio, which the collector
 		// totals. A single entry cannot tell a total from an overwrite.
 		RadioResetStats: []ap.RadioResetStats{
 			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-1", Count: 3},
 			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-2", Count: 5},
+			// No controller sends a reset entry for an entry that is not a radio, so this
+			// row is invented. It is what tests where the guard sits: this counter is
+			// emitted before the counter-record lookup, so a guard placed on that lookup
+			// alone would still publish it.
+			{ApMAC: fixtureAPMAC, RadioID: fixturePseudoRadioSlot, Cause: "test-cause-3", Count: 11},
 		},
 		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 		JoinStats:   []ap.ApJoinStats{newFixtureJoinStats()},
@@ -457,6 +518,16 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WlanID:      1,
 			CoState:     ClientStatusRun,
 			MsRadioType: "client-dot11ax-24ghz-prot",
+		}, {
+			ClientMAC: fixtureNoHistoryClientMAC,
+			ApName:    fixtureUnmappedAPName,
+			WlanID:    fixtureUnconfiguredWLANID,
+			CoState:   ClientStatusRun,
+		}, {
+			ClientMAC: fixtureZeroLatencyClientMAC,
+			ApName:    fixtureUnmappedAPName,
+			WlanID:    fixtureUnconfiguredWLANID,
+			CoState:   ClientStatusRun,
 		}},
 		DCInfo: []client.DcInfo{{ClientMAC: fixtureClientMAC, DeviceType: "Un-Classified Device"}},
 		Dot11OperData: []client.Dot11OperData{{
@@ -495,7 +566,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			CurrentRate:    "m9 ss2",
 			PowerSaveState: 1,
 		}},
-		MmIfClientHistory: []client.MmIfClientHistory{newFixtureMobilityHistory()},
+		MmIfClientHistory: []client.MmIfClientHistory{
+			newFixtureMobilityHistory(),
+			// The record is present and its entry list empty, which is also what the map
+			// lookup returns for a client the history holds no record for.
+			{ClientMAC: fixtureNoHistoryClientMAC},
+			newFixtureZeroLatencyHistory(),
+		},
 
 		RRMMeasurements: []rrm.RRMMeasurement{{
 			WtpMAC:      fixtureAPMAC,
@@ -536,12 +613,24 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			PerRadioAqData: &rrm.PerRadioAqData{
 				ChannelCount: 3,
 				PerChannelAqList: []rrm.PerChannelAqList{
-					{ChannelNum: 0, Aqi: 0, MinAqi: 0},
-					{ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90},
-					{ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92},
+					{ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0},
+					{ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90, TotalIntfDeviceCount: 42},
+					{ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92, TotalIntfDeviceCount: 41},
 				},
 			},
 		}},
+		// One row per band the mapping names, plus the two shapes the guards withhold. The
+		// row of band three reports no channel while carrying readings that are not zero:
+		// the controller ties those together, and breaking the tie here is what lets the
+		// channel guard be tested on its own. Two rows carry an unnamed band identifier,
+		// because one alone would leave the label collision unobserved.
+		SpectrumAqWorst: []rrm.SpectrumAqWorstTable{
+			{BandID: 1, ChannelNum: 11, MinAqi: 8101, Aqi: 8102, TotalIntfDeviceCount: 8103},
+			{BandID: 2, ChannelNum: 44, MinAqi: 8201, Aqi: 8202, TotalIntfDeviceCount: 8203},
+			{BandID: 3, ChannelNum: 0, MinAqi: 8301, Aqi: 8302, TotalIntfDeviceCount: 8303},
+			{BandID: 0, ChannelNum: 33, MinAqi: 8401, Aqi: 8402, TotalIntfDeviceCount: 8403},
+			{BandID: 4, ChannelNum: 55, MinAqi: 8501, Aqi: 8502, TotalIntfDeviceCount: 8503},
+		},
 		ApDot11RadarData: []rrm.ApDot11RadarData{{
 			WtpMAC:           fixtureAPMAC,
 			RadioSlotID:      0,
@@ -670,6 +759,37 @@ func newFixtureJoinStats() ap.ApJoinStats {
 // newFixtureMobilityHistory fills the anonymous nested entry the SDK declares.
 func newFixtureMobilityHistory() client.MmIfClientHistory {
 	history := client.MmIfClientHistory{ClientMAC: fixtureClientMAC}
+	history.MobilityHistory.Entry = make([]struct {
+		InstanceID    int       `json:"instance-id"`
+		MsApSlotID    int       `json:"ms-ap-slot-id"`
+		MsAssocTime   time.Time `json:"ms-assoc-time"`
+		Role          string    `json:"role"`
+		Bssid         string    `json:"bssid"`
+		ApName        string    `json:"ap-name"`
+		RunLatency    int       `json:"run-latency"`
+		Dot11RoamType string    `json:"dot11-roam-type"`
+	}, 2)
+
+	entries := history.MobilityHistory.Entry
+	entries[0].ApName = fixtureAPName
+	entries[0].Role = "mm-client-role-local"
+	entries[0].RunLatency = 120
+	entries[0].Dot11RoamType = fixtureRoamType
+
+	// The association before the current one. Both of its readings differ, so a series
+	// reading the wrong end of the list reports how the client arrived last time.
+	entries[1].ApName = fixtureAPName
+	entries[1].Role = "mm-client-role-local"
+	entries[1].RunLatency = 340
+	entries[1].Dot11RoamType = fixtureOlderRoamType
+
+	return history
+}
+
+// newFixtureZeroLatencyHistory holds one entry whose run latency reads zero, the shape
+// the controller uses for a transition it has no measurement for.
+func newFixtureZeroLatencyHistory() client.MmIfClientHistory {
+	history := client.MmIfClientHistory{ClientMAC: fixtureZeroLatencyClientMAC}
 	history.MobilityHistory.Entry = append(history.MobilityHistory.Entry, struct {
 		InstanceID    int       `json:"instance-id"`
 		MsApSlotID    int       `json:"ms-ap-slot-id"`
@@ -680,9 +800,8 @@ func newFixtureMobilityHistory() client.MmIfClientHistory {
 		RunLatency    int       `json:"run-latency"`
 		Dot11RoamType string    `json:"dot11-roam-type"`
 	}{
-		ApName:     fixtureAPName,
-		Role:       "mm-client-role-local",
-		RunLatency: 120,
+		ApName: fixtureUnmappedAPName,
+		Role:   "mm-client-role-local",
 	})
 	return history
 }

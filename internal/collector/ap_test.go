@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -230,14 +231,17 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"General module only",
 			APMetrics{General: true},
-			7, // radio_state, admin_state, oper_state, config_state, uptime, cpu_utilization, memory_utilization
+			// radio_state, admin_state, oper_state, config_state, uptime,
+			// association_uptime, cpu_utilization, memory_utilization
+			8,
 		},
 		{
 			"Radio module only",
 			APMetrics{Radio: true},
 			// channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util,
-			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes
-			12,
+			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes,
+			// channel_energy
+			13,
 		},
 		{
 			"Traffic module only",
@@ -258,7 +262,8 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
-			1, // air_quality_index
+			// The three per-radio air quality series and the four band-keyed ones
+			7,
 		},
 		{
 			"Info module only",
@@ -276,7 +281,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			76, // 7+12+10+13+32+1+1
+			84, // 8+13+10+13+32+7+1
 		},
 	}
 
@@ -860,7 +865,7 @@ func TestBuildRadioClientCountsMap(t *testing.T) {
 	}
 }
 
-func TestDetermineUptimeFromBootTime(t *testing.T) {
+func TestDetermineUptimeFromTimestamp(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	oneHourAgo := now.Add(-1 * time.Hour).Format(time.RFC3339)
@@ -930,20 +935,20 @@ func TestDetermineUptimeFromBootTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := determineUptimeFromBootTime(tt.bootTimeStr)
+			got, ok := determineUptimeFromTimestamp(tt.bootTimeStr)
 
 			if tt.expectNotOK {
 				if ok {
-					t.Errorf("determineUptimeFromBootTime(%q) reported %d as usable, want it unusable",
+					t.Errorf("determineUptimeFromTimestamp(%q) reported %d as usable, want it unusable",
 						tt.bootTimeStr, got)
 				}
 			} else {
 				if !ok {
-					t.Errorf("determineUptimeFromBootTime(%q) reported no usable uptime", tt.bootTimeStr)
+					t.Errorf("determineUptimeFromTimestamp(%q) reported no usable uptime", tt.bootTimeStr)
 				}
 				if got < tt.minExpected || got > tt.maxExpected {
 					t.Errorf(
-						"determineUptimeFromBootTime(%q) = %d, want between %d and %d",
+						"determineUptimeFromTimestamp(%q) = %d, want between %d and %d",
 						tt.bootTimeStr,
 						got,
 						tt.minExpected,
@@ -989,6 +994,70 @@ func TestAPCollector_UptimeWithheldWhenBootTimeUnusable(t *testing.T) {
 			// with the AP-level config state, which reads a leaf of its own.
 			if _, ok := values["wnc_ap_config_state"]; !ok {
 				t.Error("wnc_ap_config_state is absent, so the assertion above proves nothing")
+			}
+		})
+	}
+}
+
+// TestAPCollector_AssociationUptimeReadsTheJoinTime pins which of the two instants of
+// the time container this series reads. The AP boots before it joins, so a series reading
+// the boot time reports an association older than the one the AP holds.
+func TestAPCollector_AssociationUptimeReadsTheJoinTime(t *testing.T) {
+	t.Parallel()
+
+	values := apSnapshotValues(t, fullFixtureSnapshot())
+
+	association, ok := values["wnc_ap_association_uptime_seconds"]
+	if !ok {
+		t.Fatal("wnc_ap_association_uptime_seconds is absent, so nothing below can be asserted")
+	}
+
+	boot, ok := values["wnc_ap_uptime_seconds"]
+	if !ok {
+		t.Fatal("wnc_ap_uptime_seconds is absent, so the comparison below proves nothing")
+	}
+
+	// Both are elapsed seconds against the same clock, so only their difference is
+	// stable enough to assert. The fixture puts the two instants one day apart.
+	const oneDay = 24 * 60 * 60
+	if got := boot - association; got != oneDay {
+		t.Errorf("wnc_ap_uptime_seconds - wnc_ap_association_uptime_seconds = %f, want %d",
+			got, oneDay)
+	}
+}
+
+// TestAPCollector_AssociationUptimeWithheldWhenJoinTimeUnusable pins the emission side of
+// the withhold, which the helper test cannot reach.
+func TestAPCollector_AssociationUptimeWithheldWhenJoinTimeUnusable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		joinTime    string
+		wantPresent bool
+	}{
+		{"absent leaf", "", false},
+		{"unparsable leaf", "2026-01-02", false},
+		{"epoch placeholder", "1970-01-01T00:00:00+00:00", false},
+		{"usable leaf", fixtureAPJoinTime, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			data.CAPWAPData[0].ApTimeInfo.JoinTime = tt.joinTime
+
+			values := apSnapshotValues(t, data)
+			if _, ok := values["wnc_ap_association_uptime_seconds"]; ok != tt.wantPresent {
+				t.Errorf("wnc_ap_association_uptime_seconds present = %v for join time %q, want %v",
+					ok, tt.joinTime, tt.wantPresent)
+			}
+
+			// The withhold is scoped to this series: the boot-time one reads its own leaf.
+			if _, ok := values["wnc_ap_uptime_seconds"]; !ok {
+				t.Error("wnc_ap_uptime_seconds is absent, so the assertion above proves nothing")
 			}
 		})
 	}
@@ -1148,7 +1217,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 44
+	expectedDescs := 52
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -1404,6 +1473,7 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	rrmMap := map[string]*rrm.RRMMeasurement{}
@@ -1474,6 +1544,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "radio-80211a",
+		OperState:   APRadioStateUp,
 		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
 	}
 
@@ -1596,6 +1667,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingBand(t *testing.T) {
 			WtpMAC:            "aa:bb:cc:dd:ee:ff",
 			RadioSlotID:       2,
 			RadioType:         "radio-80211-xor-5-6ghz",
+			OperState:         APRadioStateUp,
 			CurrentBandID:     operatingBandID,
 			CurrentActiveBand: "dot11-6-ghz-band",
 			RadioBandInfo: []ap.RadioBandInfo{
@@ -1640,6 +1712,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
 	radio := &ap.RadioOperData{
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 2,
+		OperState:   APRadioStateUp,
 		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
 	}
 
@@ -1683,7 +1756,7 @@ func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
 			noiseUtilizationDesc: prometheus.NewDesc(
 				"wnc_ap_noise_utilization_ratio", "t", []string{"mac", "radio"}, nil),
 		},
-		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0},
+		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0, OperState: APRadioStateUp},
 		rrmMap: map[string]*rrm.RRMMeasurement{
 			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{
 				CcaUtilPercentage: 30, RxUtilPercentage: 10,
@@ -1724,6 +1797,7 @@ func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 			WtpMAC:      "aa:bb:cc:dd:ee:ff",
 			RadioSlotID: 1,
 			RadioType:   "dot11-5ghz-radio",
+			OperState:   APRadioStateUp,
 		},
 		clientCountsMap: map[string]map[int]int{
 			"aa:bb:cc:dd:ee:ff": {0: 7, 1: 3},
@@ -1763,6 +1837,7 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	statsMap := map[string]map[int]ap.RadioOperStats{
@@ -1813,6 +1888,7 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	statsMap := map[string]map[int]ap.RadioOperStats{
@@ -2406,7 +2482,7 @@ func TestAPJoinModule_NameSeriesIgnoresTheInfoFlag(t *testing.T) {
 func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 	t.Parallel()
 
-	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0, OperState: APRadioStateUp}
 
 	tests := []struct {
 		profile string
@@ -2475,7 +2551,7 @@ func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 	t.Parallel()
 
-	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0, OperState: APRadioStateUp}
 
 	tests := []struct {
 		name string
@@ -2532,6 +2608,64 @@ func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 	}
 }
 
+// TestAPCollector_ChannelEnergyWithholdsTheSentinels pins the two readings the energy
+// leaf carries that are not measurements. Publishing either would report a channel far
+// quieter than any radio can measure, in the direction that reads as a free channel.
+func TestAPCollector_ChannelEnergyWithholdsTheSentinels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		energy int
+		want   bool
+		reason string
+	}{
+		{"a measurement", -32, true, "an ordinary reading is published"},
+		{"the sentinel", channelEnergySentinel, false, "it is the lower bound of the leaf's own type"},
+		{"zero", channelEnergyAbsent, false, "an omitted leaf decodes to it, and it is above every reading"},
+	}
+
+	radioLabels := []string{labelMAC, labelRadio}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			radio := &ap.RadioOperData{
+				WtpMAC:      fixtureAPMAC,
+				RadioSlotID: 0,
+				OperState:   APRadioStateUp,
+			}
+			values := gatherRadioValues(t, radioMetricsOnly{
+				collector: &APCollector{
+					metrics: APMetrics{Radio: true},
+					channelEnergyDesc: prometheus.NewDesc(
+						"wnc_ap_channel_energy_dbm", "t", radioLabels, nil),
+					channelChangesTotalDesc: prometheus.NewDesc(
+						"wnc_ap_channel_changes_total", "t", radioLabels, nil),
+					rrmProfilePassedDesc: prometheus.NewDesc(
+						"wnc_ap_rrm_profile_passed", "t", append(radioLabels, "profile"), nil),
+				},
+				radio: radio,
+				radioSlotMap: map[string]*rrm.RadioSlot{
+					fixtureAPMAC + ":0": {RadioData: &rrm.RadioData{
+						DCAStats: &rrm.DCAStats{CurrentChanEnergy: tt.energy, LastChanEnergy: -33},
+					}},
+				},
+			})
+
+			got, published := values["wnc_ap_channel_energy_dbm"]
+			if published != tt.want {
+				t.Fatalf("wnc_ap_channel_energy_dbm published = %v, want %v: %s", published, tt.want, tt.reason)
+			}
+
+			if published && got != float64(tt.energy) {
+				t.Errorf("wnc_ap_channel_energy_dbm = %f, want %d", got, tt.energy)
+			}
+		})
+	}
+}
+
 // TestAirQualityOnCurrentChannel covers every way the join can miss. The table is keyed
 // by AP and band and its per-channel list is a padded array, so a reader that takes a
 // fixed index, ignores the band, or trusts a zero channel reports another radio's air
@@ -2544,9 +2678,9 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			WtpMAC: fixtureAPMAC,
 			Band:   "dot11-2-dot-4-ghz-band",
 			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
-				{ChannelNum: 0, Aqi: 0},
-				{ChannelNum: 11, Aqi: 71},
-				{ChannelNum: 6, Aqi: 96},
+				{ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0},
+				{ChannelNum: 11, Aqi: 71, MinAqi: 61, TotalIntfDeviceCount: 51},
+				{ChannelNum: 6, Aqi: 96, MinAqi: 86, TotalIntfDeviceCount: 76},
 			}},
 		},
 		{
@@ -2554,7 +2688,7 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			WtpMAC: fixtureAPMAC,
 			Band:   "dot11-6-ghz-band",
 			PerRadioAqData: &rrm.PerRadioAqData{PerChannelAqList: []rrm.PerChannelAqList{
-				{ChannelNum: 6, Aqi: 100},
+				{ChannelNum: 6, Aqi: 100, MinAqi: 90, TotalIntfDeviceCount: 80},
 			}},
 		},
 	}
@@ -2606,9 +2740,22 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 			t.Parallel()
 
 			got, found := airQualityOnCurrentChannel(table, tt.radio)
-			if found != tt.wantFound || got != tt.wantValue {
-				t.Errorf("airQualityOnCurrentChannel() = (%d, %v), want (%d, %v): %s",
-					got, found, tt.wantValue, tt.wantFound, tt.reason)
+			if found != tt.wantFound {
+				t.Fatalf("airQualityOnCurrentChannel() found = %v, want %v: %s",
+					found, tt.wantFound, tt.reason)
+			}
+
+			if !found {
+				return
+			}
+
+			// Every leaf of the row carries a distinct number, so a caller reading the
+			// wrong one reports a value this assertion does not expect.
+			if got.Aqi != tt.wantValue || got.MinAqi != tt.wantValue-10 ||
+				got.TotalIntfDeviceCount != tt.wantValue-20 {
+				t.Errorf("airQualityOnCurrentChannel() row = (%d, %d, %d), want (%d, %d, %d): %s",
+					got.Aqi, got.MinAqi, got.TotalIntfDeviceCount,
+					tt.wantValue, tt.wantValue-10, tt.wantValue-20, tt.reason)
 			}
 		})
 	}
@@ -2638,7 +2785,7 @@ func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
-		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the only "+
+		t.Errorf("airQualityOnCurrentChannel() = (%v, true), want no reading: the only "+
 			"record belongs to another AP", got)
 	}
 }
@@ -2714,6 +2861,175 @@ func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
 	}
 }
 
+// TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot pins the withhold for the entry
+// of the slot list that is not a radio. The controller sends such an entry a counter
+// record whose every counter is zero, and this fixture also gives it a reset entry, so
+// every per-radio family would otherwise report a radio that never carries traffic.
+func TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot(t *testing.T) {
+	t.Parallel()
+
+	byRadio := gatherAPSeriesByRadio(t, fullFixtureSnapshot())
+	slot := strconv.Itoa(fixturePseudoRadioSlot)
+
+	// The info family is published for every entry of the slot list on purpose, so it
+	// witnesses that the entry reached the collector at all.
+	if !byRadio["wnc_ap_info"][slot] {
+		t.Fatalf("wnc_ap_info has no series for slot %s, so the absences below prove nothing", slot)
+	}
+
+	// The three sources fail differently: the counter record exists for the entry, the
+	// reset list carries an entry for it, and the client count map has none and yielded
+	// Go's zero value. The reset counter is emitted before the counter-record lookup, so
+	// it is the one that survives a guard placed on that lookup instead of at the top.
+	perRadio := []string{
+		"wnc_ap_data_rx_frames_total",
+		"wnc_ap_data_tx_frames_total",
+		"wnc_ap_management_rx_frames_total",
+		"wnc_ap_management_tx_frames_total",
+		"wnc_ap_control_rx_frames_total",
+		"wnc_ap_control_tx_frames_total",
+		"wnc_ap_multicast_rx_frames_total",
+		"wnc_ap_multicast_tx_frames_total",
+		"wnc_ap_total_tx_frames_total",
+		"wnc_ap_rts_successes_total",
+		"wnc_ap_rx_errors_total",
+		"wnc_ap_tx_retries_total",
+		"wnc_ap_transmission_failures_total",
+		"wnc_ap_duplicate_frames_total",
+		"wnc_ap_fcs_errors_total",
+		"wnc_ap_rx_fragments_total",
+		"wnc_ap_tx_fragments_total",
+		"wnc_ap_rts_failures_total",
+		"wnc_ap_decryption_errors_total",
+		"wnc_ap_mic_errors_total",
+		"wnc_ap_radio_resets_total",
+		"wnc_ap_clients",
+	}
+
+	for _, name := range perRadio {
+		if len(byRadio[name]) == 0 {
+			t.Errorf("%s has no series at all, so its absence for slot %s proves nothing", name, slot)
+			continue
+		}
+
+		if byRadio[name][slot] {
+			t.Errorf("%s carries a series for slot %s, which is not a radio, want it withheld", name, slot)
+		}
+	}
+}
+
+// gatherAPSeriesByRadio indexes, for every family the AP collector publishes over the
+// given snapshot, the slot numbers its series carry in the radio label.
+func gatherAPSeriesByRadio(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]bool {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Radio: true, Traffic: true, Errors: true, Info: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	byRadio := make(map[string]map[string]bool, len(families))
+	for _, family := range families {
+		slots := make(map[string]bool, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelRadio {
+					slots[pair.GetValue()] = true
+				}
+			}
+		}
+		byRadio[family.GetName()] = slots
+	}
+
+	return byRadio
+}
+
+// TestAPCollector_BandKeyedSeriesNameOnlyTheBandsTheyCanName pins both guards of the
+// band-keyed rows. The fixture carries a row per named band plus the two shapes that are
+// withheld: a row whose band identifier has no name, and a row reporting no channel.
+func TestAPCollector_BandKeyedSeriesNameOnlyTheBandsTheyCanName(t *testing.T) {
+	t.Parallel()
+
+	byBand := gatherAPValuesByBand(t, fullFixtureSnapshot())
+
+	for _, name := range []string{
+		"wnc_rrm_worst_channel_air_quality_index_avg",
+		"wnc_rrm_worst_channel_air_quality_index_min",
+		"wnc_rrm_worst_channel_interferers",
+		"wnc_rrm_worst_channel_number",
+	} {
+		bands := slices.Sorted(maps.Keys(byBand[name]))
+		if want := []string{Band24GHz, Band5GHz}; !slices.Equal(bands, want) {
+			t.Errorf("%s carries bands %v, want %v", name, bands, want)
+		}
+	}
+
+	// The channel of the withheld row would have read as a channel, and its air quality
+	// as the cleanest reading the scale has.
+	if got, ok := byBand["wnc_rrm_worst_channel_number"][Band6GHz]; ok {
+		t.Errorf("wnc_rrm_worst_channel_number = %f for the band reporting no channel, want it withheld", got)
+	}
+}
+
+// TestAPCollector_BandKeyedSeriesAreEmittedOnceForTwoRadios pins that the band-keyed
+// rows leave the per-radio loop once. Emitting them from inside it repeats one label set,
+// which fails the whole scrape rather than the series.
+func TestAPCollector_BandKeyedSeriesAreEmittedOnceForTwoRadios(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.RadioOperData = append(data.RadioOperData, ap.RadioOperData{
+		WtpMAC:      fixtureAPMAC,
+		RadioSlotID: 1,
+		RadioType:   "radio-80211a",
+		OperState:   APRadioStateUp,
+	})
+
+	byBand := gatherAPValuesByBand(t, data)
+	if got := len(byBand["wnc_rrm_worst_channel_number"]); got != 2 {
+		t.Errorf("wnc_rrm_worst_channel_number carries %d series over two radios, want 2", got)
+	}
+}
+
+// gatherAPValuesByBand indexes the spectrum module's families by the band label.
+func gatherAPValuesByBand(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]float64 {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Spectrum: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	values := make(map[string]map[string]float64, len(families))
+	for _, family := range families {
+		byBand := make(map[string]float64, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelBand {
+					byBand[pair.GetValue()] = metric.GetGauge().GetValue()
+				}
+			}
+		}
+		values[family.GetName()] = byBand
+	}
+
+	return values
+}
+
 // TestAirQualityOnCurrentChannel_RecordWithoutTheContainer covers the one branch the
 // table above cannot reach: the per-radio container is a pointer, so a matching record
 // can arrive without it. Dropping the nil test panics rather than misreporting, which is
@@ -2732,7 +3048,7 @@ func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
-		t.Errorf("airQualityOnCurrentChannel() = (%d, true), want no reading: the "+
+		t.Errorf("airQualityOnCurrentChannel() = (%v, true), want no reading: the "+
 			"matching record carries no per-radio container", got)
 	}
 }

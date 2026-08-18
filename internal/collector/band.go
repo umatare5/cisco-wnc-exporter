@@ -17,6 +17,7 @@ package collector
 import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 )
 
 // Band values published in the band label.
@@ -26,6 +27,40 @@ const (
 	Band5GHz    = "5"
 	Band6GHz    = "6"
 )
+
+// band-id values of spectrum-aq-worst-table. The leaf is one-based, and every other
+// value is left unnamed on purpose, so that a band a later release adds is skipped
+// rather than named wrongly.
+const (
+	rrmWorstBandID24GHz = 1
+	rrmWorstBandID5GHz  = 2
+	rrmWorstBandID6GHz  = 3
+)
+
+// RRMWorstBand returns the band a worst air quality row was ranked for, and reports
+// whether the identifier could be named at all.
+//
+// The source is spectrum-aq-worst-table/band-id, a plain integer carrying neither a
+// typedef nor a range, so the mapping is measured rather than modeled. It is one-based,
+// which is why it cannot share a table with the band-id of radio-band-info, where zero
+// is a band rather than the absence of one.
+//
+// Unlike the two functions below, this one reports absence instead of naming the band
+// unknown. The band is the whole identifier of the series it keys, so a row that cannot
+// be named carries nothing to act on, and two such rows would collide on one label set
+// and fail the whole scrape rather than the row.
+func RRMWorstBand(row *rrm.SpectrumAqWorstTable) (string, bool) {
+	switch row.BandID {
+	case rrmWorstBandID24GHz:
+		return Band24GHz, true
+	case rrmWorstBandID5GHz:
+		return Band5GHz, true
+	case rrmWorstBandID6GHz:
+		return Band6GHz, true
+	default:
+		return "", false
+	}
+}
 
 // APRadioBand returns the band the radio is currently operating on.
 //
