@@ -7,6 +7,7 @@ Client collector focuses on user experience quality and connection performance.
 | Module  | Metric                                | Type    | Description                          |
 | :------ | :------------------------------------ | :------ | :----------------------------------- |
 | general | `wnc_client_state`                    | Gauge   | Connection state in `state` label    |
+| general | `wnc_client_roam_type`                | Gauge   | Roam type in `state` **(\*4)**       |
 | general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
 | general | `wnc_client_power_save_state`         | Gauge   | Power save state **(\*1)**           |
 | general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
@@ -61,7 +62,7 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 `wnc_client_speed_mbps` is the rate the client negotiated for the link, reported alongside the MCS index and the stream count it is derived from. It does not measure how much the client is sending or receiving, so it stays at its negotiated value on an idle client; for throughput use `rate()` over the byte counters in the `traffic` module.
 
-`wnc_client_state_transition_seconds` reports the run latency the controller recorded for the association this client currently holds, taken from the first entry of its mobility history. It is a property of that association rather than a live measurement, so it does not move until the client associates again. It is also published only for a client in the run state, which is the state the transition ends at, so a transition that is slow, stuck or failed has no series here at all — use `wnc_client_state` for those, as shown in [States](README.md#a-state-is-a-label-not-a-number).
+`wnc_client_state_transition_seconds` reports the run latency the controller recorded for the association this client currently holds, taken from the first entry of its mobility history. It is a property of that association rather than a live measurement, so it does not move until the client associates again. It is withheld in the two shapes the controller uses to say it measured no transition — a mobility history with no entry, and a first entry whose latency reads zero — because a zero reports an instant transition, which is a measurement rather than the absence of one. It is also published only for a client in the run state, which is the state the transition ends at, so a transition that is slow, stuck or failed has no series here at all — use `wnc_client_state` for those, as shown in [States](README.md#a-state-is-a-label-not-a-number).
 
 `wnc_client_uptime_seconds` is withheld for a client whose record carries no association time, and for the epoch the controller writes where an event has not happened — the same rule the AP uptime and the AP timestamp series follow. Measuring from either would report a session centuries long, so absence is the ordinary reading for a record the controller has not filled in rather than a fault.
 
@@ -119,5 +120,15 @@ This was verified through direct RESTCONF API access to the live WNC environment
   "tx_retries": "0"
 }
 ```
+
+</details>
+
+<details><summary><b>*4</b> The roam type belongs to the current association, and it is not a count</summary><br/>
+
+`wnc_client_roam_type` reports how the client reached the association it currently holds, in a `state` label with the value `1` — see [States](README.md#a-state-is-a-label-not-a-number). It is read from the first entry of the mobility history, the record `wnc_client_state_transition_seconds` also reads, so it adds no request and both are absent while that fetch fails.
+
+It is a property of that association rather than a count, so it does not move until the client associates again and a client that has roamed many times reports one spelling. The spelling is the controller's own and passes through unmapped.
+
+Two shapes withhold it: a mobility history with no entry, and an entry whose roam type the controller left empty, because an empty label reads as no label at all. It is published for a client in the run state only, like the rest of this module, so a client held short of that state has no series here — `wnc_client_state` covers those.
 
 </details>
