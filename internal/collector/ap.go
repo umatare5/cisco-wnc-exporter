@@ -635,6 +635,15 @@ func (c *APCollector) collectSystemMetrics(
 	}
 }
 
+// isRadio reports whether an entry of the slot list is a radio. The list carries
+// entries that are not: a remote-LAN port arrives with three leaves and neither state,
+// measured, and that absence is the only thing identifying it. The controller does send
+// a counter record for such an entry, and every counter in it is zero, so a reading
+// taken from it would report a radio that never carries traffic.
+func isRadio(radio *ap.RadioOperData) bool {
+	return radio.OperState != ""
+}
+
 // collectGeneralMetrics collects general radio metrics.
 func (c *APCollector) collectGeneralMetrics(
 	ch chan<- prometheus.Metric,
@@ -645,11 +654,8 @@ func (c *APCollector) collectGeneralMetrics(
 	metrics := []Float64Metric{}
 
 	// An absent leaf is not a state, and comparing it against the up spelling reports
-	// the radio down. The slot list carries entries that are not radios — a remote-LAN
-	// port arrives with both leaves omitted, measured — so the equality test alone
-	// would publish a down radio for every such port. The AP-level state above applies
-	// the same rule.
-	if radio.OperState != "" {
+	// the radio down. The AP-level state above applies the same rule.
+	if isRadio(radio) {
 		metrics = append(metrics,
 			Float64Metric{c.radioStateDesc, boolToFloat64(radio.OperState == APRadioStateUp)},
 		)
@@ -674,6 +680,10 @@ func (c *APCollector) collectRadioMetrics(
 	clientCountsMap map[string]map[int]int,
 	radioSlotMap map[string]*rrm.RadioSlot,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 
@@ -837,6 +847,10 @@ func (c *APCollector) collectTrafficMetrics(
 	radio *ap.RadioOperData,
 	radioOperStatsMap map[string]map[int]ap.RadioOperStats,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	stats, ok := radioOperStatsMap[radio.WtpMAC][radio.RadioSlotID]
 	if !ok {
 		return
@@ -869,6 +883,10 @@ func (c *APCollector) collectErrorMetrics(
 	rrmCoverageMap map[string]*rrm.RRMCoverage,
 	apDot11RadarMap map[string]*rrm.ApDot11RadarData,
 ) {
+	if !isRadio(radio) {
+		return
+	}
+
 	labels := []string{radio.WtpMAC, strconv.Itoa(radio.RadioSlotID)}
 	radioID := radio.WtpMAC + ":" + strconv.Itoa(radio.RadioSlotID)
 

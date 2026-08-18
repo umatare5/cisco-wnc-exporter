@@ -71,6 +71,8 @@ const (
 	fixtureChannel = 6
 	// fixtureBandID ties radio-band-info to current-band-id.
 	fixtureBandID = 0
+	// fixturePseudoRadioSlot is the slot of the list entry that is not a radio.
+	fixturePseudoRadioSlot = 2
 	// The two state leaves carry distinct spellings so that a descriptor reading
 	// the wrong one publishes a label value the assertions do not expect.
 	fixturePMFOptions = "apf-vap-pmf-required"
@@ -387,6 +389,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 					CfgData: ap.PhyTxPwrLvlCfgData{CurrTxPowerInDbm: 14, TxPowerLevel1: 20},
 				},
 			}},
+		}, {
+			// The slot list carries entries that are not radios. A remote-LAN port
+			// arrives with these three leaves and neither state leaf, and that absence
+			// is the only thing identifying it.
+			WtpMAC:      fixtureAPMAC,
+			RadioSlotID: fixturePseudoRadioSlot,
+			RadioType:   "radio-remote-lan",
 		}},
 		// Every counter leaf carries a distinct value, including the ones no
 		// descriptor reads: those are the numbers a mis-wired or a summing
@@ -423,12 +432,25 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			MultipleRetryCount: 3902,
 			RxDataPktCount:     3903,
 			TxDataPktCount:     3904,
+		}, {
+			// The controller does send a counter record for the entry that is not a
+			// radio, and every counter in it is zero, so a series taken from it reports a
+			// radio that never carries traffic. ap-radio-stats is left unset on purpose:
+			// the controller sends that container for such an entry with its timestamps
+			// at the epoch, so a nil check on it never fires.
+			ApMAC:  fixtureAPMAC,
+			SlotID: fixturePseudoRadioSlot,
 		}},
 		// A controller returns several entries for one radio, which the collector
 		// totals. A single entry cannot tell a total from an overwrite.
 		RadioResetStats: []ap.RadioResetStats{
 			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-1", Count: 3},
 			{ApMAC: fixtureAPMAC, RadioID: 0, Cause: "test-cause-2", Count: 5},
+			// No controller sends a reset entry for an entry that is not a radio, so this
+			// row is invented. It is what tests where the guard sits: this counter is
+			// emitted before the counter-record lookup, so a guard placed on that lookup
+			// alone would still publish it.
+			{ApMAC: fixtureAPMAC, RadioID: fixturePseudoRadioSlot, Cause: "test-cause-3", Count: 11},
 		},
 		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 		JoinStats:   []ap.ApJoinStats{newFixtureJoinStats()},

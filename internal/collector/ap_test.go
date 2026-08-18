@@ -1404,6 +1404,7 @@ func TestAPCollector_collectRadioMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	rrmMap := map[string]*rrm.RRMMeasurement{}
@@ -1474,6 +1475,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "radio-80211a",
+		OperState:   APRadioStateUp,
 		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
 	}
 
@@ -1596,6 +1598,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingBand(t *testing.T) {
 			WtpMAC:            "aa:bb:cc:dd:ee:ff",
 			RadioSlotID:       2,
 			RadioType:         "radio-80211-xor-5-6ghz",
+			OperState:         APRadioStateUp,
 			CurrentBandID:     operatingBandID,
 			CurrentActiveBand: "dot11-6-ghz-band",
 			RadioBandInfo: []ap.RadioBandInfo{
@@ -1640,6 +1643,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
 	radio := &ap.RadioOperData{
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 2,
+		OperState:   APRadioStateUp,
 		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
 	}
 
@@ -1683,7 +1687,7 @@ func TestAPCollector_collectRadioMetrics_ScalesUtilization(t *testing.T) {
 			noiseUtilizationDesc: prometheus.NewDesc(
 				"wnc_ap_noise_utilization_ratio", "t", []string{"mac", "radio"}, nil),
 		},
-		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0},
+		radio: &ap.RadioOperData{WtpMAC: "aa:bb:cc:dd:ee:ff", RadioSlotID: 0, OperState: APRadioStateUp},
 		rrmMap: map[string]*rrm.RRMMeasurement{
 			"aa:bb:cc:dd:ee:ff:0": {Load: &rrm.Load{
 				CcaUtilPercentage: 30, RxUtilPercentage: 10,
@@ -1724,6 +1728,7 @@ func TestAPCollector_collectRadioMetrics_ClientCount(t *testing.T) {
 			WtpMAC:      "aa:bb:cc:dd:ee:ff",
 			RadioSlotID: 1,
 			RadioType:   "dot11-5ghz-radio",
+			OperState:   APRadioStateUp,
 		},
 		clientCountsMap: map[string]map[int]int{
 			"aa:bb:cc:dd:ee:ff": {0: 7, 1: 3},
@@ -1763,6 +1768,7 @@ func TestAPCollector_collectTrafficMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	statsMap := map[string]map[int]ap.RadioOperStats{
@@ -1813,6 +1819,7 @@ func TestAPCollector_collectErrorMetrics(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 0,
 		RadioType:   "dot11-5ghz-radio",
+		OperState:   APRadioStateUp,
 	}
 
 	statsMap := map[string]map[int]ap.RadioOperStats{
@@ -2406,7 +2413,7 @@ func TestAPJoinModule_NameSeriesIgnoresTheInfoFlag(t *testing.T) {
 func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 	t.Parallel()
 
-	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0, OperState: APRadioStateUp}
 
 	tests := []struct {
 		profile string
@@ -2475,7 +2482,7 @@ func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 	t.Parallel()
 
-	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0}
+	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0, OperState: APRadioStateUp}
 
 	tests := []struct {
 		name string
@@ -2712,6 +2719,96 @@ func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot pins the withhold for the entry
+// of the slot list that is not a radio. The controller sends such an entry a counter
+// record whose every counter is zero, and this fixture also gives it a reset entry, so
+// every per-radio family would otherwise report a radio that never carries traffic.
+func TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot(t *testing.T) {
+	t.Parallel()
+
+	byRadio := gatherAPSeriesByRadio(t, fullFixtureSnapshot())
+	slot := strconv.Itoa(fixturePseudoRadioSlot)
+
+	// The info family is published for every entry of the slot list on purpose, so it
+	// witnesses that the entry reached the collector at all.
+	if !byRadio["wnc_ap_info"][slot] {
+		t.Fatalf("wnc_ap_info has no series for slot %s, so the absences below prove nothing", slot)
+	}
+
+	// The three sources fail differently: the counter record exists for the entry, the
+	// reset list carries an entry for it, and the client count map has none and yielded
+	// Go's zero value. The reset counter is emitted before the counter-record lookup, so
+	// it is the one that survives a guard placed on that lookup instead of at the top.
+	perRadio := []string{
+		"wnc_ap_data_rx_frames_total",
+		"wnc_ap_data_tx_frames_total",
+		"wnc_ap_management_rx_frames_total",
+		"wnc_ap_management_tx_frames_total",
+		"wnc_ap_control_rx_frames_total",
+		"wnc_ap_control_tx_frames_total",
+		"wnc_ap_multicast_rx_frames_total",
+		"wnc_ap_multicast_tx_frames_total",
+		"wnc_ap_total_tx_frames_total",
+		"wnc_ap_rts_successes_total",
+		"wnc_ap_rx_errors_total",
+		"wnc_ap_tx_retries_total",
+		"wnc_ap_transmission_failures_total",
+		"wnc_ap_duplicate_frames_total",
+		"wnc_ap_fcs_errors_total",
+		"wnc_ap_rx_fragments_total",
+		"wnc_ap_tx_fragments_total",
+		"wnc_ap_rts_failures_total",
+		"wnc_ap_decryption_errors_total",
+		"wnc_ap_mic_errors_total",
+		"wnc_ap_radio_resets_total",
+		"wnc_ap_clients",
+	}
+
+	for _, name := range perRadio {
+		if len(byRadio[name]) == 0 {
+			t.Errorf("%s has no series at all, so its absence for slot %s proves nothing", name, slot)
+			continue
+		}
+
+		if byRadio[name][slot] {
+			t.Errorf("%s carries a series for slot %s, which is not a radio, want it withheld", name, slot)
+		}
+	}
+}
+
+// gatherAPSeriesByRadio indexes, for every family the AP collector publishes over the
+// given snapshot, the slot numbers its series carry in the radio label.
+func gatherAPSeriesByRadio(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]bool {
+	t.Helper()
+
+	src := fixtureSource{data: data}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewAPCollector(
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+		APMetrics{Radio: true, Traffic: true, Errors: true, Info: true},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	byRadio := make(map[string]map[string]bool, len(families))
+	for _, family := range families {
+		slots := make(map[string]bool, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			for _, pair := range metric.GetLabel() {
+				if pair.GetName() == labelRadio {
+					slots[pair.GetValue()] = true
+				}
+			}
+		}
+		byRadio[family.GetName()] = slots
+	}
+
+	return byRadio
 }
 
 // TestAirQualityOnCurrentChannel_RecordWithoutTheContainer covers the one branch the
