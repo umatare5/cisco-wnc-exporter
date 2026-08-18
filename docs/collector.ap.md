@@ -80,7 +80,7 @@ AP collector focuses on RF foundation and radio performance.
 | join     | `wnc_ap_last_dtls_failure_reason`                 | Gauge   | DTLS outcome in `state`, per `channel` **(\*10)**  |
 | join     | `wnc_ap_last_reboot_reason`                       | Gauge   | Reboot reason in `state` **(\*10)**                |
 | join     | `wnc_ap_last_disconnect_reason`                   | Gauge   | Disconnect reason in `state` **(\*10)**            |
-| spectrum | `wnc_ap_air_quality_index`                        | Gauge   | CleanAir air quality of the channel **(\*11)**     |
+| spectrum | `wnc_ap_air_quality_index_avg`                    | Gauge   | CleanAir air quality of the channel **(\*11)**     |
 
 ## Labels
 

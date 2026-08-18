@@ -90,7 +90,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_coverage_failed_clients", 7},
 		// The operating channel's row, not the padding row and not the neighboring
 		// channel the fixture table also carries.
-		{"wnc_ap_air_quality_index", 93},
+		{"wnc_ap_air_quality_index_avg", 93},
 		// Both reset entries of this radio are totalled, not overwritten.
 		{"wnc_ap_radio_resets_total", 8},
 		// The change count, not one of the three energy or channel leaves beside it.

@@ -4,6 +4,18 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## Unreleased
+
+### Renamed
+
+The series does not change type, labels or value, so a rule or panel needs only the new
+name. The controller renders this reading as an average over its own reporting period and
+names the minimum of that period beside it, so the name now carries which statistic it is.
+
+| v0.9.2                      | v0.10.0                         |
+| :-------------------------- | :------------------------------ |
+| `wnc_ap_air_quality_index`  | `wnc_ap_air_quality_index_avg`  |
+
 ## v0.9.2
 
 No metric, label, flag or HELP string changes: this release carries a test fix only.

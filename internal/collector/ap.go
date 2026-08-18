@@ -231,7 +231,7 @@ func NewAPCollector(
 
 	if metrics.Spectrum {
 		collector.airQualityDesc = prometheus.NewDesc(
-			"wnc_ap_air_quality_index",
+			"wnc_ap_air_quality_index_avg",
 			"Average CleanAir air quality index of the channel the radio operates on, over "+
 				"a window the controller does not declare",
 			baseRadioLabels,

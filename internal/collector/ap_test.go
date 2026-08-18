@@ -258,7 +258,7 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
-			1, // air_quality_index
+			1, // air_quality_index_avg
 		},
 		{
 			"Info module only",
