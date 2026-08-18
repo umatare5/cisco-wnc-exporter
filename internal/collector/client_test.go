@@ -138,6 +138,33 @@ func gatherClientValuesByMAC(t *testing.T, data *wnc.WNCDataCache) map[string]ma
 	return values
 }
 
+// TestClientCollector_WithholdsStateTransitionWithoutAMeasurement pins both branches of
+// the withhold. A client whose mobility history carries no entry and a client whose
+// first entry reads zero are the two shapes the controller uses for a transition it has
+// no measurement for, and zero seconds would publish an instant transition.
+func TestClientCollector_WithholdsStateTransitionWithoutAMeasurement(t *testing.T) {
+	t.Parallel()
+
+	values := gatherClientValuesByMAC(t, fullFixtureSnapshot())
+
+	// The client that does carry a measurement witnesses that the family exists at all.
+	if _, ok := values["wnc_client_state_transition_seconds"][fixtureClientMAC]; !ok {
+		t.Fatal("wnc_client_state_transition_seconds has no series for the client that carries a" +
+			" measurement, so the absences below prove nothing")
+	}
+
+	for _, mac := range []string{fixtureNoHistoryClientMAC, fixtureZeroLatencyClientMAC} {
+		if _, ok := values["wnc_client_state"][mac]; !ok {
+			t.Errorf("wnc_client_state has no series for %s, so the absence below proves nothing", mac)
+			continue
+		}
+
+		if got, ok := values["wnc_client_state_transition_seconds"][mac]; ok {
+			t.Errorf("wnc_client_state_transition_seconds = %f for %s, want it withheld", got, mac)
+		}
+	}
+}
+
 func TestNewClientCollector(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -796,89 +823,70 @@ func TestDetermineIPv6FromSISF(t *testing.T) {
 func TestDetermineLastRunLatency(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		mobilityMap map[string]client.MmIfClientHistory
-		clientMAC   string
-		expected    float64
+		name     string
+		mobility client.MmIfClientHistory
+		expected float64
+		wantOK   bool
 	}{
 		{
-			"Found in map with latency 1500ms",
-			func() map[string]client.MmIfClientHistory {
-				var hist client.MmIfClientHistory
-				hist.ClientMAC = "aa:bb:cc:dd:ee:ff"
-				hist.MobilityHistory.Entry = make([]struct {
-					InstanceID    int       `json:"instance-id"`
-					MsApSlotID    int       `json:"ms-ap-slot-id"`
-					MsAssocTime   time.Time `json:"ms-assoc-time"`
-					Role          string    `json:"role"`
-					Bssid         string    `json:"bssid"`
-					ApName        string    `json:"ap-name"`
-					RunLatency    int       `json:"run-latency"`
-					Dot11RoamType string    `json:"dot11-roam-type"`
-				}, 1)
-				hist.MobilityHistory.Entry[0].RunLatency = 1500
-				return map[string]client.MmIfClientHistory{
-					"aa:bb:cc:dd:ee:ff": hist,
-				}
-			}(),
-			"aa:bb:cc:dd:ee:ff",
+			"Latency of 1500ms",
+			newHistoryWithRunLatency(1500),
 			1.5,
+			true,
 		},
 		{
-			"Not found in map",
-			map[string]client.MmIfClientHistory{
-				"aa:bb:cc:dd:ee:ff": {ClientMAC: "aa:bb:cc:dd:ee:ff"},
-			},
-			"11:22:33:44:55:66",
-			0.0,
+			// What the map lookup returns for a client the history holds no record for.
+			"Zero value history",
+			client.MmIfClientHistory{},
+			0,
+			false,
 		},
 		{
-			"Empty map",
-			map[string]client.MmIfClientHistory{},
-			"aa:bb:cc:dd:ee:ff",
-			0.0,
-		},
-		{
-			"Found in map without mobility history entries",
-			map[string]client.MmIfClientHistory{
-				"aa:bb:cc:dd:ee:ff": {ClientMAC: "aa:bb:cc:dd:ee:ff"},
-			},
-			"aa:bb:cc:dd:ee:ff",
-			0.0,
+			"Record without mobility history entries",
+			client.MmIfClientHistory{ClientMAC: fixtureClientMAC},
+			0,
+			false,
 		},
 		{
 			"Zero latency",
-			func() map[string]client.MmIfClientHistory {
-				var hist client.MmIfClientHistory
-				hist.ClientMAC = "aa:bb:cc:dd:ee:ff"
-				hist.MobilityHistory.Entry = make([]struct {
-					InstanceID    int       `json:"instance-id"`
-					MsApSlotID    int       `json:"ms-ap-slot-id"`
-					MsAssocTime   time.Time `json:"ms-assoc-time"`
-					Role          string    `json:"role"`
-					Bssid         string    `json:"bssid"`
-					ApName        string    `json:"ap-name"`
-					RunLatency    int       `json:"run-latency"`
-					Dot11RoamType string    `json:"dot11-roam-type"`
-				}, 1)
-				hist.MobilityHistory.Entry[0].RunLatency = 0
-				return map[string]client.MmIfClientHistory{
-					"aa:bb:cc:dd:ee:ff": hist,
-				}
-			}(),
-			"aa:bb:cc:dd:ee:ff",
-			0.0,
+			newHistoryWithRunLatency(0),
+			0,
+			false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineLastRunLatency(tt.mobilityMap, tt.clientMAC); got != tt.expected {
+
+			got, ok := determineLastRunLatency(tt.mobility)
+			if ok != tt.wantOK {
+				t.Fatalf("determineLastRunLatency() ok = %t, want %t", ok, tt.wantOK)
+			}
+
+			if got != tt.expected {
 				t.Errorf("determineLastRunLatency() = %f, want %f", got, tt.expected)
 			}
 		})
 	}
+}
+
+// newHistoryWithRunLatency holds one mobility entry reporting the given latency.
+func newHistoryWithRunLatency(latencyMs int) client.MmIfClientHistory {
+	history := client.MmIfClientHistory{ClientMAC: fixtureClientMAC}
+	history.MobilityHistory.Entry = make([]struct {
+		InstanceID    int       `json:"instance-id"`
+		MsApSlotID    int       `json:"ms-ap-slot-id"`
+		MsAssocTime   time.Time `json:"ms-assoc-time"`
+		Role          string    `json:"role"`
+		Bssid         string    `json:"bssid"`
+		ApName        string    `json:"ap-name"`
+		RunLatency    int       `json:"run-latency"`
+		Dot11RoamType string    `json:"dot11-roam-type"`
+	}, 1)
+	history.MobilityHistory.Entry[0].RunLatency = latencyMs
+
+	return history
 }
 
 func TestParseMCSIndex(t *testing.T) {

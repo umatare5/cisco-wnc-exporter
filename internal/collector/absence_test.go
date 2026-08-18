@@ -77,6 +77,16 @@ const (
 	// the wrong one publishes a label value the assertions do not expect.
 	fixturePMFOptions = "apf-vap-pmf-required"
 	fixtureFTMode     = "dot11r-disabled"
+
+	// The two clients the state transition withhold needs, one per branch of its
+	// condition. Both MACs sort before fixtureClientMAC, because value_test.go reads
+	// only the first sample of each family and a series leaking behind that one is seen
+	// by nothing. Their AP is absent from the name map and their WLAN is not the
+	// configured one, so neither client moves the per-AP or per-WLAN client counts.
+	fixtureNoHistoryClientMAC   = "01:02:03:04:05:06"
+	fixtureZeroLatencyClientMAC = "02:03:04:05:06:07"
+	fixtureUnmappedAPName       = "ap-absent-from-the-name-map"
+	fixtureUnconfiguredWLANID   = 9
 )
 
 // The eleven timestamps of the join record, one day apart so that every pair is
@@ -479,6 +489,16 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WlanID:      1,
 			CoState:     ClientStatusRun,
 			MsRadioType: "client-dot11ax-24ghz-prot",
+		}, {
+			ClientMAC: fixtureNoHistoryClientMAC,
+			ApName:    fixtureUnmappedAPName,
+			WlanID:    fixtureUnconfiguredWLANID,
+			CoState:   ClientStatusRun,
+		}, {
+			ClientMAC: fixtureZeroLatencyClientMAC,
+			ApName:    fixtureUnmappedAPName,
+			WlanID:    fixtureUnconfiguredWLANID,
+			CoState:   ClientStatusRun,
 		}},
 		DCInfo: []client.DcInfo{{ClientMAC: fixtureClientMAC, DeviceType: "Un-Classified Device"}},
 		Dot11OperData: []client.Dot11OperData{{
@@ -517,7 +537,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			CurrentRate:    "m9 ss2",
 			PowerSaveState: 1,
 		}},
-		MmIfClientHistory: []client.MmIfClientHistory{newFixtureMobilityHistory()},
+		MmIfClientHistory: []client.MmIfClientHistory{
+			newFixtureMobilityHistory(),
+			// The record is present and its entry list empty, which is also what the map
+			// lookup returns for a client the history holds no record for.
+			{ClientMAC: fixtureNoHistoryClientMAC},
+			newFixtureZeroLatencyHistory(),
+		},
 
 		RRMMeasurements: []rrm.RRMMeasurement{{
 			WtpMAC:      fixtureAPMAC,
@@ -705,6 +731,26 @@ func newFixtureMobilityHistory() client.MmIfClientHistory {
 		ApName:     fixtureAPName,
 		Role:       "mm-client-role-local",
 		RunLatency: 120,
+	})
+	return history
+}
+
+// newFixtureZeroLatencyHistory holds one entry whose run latency reads zero, the shape
+// the controller uses for a transition it has no measurement for.
+func newFixtureZeroLatencyHistory() client.MmIfClientHistory {
+	history := client.MmIfClientHistory{ClientMAC: fixtureZeroLatencyClientMAC}
+	history.MobilityHistory.Entry = append(history.MobilityHistory.Entry, struct {
+		InstanceID    int       `json:"instance-id"`
+		MsApSlotID    int       `json:"ms-ap-slot-id"`
+		MsAssocTime   time.Time `json:"ms-assoc-time"`
+		Role          string    `json:"role"`
+		Bssid         string    `json:"bssid"`
+		ApName        string    `json:"ap-name"`
+		RunLatency    int       `json:"run-latency"`
+		Dot11RoamType string    `json:"dot11-roam-type"`
+	}{
+		ApName: fixtureUnmappedAPName,
+		Role:   "mm-client-role-local",
 	})
 	return history
 }

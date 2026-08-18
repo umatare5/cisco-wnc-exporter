@@ -387,9 +387,8 @@ func (c *ClientCollector) collectGeneralMetrics(
 		metrics = append(metrics,
 			Float64Metric{c.associationUptimeDesc, time.Since(dot11.MsAssocTime).Seconds()})
 	}
-	if _, ok := mobilityMap[data.ClientMAC]; ok {
-		metrics = append(metrics,
-			Float64Metric{c.stateTransitionSecondsDesc, determineLastRunLatency(mobilityMap, data.ClientMAC)})
+	if latency, ok := determineLastRunLatency(mobilityMap[data.ClientMAC]); ok {
+		metrics = append(metrics, Float64Metric{c.stateTransitionSecondsDesc, latency})
 	}
 	if traffic, ok := trafficMap[data.ClientMAC]; ok {
 		metrics = append(metrics,
@@ -641,16 +640,21 @@ func determineIPv6FromSISF(sisf client.SisfDBMac) string {
 	return ""
 }
 
-// determineLastRunLatency extracts state transition latency from mobility map.
-func determineLastRunLatency(mobilityMap map[string]client.MmIfClientHistory, clientMAC string) float64 {
+// determineLastRunLatency reports the run latency the controller recorded for the
+// association the client currently holds, and reports false when it recorded none.
+//
+// Both shapes the controller uses for "no measurement" are withheld: an entry list that
+// is empty, and a first entry whose latency reads zero. Zero would publish an instant
+// transition, which is a measurement rather than the absence of one.
+func determineLastRunLatency(mobility client.MmIfClientHistory) (float64, bool) {
 	const millisecondsToSeconds = 1000.0
 
-	if mobility, ok := mobilityMap[clientMAC]; ok && len(mobility.MobilityHistory.Entry) > 0 {
-		latencyMs := mobility.MobilityHistory.Entry[0].RunLatency
-
-		return float64(latencyMs) / millisecondsToSeconds
+	entries := mobility.MobilityHistory.Entry
+	if len(entries) == 0 || entries[0].RunLatency == 0 {
+		return 0, false
 	}
-	return 0.0
+
+	return float64(entries[0].RunLatency) / millisecondsToSeconds, true
 }
 
 // parseMCSIndex extracts MCS index from current-rate string.
