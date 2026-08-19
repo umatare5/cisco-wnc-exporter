@@ -76,9 +76,14 @@ const (
 	// fixturePseudoRadioSlot is the slot of the list entry that is not a radio.
 	fixturePseudoRadioSlot = 2
 	// The two state leaves carry distinct spellings so that a descriptor reading
-	// the wrong one publishes a label value the assertions do not expect.
+	// the wrong one publishes a number the assertions do not expect.
 	fixturePMFOptions = "apf-vap-pmf-required"
 	fixtureFTMode     = "dot11r-disabled"
+
+	// fixtureUnnumberedSpelling is well formed and belongs to no release of any of the
+	// twelve enumerations, so it is the reading the encoding must withhold rather than
+	// number. The data channel of the DTLS reason leaf carries it.
+	fixtureUnnumberedSpelling = "dtls-hs-fragment-error"
 
 	// The two roam spellings the mobility history carries, newest first. Both are values
 	// the controller's own schema declares.
@@ -776,8 +781,11 @@ func newFixtureJoinStats() ap.ApJoinStats {
 			NumSuccConfRespSent:   5105,
 			NumUnsuccConfReqProcn: 5106,
 
-			LastJoinFailureType:   "jf-none",
-			LastConfigFailureType: "cf-none",
+			// Each of the six AP-keyed reason leaves carries a spelling its own
+			// enumeration numbers differently from the other five, so exchanging two
+			// rows of the emit table changes a pinned number.
+			LastJoinFailureType:   "jf-invalid-mtu",
+			LastConfigFailureType: "cf-hw-fail",
 			LastErrorType:         "ap-con-failure-run",
 			// Free text with no value domain, so no series reads it.
 			LastMsgDecrFailReason: "fixture decryption failure text",
@@ -796,7 +804,7 @@ func newFixtureJoinStats() ap.ApJoinStats {
 			NumDiscoveryReqRecvd: 5201,
 			NumSuccDiscRespSent:  5202,
 			NumErrDiscReq:        5203,
-			LastDiscFailureType:  "disc-fail-none",
+			LastDiscFailureType:  "disc-fail-resp-send-fail",
 			LastSuccessDiscTime:  fixtureDiscoverySuccessAt,
 			LastFailedDiscTime:   fixtureDiscoveryFailureAt,
 		},
@@ -815,8 +823,11 @@ func newFixtureJoinStats() ap.ApJoinStats {
 			DataDTLSDecryptErr:    5404,
 			DataDTLSAntiReplayErr: 5405,
 
+			// The data channel carries a well-formed spelling that no release of this
+			// enumeration declares, so it is the withhold canary of the encoding; the
+			// control channel is its positive control.
 			CtrlDTLSFailureType: "dtls-hs-success",
-			DataDTLSFailureType: "dtls-hs-fragment-error",
+			DataDTLSFailureType: fixtureUnnumberedSpelling,
 
 			CtrlDTLSSuccessTime: fixtureCtrlDTLSSuccessAt,
 			CtrlDTLSFailureTime: fixtureCtrlDTLSFailureAt,

@@ -3,10 +3,9 @@ package collector
 
 // Label constants used across collectors for Prometheus metrics.
 const (
-	labelBand  = "band"  // Radio frequency band (2.4GHz, 5GHz, 6GHz)
-	labelMAC   = "mac"   // MAC address
-	labelName  = "name"  // Human-readable name
-	labelState = "state" // State or setting as the controller spells it
+	labelBand = "band" // Radio frequency band (2.4GHz, 5GHz, 6GHz)
+	labelMAC  = "mac"  // MAC address
+	labelName = "name" // Human-readable name
 
 	// AP-specific labels.
 	labelChannel   = "channel"    // CAPWAP tunnel channel (control, data)

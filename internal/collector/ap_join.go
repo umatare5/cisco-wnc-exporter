@@ -72,9 +72,7 @@ type apJoinDescs struct {
 func newAPJoinDescs() *apJoinDescs {
 	apLabels := []string{labelMAC}
 	nameLabels := []string{labelMAC, labelName}
-	stateLabels := []string{labelMAC, labelState}
 	channelLabels := []string{labelMAC, labelChannel}
-	channelStateLabels := []string{labelMAC, labelChannel, labelState}
 
 	return &apJoinDescs{
 		joined: prometheus.NewDesc(
@@ -213,44 +211,55 @@ func newAPJoinDescs() *apJoinDescs {
 
 		lastDiscoveryFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_discovery_failure_reason",
-			"Reason for this AP's last CAPWAP discovery failure reported in the state label, "+
-				"always 1. disc-fail-none means no discovery has failed",
-			stateLabels, nil,
+			"Reason for this AP's last CAPWAP discovery failure, as the value the controller's "+
+				"own enumeration assigns its spelling. 0 is disc-fail-none, which reports that "+
+				"no discovery has failed",
+			apLabels, nil,
 		),
 		lastJoinFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_join_failure_reason",
-			"Reason for this AP's last CAPWAP join failure reported in the state label, "+
-				"always 1. jf-none means no join has failed",
-			stateLabels, nil,
+			"Reason for this AP's last CAPWAP join failure, as the value the controller's own "+
+				"enumeration assigns its spelling. 0 is jf-none, which reports that no join "+
+				"has failed",
+			apLabels, nil,
 		),
 		lastConfigFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_config_failure_reason",
-			"Reason for this AP's last CAPWAP configuration failure reported in the state "+
-				"label, always 1. cf-none means no configuration has failed",
-			stateLabels, nil,
+			"Reason for this AP's last CAPWAP configuration failure, as the value the "+
+				"controller's own enumeration assigns its spelling. 0 is cf-none, which reports "+
+				"that no configuration has failed",
+			apLabels, nil,
 		),
 		lastErrorPhase: prometheus.NewDesc(
 			"wnc_ap_last_error_phase",
-			"CAPWAP phase of this AP's last connection error reported in the state label, "+
-				"always 1. It freezes with the record, and an AP that is not joined reports "+
-				"the same ap-con-failure-run as one that is",
-			stateLabels, nil,
+			"CAPWAP phase of this AP's last connection error, as the value the controller's "+
+				"own enumeration assigns its spelling (0=ap-con-failure-unknown, "+
+				"1=ap-con-failure-discovery, 2=ap-con-failure-dtls, 3=ap-con-failure-join, "+
+				"4=ap-con-failure-config, 5=ap-con-failure-imgdwnld, 6=ap-con-failure-run). "+
+				"0 reports that the phase is unknown rather than that nothing failed. It "+
+				"freezes with the record, and an AP that is not joined reports the same 6 as "+
+				"one that is",
+			apLabels, nil,
 		),
 		lastDTLSFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_dtls_failure_reason",
-			"Reason for the last DTLS handshake outcome on the channel label reported in "+
-				"the state label, always 1. dtls-hs-success means no handshake has failed",
-			channelStateLabels, nil,
+			"Reason for the last DTLS handshake outcome on the channel label, as the value "+
+				"the controller's own enumeration assigns its spelling. 0 is dtls-hs-success, "+
+				"which is also what a channel carrying no session reports",
+			channelLabels, nil,
 		),
 		lastRebootReason: prometheus.NewDesc(
 			"wnc_ap_last_reboot_reason",
-			"Reason this AP last rebooted, as the AP reported it, in the state label, always 1",
-			stateLabels, nil,
+			"Reason this AP last rebooted as the AP reported it, as the value the controller's "+
+				"own enumeration assigns its spelling. 0 is ap-reboot-reason-none",
+			apLabels, nil,
 		),
 		lastDisconnectReason: prometheus.NewDesc(
 			"wnc_ap_last_disconnect_reason",
-			"Reason this AP last left CAPWAP reported in the state label, always 1",
-			stateLabels, nil,
+			"Reason this AP last left CAPWAP, as the value the controller's own enumeration "+
+				"assigns its spelling. 0 is the enumeration's own unknown member rather than "+
+				"the absence of a disconnect",
+			apLabels, nil,
 		),
 	}
 }
@@ -380,27 +389,31 @@ func (d *apJoinDescs) collectTimestamps(ch chan<- prometheus.Metric, record *ap.
 	emitTimestamp(ch, d.lastDTLSFailureAt, dtls.DataDTLSFailureTime, record.WtpMAC, dtlsChannelData)
 }
 
-// collectReasons publishes the enum leaves, each as the controller spells it.
+// collectReasons publishes the enum leaves, each as the value the controller's own
+// enumeration assigns the spelling it sent.
 func (d *apJoinDescs) collectReasons(ch chan<- prometheus.Metric, record *ap.ApJoinStats) {
 	join := record.ApJoinInfo
 	dtls := record.DTLSSessInfo
 
 	for _, reason := range []struct {
 		desc    *prometheus.Desc
+		table   enumTable
 		reading string
 	}{
-		{d.lastDiscoveryFailureReason, record.ApDiscoveryInfo.LastDiscFailureType},
-		{d.lastJoinFailureReason, join.LastJoinFailureType},
-		{d.lastConfigFailureReason, join.LastConfigFailureType},
-		{d.lastErrorPhase, join.LastErrorType},
-		{d.lastRebootReason, record.RebootReason},
-		{d.lastDisconnectReason, record.DisconnectReason},
+		{d.lastDiscoveryFailureReason, apDiscoveryFailureReasons, record.ApDiscoveryInfo.LastDiscFailureType},
+		{d.lastJoinFailureReason, apJoinFailureReasons, join.LastJoinFailureType},
+		{d.lastConfigFailureReason, apConfigFailureReasons, join.LastConfigFailureType},
+		{d.lastErrorPhase, apFailurePhases, join.LastErrorType},
+		{d.lastRebootReason, apRebootReasons, record.RebootReason},
+		{d.lastDisconnectReason, apDisconnectReasons, record.DisconnectReason},
 	} {
-		emitStateReading(ch, reason.desc, reason.reading, record.WtpMAC)
+		emitEnumReading(ch, reason.desc, reason.table, reason.reading, record.WtpMAC)
 	}
 
-	emitStateReading(ch, d.lastDTLSFailureReason, dtls.CtrlDTLSFailureType, record.WtpMAC, dtlsChannelControl)
-	emitStateReading(ch, d.lastDTLSFailureReason, dtls.DataDTLSFailureType, record.WtpMAC, dtlsChannelData)
+	emitEnumReading(ch, d.lastDTLSFailureReason, apDTLSFailureReasons,
+		dtls.CtrlDTLSFailureType, record.WtpMAC, dtlsChannelControl)
+	emitEnumReading(ch, d.lastDTLSFailureReason, apDTLSFailureReasons,
+		dtls.DataDTLSFailureType, record.WtpMAC, dtlsChannelData)
 }
 
 // emitTimestamp publishes the instant as a Unix timestamp gauge, and publishes
@@ -412,15 +425,4 @@ func emitTimestamp(ch chan<- prometheus.Metric, desc *prometheus.Desc, at time.T
 	}
 
 	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, float64(at.Unix()), labels...)
-}
-
-// emitStateReading publishes a value-1 gauge carrying the controller's own spelling
-// in the state label. An empty spelling is not a state, and an empty label value
-// reads as no label at all.
-func emitStateReading(ch chan<- prometheus.Metric, desc *prometheus.Desc, reading string, labels ...string) {
-	if reading == "" {
-		return
-	}
-
-	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 1, append(labels, reading)...)
 }

@@ -142,6 +142,26 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_last_discovery_success_timestamp_seconds", 1767744000},
 		{"wnc_ap_last_discovery_failure_timestamp_seconds", 1767830400},
 
+		// The twelve enumeration families. Each value is the number the controller's own
+		// enumeration assigns the spelling the fixture carries, and the twelve are
+		// distinct wherever two of them could be exchanged, so a descriptor or a table
+		// wired to a neighbor reports a number no row here expects.
+		{"wnc_ap_last_discovery_failure_reason", 14},
+		{"wnc_ap_last_join_failure_reason", 40},
+		{"wnc_ap_last_config_failure_reason", 12},
+		{"wnc_ap_last_error_phase", 6},
+		// The control channel: this helper keeps one sample per family and Gather sorts
+		// them by label value, so the data channel is pinned in the join module's own
+		// test, where it is the spelling no enumeration declares.
+		{"wnc_ap_last_dtls_failure_reason", 0},
+		{"wnc_ap_last_reboot_reason", 4},
+		{"wnc_ap_last_disconnect_reason", 20},
+		{"wnc_ap_oper_state", 4},
+		{"wnc_client_state", 11},
+		{"wnc_client_roam_type", 2},
+		{"wnc_wlan_pmf_state", 2},
+		{"wnc_wlan_ft_state", 0},
+
 		// The controller module. Seconds, so a switch to UnixMilli changes the value.
 		{"wnc_controller_boot_time_seconds", 1768262400},
 	}

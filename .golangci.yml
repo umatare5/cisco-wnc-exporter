@@ -220,6 +220,9 @@ linters:
       - path: ^cmd/
         linters:
           - mnd          # Allow magic numbers for CLI configuration
+      - path: ^internal/collector/enum\.go$
+        linters:
+          - mnd          # The controller's own enumeration values are the data of this file
       - path: ^internal/server/
         linters:
           - errcheck     # Allow ignoring write errors in HTTP handlers
