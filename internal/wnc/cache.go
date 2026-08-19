@@ -45,6 +45,7 @@ const (
 	dataRRMCoverage           = "rrm_coverage"
 	dataRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	dataRRMRadioSlot          = "rrm_radio_slot"
+	dataRRMMainData           = "rrm_main_data"
 	dataRRMSpectrumAqWorst    = "rrm_spectrum_aq_worst_table"
 	dataRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
 	dataControllerBootTime    = "controller_boot_time"
@@ -88,6 +89,7 @@ type WNCDataCache struct {
 	RRMCoverage      []rrm.RRMCoverage
 	ApDot11RadarData []rrm.ApDot11RadarData
 	RadioSlots       []rrm.RadioSlot
+	RRMMainData      []rrm.MainData
 	SpectrumAqTable  []rrm.SpectrumAqTable
 	SpectrumAqWorst  []rrm.SpectrumAqWorstTable
 

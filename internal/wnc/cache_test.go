@@ -359,6 +359,11 @@ func TestFetchers_MatchDataTypeNames(t *testing.T) {
 		t.Errorf("dataTypeNames[0] = %s, want %s: the AP inventory labels every other AP series",
 			dataTypeNames[0], dataAPCAPWAPData)
 	}
+	if last := dataTypeNames[len(dataTypeNames)-1]; last != dataRRMSpectrumAqTable {
+		t.Errorf("dataTypeNames ends with %s, want %s: the air quality table is the largest RRM "+
+			"read, and docs/collector.ap.md ships that a truncated refresh drops it first",
+			last, dataRRMSpectrumAqTable)
+	}
 }
 
 func TestMockEndpoints_CoverEveryDataType(t *testing.T) {
@@ -399,6 +404,10 @@ func TestDataSource_FetchAllData_Success(t *testing.T) {
 	}
 	if data.RefreshedAt.IsZero() {
 		t.Error("RefreshedAt is zero, want the refresh start time")
+	}
+	if len(data.RRMMainData) != 1 {
+		t.Errorf("RRMMainData length = %d, want 1: the count a fetcher returns is the "+
+			"response length, not evidence that it stored the records", len(data.RRMMainData))
 	}
 
 	suppressBackgroundRefresh(ds)
@@ -778,6 +787,8 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"wtp-mac":"`+mockAPMAC+`"}`)},
 	"radio-slot": {dataRRMRadioSlot, mockList(mockRRMOperModule, "radio-slot",
 		`{"wtp-mac":"`+mockAPMAC+`","radio-slot-id":0}`)},
+	"main-data": {dataRRMMainData, mockList(mockRRMOperModule, "main-data",
+		`{"phy-type":"dot11-5-ghz-band"}`)},
 	"spectrum-aq-table": {dataRRMSpectrumAqTable, mockList(mockRRMOperModule, "spectrum-aq-table",
 		`{"wtp-mac":"`+mockAPMAC+`","band":"dot11-2-dot-4-ghz-band"}`)},
 	"spectrum-aq-worst-table": {dataRRMSpectrumAqWorst, mockList(mockRRMGlobalOperModule, "spectrum-aq-worst-table",

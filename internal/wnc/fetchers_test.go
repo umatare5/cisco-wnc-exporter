@@ -215,6 +215,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			[]string{
 				dataAPCAPWAPData, dataAPRadioOperData, dataAPNameMACMap,
 				dataRRMMeasurement, dataClientCommonOperData, dataRRMRadioSlot,
+				dataRRMMainData,
 			},
 		},
 		{
