@@ -1,6 +1,6 @@
 # Enumeration values
 
-Twelve series report a state, a reason or a mode as a number, and the number is the one the controller's own schema assigns the spelling it sent. This page carries every number each of them can take. What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages, and [States](README.md#a-state-is-a-number-not-a-label) carries the query shapes these numbers need.
+Twelve metric families report a state, a reason or a mode as a number, and the number is the one the controller's own schema assigns the spelling it sent. This page carries every number each of them can take. What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages, and [States](README.md#a-state-is-a-number-not-a-label) carries the query shapes these numbers need.
 
 ## Reading a value
 
