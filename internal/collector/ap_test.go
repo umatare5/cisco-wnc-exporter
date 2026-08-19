@@ -262,8 +262,8 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
-			// The three per-radio air quality series and the four band-keyed ones
-			7,
+			// The four per-radio air quality series and the four band-keyed ones
+			8,
 		},
 		{
 			"Info module only",
@@ -281,7 +281,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			86, // 8+15+10+13+32+7+1
+			87, // 8+15+10+13+32+8+1
 		},
 	}
 
@@ -1217,7 +1217,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 54 // 8+15+10+13+7+1, the join module excluded
+	expectedDescs := 55 // 8+15+10+13+8+1, the join module excluded
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -2868,7 +2868,9 @@ func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
 func TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot(t *testing.T) {
 	t.Parallel()
 
-	byRadio := gatherAPSeriesByRadio(t, fullFixtureSnapshot())
+	byRadio := gatherAPSeriesByRadio(
+		t, fullFixtureSnapshot(), APMetrics{Radio: true, Traffic: true, Errors: true, Info: true},
+	)
 	slot := strconv.Itoa(fixturePseudoRadioSlot)
 
 	// The info family is published for every entry of the slot list on purpose, so it
@@ -2918,16 +2920,49 @@ func TestAPCollector_PerRadioSeriesAbsentForANonRadioSlot(t *testing.T) {
 	}
 }
 
+// TestAPCollector_AirQualityInstantWithholdsTheEpochSentinel pins the second guard of the
+// spectrum module. The three readings of a row are published whatever its instant reads, so
+// a sentinel there must remove that one series and leave them standing. No controller has
+// been seen sending the sentinel on a row whose channel is not zero, so this row is
+// invented; on the padding rows the two always arrive together, and the channel test
+// rejects those before the instant is reached.
+func TestAPCollector_AirQualityInstantWithholdsTheEpochSentinel(t *testing.T) {
+	t.Parallel()
+
+	// The slot of the fixture radio the air quality table carries a row for.
+	const radioSlot = "0"
+
+	data := fullFixtureSnapshot()
+	rows := data.SpectrumAqTable[0].PerRadioAqData.PerChannelAqList
+	operating := &rows[len(rows)-1]
+	if operating.ChannelNum != fixtureChannel {
+		t.Fatalf("the last air quality row carries channel %d, want the operating channel %d",
+			operating.ChannelNum, fixtureChannel)
+	}
+	operating.SpectrumTimestamp = fixtureEpochSentinel
+
+	byRadio := gatherAPSeriesByRadio(t, data, APMetrics{Spectrum: true})
+	if !byRadio["wnc_ap_air_quality_index_avg"][radioSlot] {
+		t.Fatalf("wnc_ap_air_quality_index_avg has no series for slot %s, so the withhold "+
+			"below proves nothing", radioSlot)
+	}
+	if byRadio["wnc_ap_last_air_quality_timestamp_seconds"][radioSlot] {
+		t.Errorf("wnc_ap_last_air_quality_timestamp_seconds carries a series for slot %s while "+
+			"the row reports the epoch sentinel, want it withheld", radioSlot)
+	}
+}
+
 // gatherAPSeriesByRadio indexes, for every family the AP collector publishes over the
-// given snapshot, the slot numbers its series carry in the radio label.
-func gatherAPSeriesByRadio(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]bool {
+// given snapshot and module set, the slot numbers its series carry in the radio label.
+func gatherAPSeriesByRadio(
+	t *testing.T, data *wnc.WNCDataCache, metrics APMetrics,
+) map[string]map[string]bool {
 	t.Helper()
 
 	src := fixtureSource{data: data}
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAPCollector(
-		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
-		APMetrics{Radio: true, Traffic: true, Errors: true, Info: true},
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src), metrics,
 	))
 
 	families, err := registry.Gather()

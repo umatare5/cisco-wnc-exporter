@@ -124,6 +124,13 @@ var (
 	fixtureGrouping6At   = time.Date(2026, 1, 19, 0, 0, 0, 0, time.UTC)
 	fixtureUnnamedBandAt = time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC)
 
+	// The instant of the air quality row the radio operates on, and the one of the row
+	// beside it. The controller stamps one instant per AP, so on the wire every row of
+	// every band carries the same second; breaking that tie here is what pins the series
+	// to the row the three readings come from.
+	fixtureAirQualityAt        = time.Date(2026, 1, 21, 0, 0, 0, 0, time.UTC)
+	fixtureNeighborChannelAqAt = time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
+
 	// fixtureEpochSentinel is what the controller writes into a timestamp leaf for an
 	// event that has not happened. It is not the zero time, so IsZero reports false.
 	fixtureEpochSentinel = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -247,6 +254,7 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_air_quality_index_avg",
 			"wnc_ap_air_quality_index_min",
 			"wnc_ap_interferers",
+			"wnc_ap_last_air_quality_timestamp_seconds",
 		}},
 		{typeRRMSpectrumAqWorst, []string{
 			"wnc_rrm_worst_channel_air_quality_index_avg",
@@ -668,9 +676,20 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			PerRadioAqData: &rrm.PerRadioAqData{
 				ChannelCount: 3,
 				PerChannelAqList: []rrm.PerChannelAqList{
-					{ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0},
-					{ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90, TotalIntfDeviceCount: 42},
-					{ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92, TotalIntfDeviceCount: 41},
+					// The padding row carries the epoch sentinel in its instant, which the
+					// controller ties to the zero channel without exception.
+					{
+						ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0,
+						SpectrumTimestamp: fixtureEpochSentinel,
+					},
+					{
+						ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90, TotalIntfDeviceCount: 42,
+						SpectrumTimestamp: fixtureNeighborChannelAqAt,
+					},
+					{
+						ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92, TotalIntfDeviceCount: 41,
+						SpectrumTimestamp: fixtureAirQualityAt,
+					},
 				},
 			},
 		}},

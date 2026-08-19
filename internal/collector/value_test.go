@@ -94,6 +94,9 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_air_quality_index_min", 92},
 		// The interferer count of that same row, not of the padding or neighboring one.
 		{"wnc_ap_interferers", 41},
+		// The instant of that same row. The neighboring row's is a day later and the
+		// padding row's is the epoch sentinel, so reading either lands elsewhere.
+		{"wnc_ap_last_air_quality_timestamp_seconds", 1768953600},
 		// The band-keyed rows are sorted by label value, so these read the 2.4 GHz row.
 		// Each leaf of that row carries a distinct number, so a descriptor reading its
 		// neighbor reports a value these pins do not expect.

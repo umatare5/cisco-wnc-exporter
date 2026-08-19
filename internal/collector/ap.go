@@ -51,6 +51,7 @@ type APCollector struct {
 	airQualityDesc                *prometheus.Desc
 	airQualityMinDesc             *prometheus.Desc
 	interferersDesc               *prometheus.Desc
+	lastAirQualityAtDesc          *prometheus.Desc
 	channelDesc                   *prometheus.Desc
 	channelWidthDesc              *prometheus.Desc
 	associatedClientsDesc         *prometheus.Desc
@@ -274,6 +275,16 @@ func NewAPCollector(
 			"Interference devices CleanAir attributes to the channel the radio operates on. "+
 				"Zero is a reading rather than a missing one, and the series is absent "+
 				"instead where no reading can be reached",
+			baseRadioLabels,
+			nil,
+		)
+		collector.lastAirQualityAtDesc = prometheus.NewDesc(
+			"wnc_ap_last_air_quality_timestamp_seconds",
+			"Instant the controller reports for the CleanAir row this radio's air quality and "+
+				"interferer series read, in Unix seconds. An instant that does not advance means "+
+				"the reading is held from an earlier report, so time() minus it gives the age of "+
+				"that reported instant. It is withheld rather than reported as 0 where the "+
+				"controller carries no instant this exporter can use",
 			baseRadioLabels,
 			nil,
 		)
@@ -503,6 +514,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.airQualityDesc
 		ch <- c.airQualityMinDesc
 		ch <- c.interferersDesc
+		ch <- c.lastAirQualityAtDesc
 		c.band.describe(ch)
 	}
 	if c.metrics.Info {
@@ -944,6 +956,9 @@ func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 // on. The reading is absent for a radio the table has no record for, which covers an AP
 // without CleanAir and a radio whose spectrum operation is down, and for every radio
 // while the fetch fails.
+//
+// emitTimestamp guards the instant once more, so a radio can publish the three readings
+// while their instant is withheld.
 func (c *APCollector) collectSpectrumMetrics(
 	ch chan<- prometheus.Metric,
 	radio *ap.RadioOperData,
@@ -962,6 +977,8 @@ func (c *APCollector) collectSpectrumMetrics(
 	} {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
 	}
+
+	emitTimestamp(ch, c.lastAirQualityAtDesc, row.SpectrumTimestamp, labels...)
 }
 
 func (c *APCollector) collectTrafficMetrics(

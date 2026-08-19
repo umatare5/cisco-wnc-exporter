@@ -364,8 +364,11 @@ func (s *dataSource) fetchAllData(ctx context.Context) (*WNCDataCache, error) {
 
 // readEffective asks the controller to report the value in force on every leaf,
 // so a leaf left at its default is reported instead of omitted. A controller
-// that rejects the parameter answers 400, and the plain re-read then keeps the
-// WLAN series alive at the cost of reading an omitted leaf as its zero value.
+// that rejects the parameter answers 400, and the plain re-read then keeps most
+// of the WLAN series alive: a leaf omitted at its default reads as its zero
+// value, and for the two string leaves behind wnc_wlan_pmf_state and
+// wnc_wlan_ft_state that is an empty spelling, which withholds the series
+// instead.
 // A controller that accepts the parameter and ignores it answers 200, so the
 // fallback counter cannot report that case.
 func readEffective[T any](
