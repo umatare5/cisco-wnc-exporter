@@ -44,6 +44,8 @@ The controller keeps one byte total per WLAN, and this series publishes it uncha
 
 It counts **both directions together**, and it is a controller-side accumulator rather than a re-sum of the clients present now: it keeps the bytes of clients that have since disconnected. So it is **not** the sum of the per-client counters, and a WLAN with no clients at all can carry a large and unmoving value. For a rate use `rate()` over it directly; to attribute traffic to a client, use the per-client counters instead.
 
+**An administrative shutdown of the WLAN returned this counter to zero, and re-enabling the WLAN started the count again from zero.** Three things follow: `increase()` and `rate()` over a range spanning the shutdown lose everything counted before it, the value is not a lifetime total for the WLAN, and the bytes counted before the shutdown cannot be recovered from the controller afterwards. Whether any event other than that shutdown zeroes it was not measured.
+
 The leaf is a string on the wire. A record whose leaf is missing or unparsable is skipped rather than read as zero, because a counter that drops to zero is read as a reset and extrapolated from. The series is likewise absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails.
 
 </details>
