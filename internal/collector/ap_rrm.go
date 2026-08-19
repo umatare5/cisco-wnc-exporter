@@ -34,8 +34,7 @@ func newAPRRMDescs() *apRRMDescs {
 			"wnc_rrm_last_dca_run_timestamp_seconds",
 			"Unix timestamp of the last DCA run the controller reports for this band. It "+
 				"advances when the algorithm runs rather than when a radio's channel changes, "+
-				"so wnc_ap_channel_changes_total can stay flat across a run, and the controller "+
-				"schedules it apart from the RF grouping run",
+				"so wnc_ap_channel_changes_total can stay flat across a run",
 			bandLabels, nil,
 		),
 	}

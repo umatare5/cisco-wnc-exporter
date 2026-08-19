@@ -444,7 +444,9 @@ func NewAPCollector(
 		)
 		collector.radioResetsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_radio_resets_total",
-			"Radio reset count",
+			"Radio resets counted per cause and totalled for this radio. The controller "+
+				"deletes cause entries and this total then falls, so read it with rate() "+
+				"rather than as a lifetime total",
 			baseRadioLabels,
 			nil,
 		)
@@ -1181,8 +1183,10 @@ func buildRadioSlotMap(radioSlots []rrm.RadioSlot) map[string]*rrm.RadioSlot {
 // buildRadioResetStatsMap totals the reset count per radio. The YANG list is
 // keyed by ap-mac, radio-id, cause and detail-cause, so one radio legitimately
 // has several entries; keying only on the first two and overwriting would report
-// one arbitrary cause's count and would decrease whenever the entry set changes,
-// which Prometheus reads as a counter reset.
+// one arbitrary cause's count and would decrease whenever the entry set changes.
+// The fold removes that decrease and not every one: the total itself falls when
+// the controller deletes entries, observed together with an AP boot or re-join on
+// every occasion.
 func buildRadioResetStatsMap(radioResetStats []ap.RadioResetStats) map[string]map[int]int {
 	statsMap := make(map[string]map[int]int)
 	for _, stats := range radioResetStats {
