@@ -109,13 +109,13 @@ The series a dashboard usually starts from:
 
 | Collector  | Metric                             | Type  | Description                          |
 | :--------- | :--------------------------------- | :---- | :----------------------------------- |
-| AP         | `wnc_ap_oper_state`                | Gauge | Operational state in `state` label   |
+| AP         | `wnc_ap_oper_state`                | Gauge | Operational state (4=registered)     |
 | AP         | `wnc_ap_channel_number`            | Gauge | Operating channel number             |
 | AP         | `wnc_ap_tx_power_dbm`              | Gauge | Current transmit power (dBm)         |
 | AP         | `wnc_ap_noise_floor_dbm`           | Gauge | Noise on the operating channel (dBm) |
 | AP         | `wnc_ap_channel_utilization_ratio` | Gauge | Channel utilization ratio (CCA), 0-1 |
 | AP         | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
-| Client     | `wnc_client_state`                 | Gauge | Connection state in `state` label    |
+| Client     | `wnc_client_state`                 | Gauge | Connection state (11=run state)      |
 | Client     | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
 | Client     | `wnc_client_speed_mbps`            | Gauge | Negotiated PHY rate (Mbps)           |
 | Client     | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
@@ -133,7 +133,7 @@ The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics
 > [!Note]
 >
 > - The controller updates its counters on its own schedule, so use a range of **15 minutes or more** for `rate()` and `increase()`
-> - A series carrying a `state` label always has the value `1`, so the label is the reading and `== 0` never fires
+> - Twelve families report a state, a reason or a mode as the number the controller's own enumeration assigns it rather than as a label — [docs/enums.md](docs/enums.md) lists every value
 > - See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
 
 ### Exporter Health Metrics
@@ -260,12 +260,12 @@ This project is pre-1.0, so a minor release may rename or remove a metric, as th
 | Change                      | Announced in                                   |
 | :-------------------------- | :--------------------------------------------- |
 | A corrected value           | The CHANGELOG section for that release         |
-| A `state` label value       | Nowhere — the controller supplies the spelling |
+| An unlisted enum spelling   | Nowhere — the series is withheld               |
 | A default `_info` label set | The CHANGELOG section for that release         |
 | The verified range          | This section                                   |
 
 - **A corrected value** is the most frequent change here: a series keeps its name and its reading changes, because what it published was wrong. `wnc_wlan_wpa2_enabled` and `wnc_wlan_11k_neighbor_list_enabled` flipped from `0` to `1` wherever the default was in force (v0.4.0). A correction can also withdraw a series — `wnc_ap_uptime_seconds` went absent for an AP whose boot time the controller does not report (v0.7.0) — so a rule that assumes one is always present needs `absent()` or `or vector(0)`.
-- **A `state` label value** reaches the metric unmapped, as [docs/README.md](docs/README.md) describes, so an IOS-XE release that respells a state changes the label value with no change to this exporter and no CHANGELOG entry. Match on the spelling your own controller reports.
+- **An unlisted enum spelling** is withheld rather than published, so an IOS-XE release that adds a member to one of the twelve enumerations in [docs/enums.md](docs/enums.md) takes that subject's series away with no change to this exporter and no CHANGELOG entry. The series returns when a release of this exporter numbers the new member.
 - **A default `_info` label set** is what `--collector.*.info-labels` overrides, and moving a default adds or removes labels on one series rather than renaming or removing a series. A deployment that names the labels it needs is unaffected. One that relies on a default set is not, and a label dropped from a default disappears without an error even from a rule that names it in `group_left()`.
 - **The verified range** is IOS-XE 17.12, which is where every value published here was measured. The controller owns each container this exporter reads, so an image outside that range may rename or drop one and take a series with it — a loss of that kind is outside the verified range rather than a regression.
 
