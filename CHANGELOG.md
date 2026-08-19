@@ -4,7 +4,7 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
-## Unreleased
+## v0.11.0
 
 > [!IMPORTANT]
 > **BREAKING CHANGE** — twelve gauges drop their `state` label and publish the number the controller's own enumeration assigns the spelling that label carried. All twelve are listed below; **every name, type and remaining label is unchanged**, so a query keeps working and returns something different — a selector on `state` matches nothing, a negated selector matches everything, and a `sum()` that counted series now adds enumeration values. [docs/enums.md](docs/enums.md) lists every spelling with its value.
