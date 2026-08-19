@@ -109,6 +109,11 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_ap_channel_energy_dbm", -32},
 		// Seconds, so a switch to UnixMilli changes the value rather than the type.
 		{"wnc_ap_last_radar_timestamp_seconds", 1767225600},
+		// The band-keyed RRM instants, read from the 2.4 GHz record because the rows are
+		// sorted by label value. Each is a day off the other and off the transmit power
+		// instant no series publishes.
+		{"wnc_rrm_last_rf_grouping_run_timestamp_seconds", 1768348800},
+		{"wnc_rrm_last_dca_run_timestamp_seconds", 1768435200},
 
 		{"wnc_wlan_clients", 1},
 		{"wnc_wlan_session_timeout_seconds", 1800},

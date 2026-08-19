@@ -240,8 +240,8 @@ func TestAPCollector_Describe(t *testing.T) {
 			APMetrics{Radio: true},
 			// channel, channel_width, tx_power, tx_power_max, noise_floor, channel_util,
 			// rx_util, tx_util, noise_util, clients, rrm_profile_passed, channel_changes,
-			// channel_energy
-			13,
+			// channel_energy, and the two band-keyed RRM run instants
+			15,
 		},
 		{
 			"Traffic module only",
@@ -281,7 +281,7 @@ func TestAPCollector_Describe(t *testing.T) {
 				Spectrum: true,
 				Info:     true,
 			},
-			84, // 8+13+10+13+32+7+1
+			86, // 8+15+10+13+32+7+1
 		},
 	}
 
@@ -1217,7 +1217,7 @@ func TestAPCollector_Integration(t *testing.T) {
 		t.Error("Collector did not emit any descriptors")
 	}
 
-	expectedDescs := 52
+	expectedDescs := 54 // 8+15+10+13+7+1, the join module excluded
 	if count != expectedDescs {
 		t.Errorf("Collector emitted %d descriptors, want %d", count, expectedDescs)
 	}
@@ -2957,7 +2957,7 @@ func gatherAPSeriesByRadio(t *testing.T, data *wnc.WNCDataCache) map[string]map[
 func TestAPCollector_BandKeyedSeriesNameOnlyTheBandsTheyCanName(t *testing.T) {
 	t.Parallel()
 
-	byBand := gatherAPValuesByBand(t, fullFixtureSnapshot())
+	byBand := gatherAPValuesByBand(t, fullFixtureSnapshot(), APMetrics{Spectrum: true})
 
 	for _, name := range []string{
 		"wnc_rrm_worst_channel_air_quality_index_avg",
@@ -2992,21 +2992,110 @@ func TestAPCollector_BandKeyedSeriesAreEmittedOnceForTwoRadios(t *testing.T) {
 		OperState:   APRadioStateUp,
 	})
 
-	byBand := gatherAPValuesByBand(t, data)
+	byBand := gatherAPValuesByBand(t, data, APMetrics{Radio: true, Spectrum: true})
 	if got := len(byBand["wnc_rrm_worst_channel_number"]); got != 2 {
 		t.Errorf("wnc_rrm_worst_channel_number carries %d series over two radios, want 2", got)
 	}
+	if got := len(byBand["wnc_rrm_last_rf_grouping_run_timestamp_seconds"]); got != 3 {
+		t.Errorf("wnc_rrm_last_rf_grouping_run_timestamp_seconds carries %d series over two "+
+			"radios, want 3", got)
+	}
 }
 
-// gatherAPValuesByBand indexes the spectrum module's families by the band label.
-func gatherAPValuesByBand(t *testing.T, data *wnc.WNCDataCache) map[string]map[string]float64 {
+// TestAPCollector_RRMRunInstantsNameOnlyTheBandsTheyCanName pins the band guard of the RRM
+// run instants and the value each family reads. A record whose PHY type has no name is
+// withheld rather than labeled unknown, which is what keeps two such records from carrying
+// one label set.
+func TestAPCollector_RRMRunInstantsNameOnlyTheBandsTheyCanName(t *testing.T) {
+	t.Parallel()
+
+	byBand := gatherAPValuesByBand(t, fullFixtureSnapshot(), APMetrics{Radio: true})
+
+	grouping := byBand["wnc_rrm_last_rf_grouping_run_timestamp_seconds"]
+	groupingBands := slices.Sorted(maps.Keys(grouping))
+	if want := []string{Band24GHz, Band5GHz, Band6GHz}; !slices.Equal(groupingBands, want) {
+		t.Errorf("wnc_rrm_last_rf_grouping_run_timestamp_seconds carries bands %v, want %v",
+			groupingBands, want)
+	}
+
+	// The band whose group container carries no channel assignment keeps its grouping
+	// instant, so the two families are withheld apart rather than together.
+	dca := byBand["wnc_rrm_last_dca_run_timestamp_seconds"]
+	dcaBands := slices.Sorted(maps.Keys(dca))
+	if want := []string{Band24GHz, Band5GHz}; !slices.Equal(dcaBands, want) {
+		t.Errorf("wnc_rrm_last_dca_run_timestamp_seconds carries bands %v, want %v", dcaBands, want)
+	}
+
+	// The 5 GHz record, because the value pins elsewhere read the first band in label
+	// order and a descriptor reading a fixed record would satisfy them.
+	if got, want := grouping[Band5GHz], float64(fixtureGrouping5At.Unix()); got != want {
+		t.Errorf("wnc_rrm_last_rf_grouping_run_timestamp_seconds{band=%q} = %v, want %v",
+			Band5GHz, got, want)
+	}
+	if got, want := dca[Band5GHz], float64(fixtureDCA5At.Unix()); got != want {
+		t.Errorf("wnc_rrm_last_dca_run_timestamp_seconds{band=%q} = %v, want %v", Band5GHz, got, want)
+	}
+}
+
+// TestAPCollector_RRMRunInstantsWithholdARecordWithoutTheGroupContainer covers the guard no
+// baseline row can carry: the controller reports only three bands, so a fourth record
+// would have to invent a band the mapping cannot name, and the band guard would withhold
+// it before this one. Dropping the guard panics rather than misreporting, which costs
+// every series the AP collector had left to emit.
+func TestAPCollector_RRMRunInstantsWithholdARecordWithoutTheGroupContainer(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.RRMMainData[0].Grp = nil
+
+	assertRRMRunInstantsWithheldFor24GHz(t, gatherAPValuesByBand(t, data, APMetrics{Radio: true}))
+}
+
+// TestAPCollector_RRMRunInstantsWithholdTheEpochSentinel pins that both instants reach the
+// registry through emitTimestamp. Publishing the sentinel would date the last RRM run to
+// 1970 and read as five decades of staleness.
+func TestAPCollector_RRMRunInstantsWithholdTheEpochSentinel(t *testing.T) {
+	t.Parallel()
+
+	data := fullFixtureSnapshot()
+	data.RRMMainData[0].Grp.LastRun = fixtureEpochSentinel
+	data.RRMMainData[0].Grp.DCA.DCALastRun = fixtureEpochSentinel
+
+	assertRRMRunInstantsWithheldFor24GHz(t, gatherAPValuesByBand(t, data, APMetrics{Radio: true}))
+}
+
+// assertRRMRunInstantsWithheldFor24GHz reports whether both run instants are absent for
+// the 2.4 GHz band while another band still carries them. Without the second half, the
+// first would pass on a collector that published nothing at all.
+func assertRRMRunInstantsWithheldFor24GHz(t *testing.T, byBand map[string]map[string]float64) {
+	t.Helper()
+
+	for _, name := range []string{
+		"wnc_rrm_last_rf_grouping_run_timestamp_seconds",
+		"wnc_rrm_last_dca_run_timestamp_seconds",
+	} {
+		if got, ok := byBand[name][Band24GHz]; ok {
+			t.Errorf("%s{band=%q} = %v, want it withheld", name, Band24GHz, got)
+		}
+		if _, ok := byBand[name][Band5GHz]; !ok {
+			t.Errorf("%s is absent for the band carrying a real instant, so the withhold "+
+				"above proves nothing", name)
+		}
+	}
+}
+
+// gatherAPValuesByBand indexes the band-keyed families of the given modules by the band
+// label. The module set is the caller's, so a family emitted under the wrong module flag
+// is absent here rather than covered by a neighbour's flag.
+func gatherAPValuesByBand(
+	t *testing.T, data *wnc.WNCDataCache, metrics APMetrics,
+) map[string]map[string]float64 {
 	t.Helper()
 
 	src := fixtureSource{data: data}
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAPCollector(
-		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
-		APMetrics{Spectrum: true},
+		wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src), metrics,
 	))
 
 	families, err := registry.Gather()

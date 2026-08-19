@@ -34,6 +34,7 @@ type APCollector struct {
 	infoLabelNames []string
 	join           *apJoinDescs
 	band           *apBandDescs
+	rrmRuns        *apRRMDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -248,6 +249,7 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
+		collector.rrmRuns = newAPRRMDescs()
 	}
 
 	if metrics.Spectrum {
@@ -465,6 +467,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.rrmProfilePassedDesc
 		ch <- c.channelChangesTotalDesc
 		ch <- c.channelEnergyDesc
+		c.rrmRuns.describe(ch)
 	}
 	if c.metrics.Traffic {
 		ch <- c.dataRxFramesTotalDesc
@@ -635,6 +638,9 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	// emitting them per radio would repeat one label set and fail the whole scrape.
 	if IsEnabled(c.metrics.Spectrum) {
 		c.band.collect(ch, spectrumSources.worst)
+	}
+	if IsEnabled(c.metrics.Radio) {
+		c.rrmRuns.collect(ch, radioSources.mainData)
 	}
 }
 
@@ -852,13 +858,16 @@ var rrmProfiles = []struct {
 	{"noise", func(d *rrm.RadioData) bool { return d.NoiseProfilePassed }},
 }
 
-// radioJoins holds the three reads the radio module joins against. A map with no entry
-// for a radio withholds that radio's series rather than reporting a zero; clientCounts
-// is left nil outright, because a partial count reads as a radio with no clients.
+// radioJoins holds the four reads of the radio module. A map with no entry for a radio
+// withholds that radio's series rather than reporting a zero; clientCounts is left nil
+// outright, because a partial count reads as a radio with no clients. mainData joins
+// against no radio — it is keyed by band — and is carried here so that the module makes
+// its reads in one place.
 type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
 	slots        map[string]*rrm.RadioSlot
 	clientCounts map[string]map[int]int
+	mainData     []rrm.MainData
 }
 
 // spectrumReads holds the two air quality reads of the spectrum module. They key on
@@ -888,7 +897,7 @@ func (c *APCollector) readSpectrum(ctx context.Context) spectrumReads {
 	return reads
 }
 
-// readRadioJoins reads the three data types the radio module joins against. Each keeps
+// readRadioJoins reads the four data types the radio module publishes from. Each keeps
 // its own absence rule, so one failing does not withhold the others.
 func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 	var joins radioJoins
@@ -921,6 +930,12 @@ func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 	if clientErr == nil && mapErr == nil {
 		joins.clientCounts = buildRadioClientCountsMap(clientData, nameMACMaps)
 	}
+
+	mainData, mainErr := c.rrmSrc.GetRRMMainData(ctx)
+	if mainErr != nil {
+		slog.Debug("Failed to get RRM main data for the band-keyed run instants", "error", mainErr)
+	}
+	joins.mainData = mainData
 
 	return joins
 }
