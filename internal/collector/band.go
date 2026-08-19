@@ -62,6 +62,28 @@ func RRMWorstBand(row *rrm.SpectrumAqWorstTable) (string, bool) {
 	}
 }
 
+// RRMMainBand returns the band an RRM run record reports for, and reports whether the
+// PHY type could be named at all.
+//
+// The source is main-data/phy-type, typed enm-ewlc-dot11-radio-band, which types
+// radio-oper-data/current-active-band as well: one value domain, so the three spellings
+// below are the three APRadioBand names. Folding the two into one mapping would take the
+// bare string the package comment above records as the defect, and their absence contracts
+// differ anyway — this one reports absence, for the reason RRMWorstBand records, where an
+// info label can carry a band named unknown.
+func RRMMainBand(record *rrm.MainData) (string, bool) {
+	switch record.PhyType {
+	case "dot11-2-dot-4-ghz-band":
+		return Band24GHz, true
+	case "dot11-5-ghz-band":
+		return Band5GHz, true
+	case "dot11-6-ghz-band":
+		return Band6GHz, true
+	default:
+		return "", false
+	}
+}
+
 // APRadioBand returns the band the radio is currently operating on.
 //
 // The source is radio-oper-data/current-active-band, typed enm-ewlc-dot11-radio-band.

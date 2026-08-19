@@ -37,6 +37,7 @@ var dataTypeNames = []string{
 	dataRRMCoverage,
 	dataRRMAPDot11RadarData,
 	dataRRMRadioSlot,
+	dataRRMMainData,
 	dataRRMSpectrumAqWorst,
 	dataRRMSpectrumAqTable,
 }
@@ -108,7 +109,7 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
 		return modules.AP.Errors
-	case dataRRMRadioSlot:
+	case dataRRMRadioSlot, dataRRMMainData:
 		return modules.AP.Radio
 	case dataRRMSpectrumAqWorst, dataRRMSpectrumAqTable:
 		return modules.AP.Spectrum
@@ -348,6 +349,14 @@ func (s *dataSource) fetchers() []dataFetcher {
 			}
 			c.RadioSlots = data.RadioSlot
 			return len(c.RadioSlots), nil
+		}},
+		{dataRRMMainData, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.RRM().ListMainData(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.RRMMainData = data.MainData
+			return len(c.RRMMainData), nil
 		}},
 		{dataRRMSpectrumAqWorst, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.RRM().ListSpectrumAqWorstTable(ctx)

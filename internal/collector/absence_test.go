@@ -41,6 +41,7 @@ const (
 	typeRRMCoverage           = "rrm_coverage"
 	typeRRMAPDot11RadarData   = "rrm_ap_dot11_radar_data"
 	typeRRMRadioSlot          = "rrm_radio_slot"
+	typeRRMMainData           = "rrm_main_data"
 	typeRRMSpectrumAqTable    = "rrm_spectrum_aq_table"
 	typeRRMSpectrumAqWorst    = "rrm_spectrum_aq_worst_table"
 	typeWLANCfgEntries        = "wlan_cfg_entries"
@@ -56,7 +57,7 @@ var allDataTypes = []string{
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
 	typeRRMMeasurement, typeRRMCoverage, typeRRMAPDot11RadarData, typeRRMRadioSlot,
-	typeRRMSpectrumAqTable, typeRRMSpectrumAqWorst,
+	typeRRMMainData, typeRRMSpectrumAqTable, typeRRMSpectrumAqWorst,
 	typeWLANCfgEntries, typeWLANPolicies, typeWLANPolicyListEntries, typeWLANClientStats,
 }
 
@@ -109,6 +110,26 @@ var (
 	fixtureCtrlDTLSFailureAt  = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
 	fixtureDataDTLSSuccessAt  = time.Date(2026, 1, 11, 0, 0, 0, 0, time.UTC)
 	fixtureDataDTLSFailureAt  = time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+
+	// The RRM run instants, one day apart from each other and from every instant above, so
+	// that a descriptor reading another band's record, or the neighboring leaf of its own,
+	// reports another day. The transmit power instant is filled although no series reads
+	// it: the controller writes it into the same container at the same instant as the
+	// grouping one, so a distinct value here is what makes publishing it visible.
+	fixtureGrouping24At  = time.Date(2026, 1, 14, 0, 0, 0, 0, time.UTC)
+	fixtureDCA24At       = time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+	fixtureDPC24At       = time.Date(2026, 1, 16, 0, 0, 0, 0, time.UTC)
+	fixtureGrouping5At   = time.Date(2026, 1, 17, 0, 0, 0, 0, time.UTC)
+	fixtureDCA5At        = time.Date(2026, 1, 18, 0, 0, 0, 0, time.UTC)
+	fixtureGrouping6At   = time.Date(2026, 1, 19, 0, 0, 0, 0, time.UTC)
+	fixtureUnnamedBandAt = time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC)
+
+	// The instant of the air quality row the radio operates on, and the one of the row
+	// beside it. The controller stamps one instant per AP, so on the wire every row of
+	// every band carries the same second; breaking that tie here is what pins the series
+	// to the row the three readings come from.
+	fixtureAirQualityAt        = time.Date(2026, 1, 21, 0, 0, 0, 0, time.UTC)
+	fixtureNeighborChannelAqAt = time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
 
 	// fixtureEpochSentinel is what the controller writes into a timestamp leaf for an
 	// event that has not happened. It is not the zero time, so IsZero reports false.
@@ -225,10 +246,15 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_channel_changes_total",
 			"wnc_ap_channel_energy_dbm",
 		}},
+		{typeRRMMainData, []string{
+			"wnc_rrm_last_rf_grouping_run_timestamp_seconds",
+			"wnc_rrm_last_dca_run_timestamp_seconds",
+		}},
 		{typeRRMSpectrumAqTable, []string{
 			"wnc_ap_air_quality_index_avg",
 			"wnc_ap_air_quality_index_min",
 			"wnc_ap_interferers",
+			"wnc_ap_last_air_quality_timestamp_seconds",
 		}},
 		{typeRRMSpectrumAqWorst, []string{
 			"wnc_rrm_worst_channel_air_quality_index_avg",
@@ -607,15 +633,63 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 				},
 			},
 		}},
+		// One record per band the mapping names, plus the two the band guard withholds. The
+		// 6 GHz record carries no dca container: no controller has been seen omitting it, so
+		// that row is invented, and it is what tests that the two families guard themselves
+		// rather than the record. Of the withheld pair one carries dot11-invalid-band, a
+		// member of the typedef, and the other an unset leaf, which is no spelling at all —
+		// inventing a fourth band spelling would put a claim about the controller into a
+		// fixture. Both carry real instants, so the name is what withholds them, and there
+		// are two because one alone would leave the label collision unobserved.
+		RRMMainData: []rrm.MainData{{
+			PhyType: "dot11-2-dot-4-ghz-band",
+			Grp: &rrm.GroupData{
+				LastRun: fixtureGrouping24At,
+				DCA:     &rrm.DCAInfo{DCALastRun: fixtureDCA24At},
+				Txpower: &rrm.TxPowerInfo{DpcLastRun: fixtureDPC24At},
+			},
+		}, {
+			PhyType: "dot11-5-ghz-band",
+			Grp: &rrm.GroupData{
+				LastRun: fixtureGrouping5At,
+				DCA:     &rrm.DCAInfo{DCALastRun: fixtureDCA5At},
+			},
+		}, {
+			PhyType: "dot11-6-ghz-band",
+			Grp:     &rrm.GroupData{LastRun: fixtureGrouping6At},
+		}, {
+			PhyType: "dot11-invalid-band",
+			Grp: &rrm.GroupData{
+				LastRun: fixtureUnnamedBandAt,
+				DCA:     &rrm.DCAInfo{DCALastRun: fixtureUnnamedBandAt},
+			},
+		}, {
+			PhyType: "",
+			Grp: &rrm.GroupData{
+				LastRun: fixtureUnnamedBandAt,
+				DCA:     &rrm.DCAInfo{DCALastRun: fixtureUnnamedBandAt},
+			},
+		}},
 		SpectrumAqTable: []rrm.SpectrumAqTable{{
 			WtpMAC: fixtureAPMAC,
 			Band:   "dot11-2-dot-4-ghz-band",
 			PerRadioAqData: &rrm.PerRadioAqData{
 				ChannelCount: 3,
 				PerChannelAqList: []rrm.PerChannelAqList{
-					{ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0},
-					{ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90, TotalIntfDeviceCount: 42},
-					{ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92, TotalIntfDeviceCount: 41},
+					// The padding row carries the epoch sentinel in its instant, which the
+					// controller ties to the zero channel without exception.
+					{
+						ChannelNum: 0, Aqi: 0, MinAqi: 0, TotalIntfDeviceCount: 0,
+						SpectrumTimestamp: fixtureEpochSentinel,
+					},
+					{
+						ChannelNum: fixtureChannel + 1, Aqi: 91, MinAqi: 90, TotalIntfDeviceCount: 42,
+						SpectrumTimestamp: fixtureNeighborChannelAqAt,
+					},
+					{
+						ChannelNum: fixtureChannel, Aqi: 93, MinAqi: 92, TotalIntfDeviceCount: 41,
+						SpectrumTimestamp: fixtureAirQualityAt,
+					},
 				},
 			},
 		}},

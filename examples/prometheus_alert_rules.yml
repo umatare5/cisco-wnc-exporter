@@ -221,8 +221,9 @@ groups:
             increase() extrapolates to the range edges, which lifts exactly three
             moves to just above three on a radio that had already moved before the
             range began while leaving it at three on one that had not: >= 4 reads
-            the same on both. The counter resets when the controller rebuilds its
-            per-radio statistics rather than only on a reboot, and increase()
+            the same on both. The counter can fall when the controller drops the
+            assignment entries it is read from, and every fall observed happened
+            together with the access point booting or re-joining. increase()
             adjusts for a reset on its own, so no guard on the association uptime
             is needed and adding one would hide real churn for an hour after every
             re-association. Needs --collector.ap.radio.

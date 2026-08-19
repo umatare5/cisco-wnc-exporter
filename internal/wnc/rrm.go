@@ -14,6 +14,7 @@ type RRMSource interface {
 	GetRRMCoverage(ctx context.Context) ([]rrm.RRMCoverage, error)
 	GetApDot11RadarData(ctx context.Context) ([]rrm.ApDot11RadarData, error)
 	GetRadioSlots(ctx context.Context) ([]rrm.RadioSlot, error)
+	GetRRMMainData(ctx context.Context) ([]rrm.MainData, error)
 	GetSpectrumAqTable(ctx context.Context) ([]rrm.SpectrumAqTable, error)
 	GetSpectrumAqWorstTable(ctx context.Context) ([]rrm.SpectrumAqWorstTable, error)
 }
@@ -64,6 +65,15 @@ func (s *rrmSource) GetRadioSlots(ctx context.Context) ([]rrm.RadioSlot, error) 
 		return nil, err
 	}
 	return data.RadioSlots, nil
+}
+
+// GetRRMMainData returns the per-band RRM run data from WNC via SharedDataSource (cached).
+func (s *rrmSource) GetRRMMainData(ctx context.Context) ([]rrm.MainData, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataRRMMainData)
+	if err != nil {
+		return nil, err
+	}
+	return data.RRMMainData, nil
 }
 
 // GetSpectrumAqTable returns the per-band air quality table from WNC via SharedDataSource (cached).

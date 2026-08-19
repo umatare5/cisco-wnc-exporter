@@ -34,6 +34,7 @@ type APCollector struct {
 	infoLabelNames []string
 	join           *apJoinDescs
 	band           *apBandDescs
+	rrmRuns        *apRRMDescs
 	src            wnc.APSource
 	rrmSrc         wnc.RRMSource
 	clientSrc      wnc.ClientSource
@@ -50,6 +51,7 @@ type APCollector struct {
 	airQualityDesc                *prometheus.Desc
 	airQualityMinDesc             *prometheus.Desc
 	interferersDesc               *prometheus.Desc
+	lastAirQualityAtDesc          *prometheus.Desc
 	channelDesc                   *prometheus.Desc
 	channelWidthDesc              *prometheus.Desc
 	associatedClientsDesc         *prometheus.Desc
@@ -248,6 +250,7 @@ func NewAPCollector(
 			baseRadioLabels,
 			nil,
 		)
+		collector.rrmRuns = newAPRRMDescs()
 	}
 
 	if metrics.Spectrum {
@@ -272,6 +275,16 @@ func NewAPCollector(
 			"Interference devices CleanAir attributes to the channel the radio operates on. "+
 				"Zero is a reading rather than a missing one, and the series is absent "+
 				"instead where no reading can be reached",
+			baseRadioLabels,
+			nil,
+		)
+		collector.lastAirQualityAtDesc = prometheus.NewDesc(
+			"wnc_ap_last_air_quality_timestamp_seconds",
+			"Instant the controller reports for the CleanAir row this radio's air quality and "+
+				"interferer series read, in Unix seconds. An instant that does not advance means "+
+				"the reading is held from an earlier report, so time() minus it gives the age of "+
+				"that reported instant. It is withheld rather than reported as 0 where the "+
+				"controller carries no instant this exporter can use",
 			baseRadioLabels,
 			nil,
 		)
@@ -431,7 +444,9 @@ func NewAPCollector(
 		)
 		collector.radioResetsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_radio_resets_total",
-			"Radio reset count",
+			"Radio resets counted per cause and totalled for this radio. The controller "+
+				"deletes cause entries and this total then falls, so read it with rate() "+
+				"rather than as a lifetime total",
 			baseRadioLabels,
 			nil,
 		)
@@ -465,6 +480,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.rrmProfilePassedDesc
 		ch <- c.channelChangesTotalDesc
 		ch <- c.channelEnergyDesc
+		c.rrmRuns.describe(ch)
 	}
 	if c.metrics.Traffic {
 		ch <- c.dataRxFramesTotalDesc
@@ -500,6 +516,7 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- c.airQualityDesc
 		ch <- c.airQualityMinDesc
 		ch <- c.interferersDesc
+		ch <- c.lastAirQualityAtDesc
 		c.band.describe(ch)
 	}
 	if c.metrics.Info {
@@ -635,6 +652,9 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 	// emitting them per radio would repeat one label set and fail the whole scrape.
 	if IsEnabled(c.metrics.Spectrum) {
 		c.band.collect(ch, spectrumSources.worst)
+	}
+	if IsEnabled(c.metrics.Radio) {
+		c.rrmRuns.collect(ch, radioSources.mainData)
 	}
 }
 
@@ -852,13 +872,16 @@ var rrmProfiles = []struct {
 	{"noise", func(d *rrm.RadioData) bool { return d.NoiseProfilePassed }},
 }
 
-// radioJoins holds the three reads the radio module joins against. A map with no entry
-// for a radio withholds that radio's series rather than reporting a zero; clientCounts
-// is left nil outright, because a partial count reads as a radio with no clients.
+// radioJoins holds the four reads of the radio module. A map with no entry for a radio
+// withholds that radio's series rather than reporting a zero; clientCounts is left nil
+// outright, because a partial count reads as a radio with no clients. mainData joins
+// against no radio — it is keyed by band — and is carried here so that the module makes
+// its reads in one place.
 type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
 	slots        map[string]*rrm.RadioSlot
 	clientCounts map[string]map[int]int
+	mainData     []rrm.MainData
 }
 
 // spectrumReads holds the two air quality reads of the spectrum module. They key on
@@ -888,7 +911,7 @@ func (c *APCollector) readSpectrum(ctx context.Context) spectrumReads {
 	return reads
 }
 
-// readRadioJoins reads the three data types the radio module joins against. Each keeps
+// readRadioJoins reads the four data types the radio module publishes from. Each keeps
 // its own absence rule, so one failing does not withhold the others.
 func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 	var joins radioJoins
@@ -922,6 +945,12 @@ func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 		joins.clientCounts = buildRadioClientCountsMap(clientData, nameMACMaps)
 	}
 
+	mainData, mainErr := c.rrmSrc.GetRRMMainData(ctx)
+	if mainErr != nil {
+		slog.Debug("Failed to get RRM main data for the band-keyed run instants", "error", mainErr)
+	}
+	joins.mainData = mainData
+
 	return joins
 }
 
@@ -929,6 +958,9 @@ func (c *APCollector) readRadioJoins(ctx context.Context) radioJoins {
 // on. The reading is absent for a radio the table has no record for, which covers an AP
 // without CleanAir and a radio whose spectrum operation is down, and for every radio
 // while the fetch fails.
+//
+// emitTimestamp guards the instant once more, so a radio can publish the three readings
+// while their instant is withheld.
 func (c *APCollector) collectSpectrumMetrics(
 	ch chan<- prometheus.Metric,
 	radio *ap.RadioOperData,
@@ -947,6 +979,8 @@ func (c *APCollector) collectSpectrumMetrics(
 	} {
 		ch <- prometheus.MustNewConstMetric(metric.Desc, prometheus.GaugeValue, metric.Value, labels...)
 	}
+
+	emitTimestamp(ch, c.lastAirQualityAtDesc, row.SpectrumTimestamp, labels...)
 }
 
 func (c *APCollector) collectTrafficMetrics(
@@ -1149,8 +1183,10 @@ func buildRadioSlotMap(radioSlots []rrm.RadioSlot) map[string]*rrm.RadioSlot {
 // buildRadioResetStatsMap totals the reset count per radio. The YANG list is
 // keyed by ap-mac, radio-id, cause and detail-cause, so one radio legitimately
 // has several entries; keying only on the first two and overwriting would report
-// one arbitrary cause's count and would decrease whenever the entry set changes,
-// which Prometheus reads as a counter reset.
+// one arbitrary cause's count and would decrease whenever the entry set changes.
+// The fold removes that decrease and not every one: the total itself falls when
+// the controller deletes entries, observed together with an AP boot or re-join on
+// every occasion.
 func buildRadioResetStatsMap(radioResetStats []ap.RadioResetStats) map[string]map[int]int {
 	statsMap := make(map[string]map[int]int)
 	for _, stats := range radioResetStats {
