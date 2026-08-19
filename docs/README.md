@@ -76,25 +76,25 @@ rate(wnc_ap_fcs_errors_total[15m]) > 0 and on(mac) wnc_ap_association_uptime_sec
 
 ## States
 
-### A state is a label, not a number
+### A state is a number, not a label
 
-- A series carrying a `state` label always has the value `1`, so the label is the reading
-- The controller's spelling passes through unmapped, so a value this file does not name can appear
-- Only the current state has a series, so `== 0` never fires, and an equality match on the healthy spelling selects the healthy devices rather than revealing the unhealthy ones
-- Alert on any spelling other than the healthy one, with `state` aggregated away:
+- Twelve families publish the number the controller's own enumeration assigns the spelling it sent, so the value is the reading and there is no `state` label to match on
+- [Enumeration values](enums.md) lists every spelling and its number. A spelling absent from that page is withheld rather than published, so one subject's series can disappear while the rest publish
+- `== 0` is a real comparison now, and it means a different thing per family: `client-status-idle` on `wnc_client_state`, the healthy sentinel on the four AP failure reasons, an unknown phase rather than an absence of failure on `wnc_ap_last_error_phase`, and nothing at all on `wnc_ap_oper_state`, whose enumeration declares no `0`
+- Alert on any value other than the healthy one, with nothing to aggregate away:
 
 ```bash
-group by (mac) (wnc_client_state{state!="client-status-run"})
+wnc_client_state != 11
 ```
 
 - The query is silent for a device the controller no longer lists, which has no series in any state — watch `wnc_refresh_items` per `data` type for that case
-- Keeping `state` in the result restarts `for:` on every state change, so a stuck device never fires
+- The series identity no longer moves when the reading does, so `for:` accumulates across a transition — under the label shape it restarted on every state change and a stuck device never fired
 - Pair the query with a `for:` longer than a legitimate transition takes
 - `wnc_client_state` also covers a client held short of `client-status-run`, which no other client series does
-- `wnc_ap_oper_state` is one series per AP, healthy at `registered`, and carries no `radio` label
+- `wnc_ap_oper_state` is one series per AP, healthy at `4`, and carries no `radio` label
 - `wnc_wlan_pmf_state` and `wnc_wlan_ft_state` are one series per WLAN and report a configured setting rather than an operational state
 - The reason and phase series of the AP `join` module report the **last recorded** event rather than a current one, and freeze with the record — so they keep their reading for an AP that has left CAPWAP. All are one series per AP except the DTLS reason, which is one per tunnel channel
-- Every other `_state` metric keeps its numeric `0` or `1`
+- The `_state` metrics outside this list carry no controller enumeration: `wnc_ap_radio_state`, `wnc_ap_admin_state` and `wnc_ap_config_state` are this exporter's own `0` or `1`, and `wnc_client_power_save_state` publishes the controller's integer unchanged
 
 ## Labels
 

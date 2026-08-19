@@ -16,16 +16,22 @@ import (
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
 
-// TestAPCollector_StateReportsSpellingInLabel pins the AP-level encoding. The series
-// previously duplicated wnc_ap_radio_state, so it must now carry the CAPWAP state in a
-// label and must not carry a radio label.
-func TestAPCollector_StateReportsSpellingInLabel(t *testing.T) {
+// TestAPCollector_OperStateReportsTheNumberTheEnumerationAssigns pins the AP-level
+// encoding. The series previously duplicated wnc_ap_radio_state, so it must carry one
+// sample per AP with no radio label, and it must report the number the controller's own
+// enumeration assigns the spelling it sent.
+func TestAPCollector_OperStateReportsTheNumberTheEnumerationAssigns(t *testing.T) {
 	t.Parallel()
+
+	const (
+		downloadingMAC = "22:33:44:55:66:77"
+		noStateMAC     = "33:44:55:66:77:88"
+	)
 
 	data := fullFixtureSnapshot()
 	data.CAPWAPData = append(data.CAPWAPData,
-		ap.CAPWAPData{WtpMAC: "22:33:44:55:66:77", ApState: ap.ApState{ApOperationState: "downloading"}},
-		ap.CAPWAPData{WtpMAC: "33:44:55:66:77:88"},
+		ap.CAPWAPData{WtpMAC: downloadingMAC, ApState: ap.ApState{ApOperationState: "downloading"}},
+		ap.CAPWAPData{WtpMAC: noStateMAC},
 	)
 	src := fixtureSource{data: data}
 
@@ -52,7 +58,7 @@ func TestAPCollector_StateReportsSpellingInLabel(t *testing.T) {
 				if label.GetName() == labelRadio {
 					t.Error("wnc_ap_oper_state carries a radio label, want one series per AP")
 				}
-				if label.GetName() == labelState {
+				if label.GetName() == labelMAC {
 					states[label.GetValue()] = metric.GetGauge().GetValue()
 				}
 			}
@@ -61,16 +67,20 @@ func TestAPCollector_StateReportsSpellingInLabel(t *testing.T) {
 
 	// Two of the three fixture APs report a state. A third series would mean the
 	// radio-level duplicate is back, since a per-radio emit reuses this descriptor
-	// and passes a slot number where the state belongs.
+	// and passes a slot number where the MAC belongs.
 	const wantSeries = 2
 	if series != wantSeries {
 		t.Errorf("wnc_ap_oper_state has %d series, want %d, one per AP reporting a state", series, wantSeries)
 	}
-	if got := states["downloading"]; got != 1 {
-		t.Errorf("wnc_ap_oper_state{state=downloading} = %v, want 1 with the state in the label", got)
+	// 5 is downloading and 4 is registered: the enumeration is not ordered by health,
+	// which is why the two APs are pinned separately rather than compared.
+	for mac, want := range map[string]float64{downloadingMAC: 5, fixtureAPMAC: 4} {
+		if got, ok := states[mac]; !ok || got != want {
+			t.Errorf("wnc_ap_oper_state{mac=%q} = %v (present %v), want %v", mac, got, ok, want)
+		}
 	}
-	if _, ok := states[""]; ok {
-		t.Error("wnc_ap_oper_state carries an empty state label, want that series omitted")
+	if got, ok := states[noStateMAC]; ok {
+		t.Errorf("wnc_ap_oper_state{mac=%q} = %v for an empty leaf, want it withheld", noStateMAC, got)
 	}
 }
 
@@ -1373,7 +1383,7 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 		uptimeSecondsDesc:     prometheus.NewDesc("test_uptime", "test", []string{"mac"}, nil),
 		cpuUtilizationDesc:    prometheus.NewDesc("test_cpu", "test", []string{"mac"}, nil),
 		memoryUtilizationDesc: prometheus.NewDesc("test_memory", "test", []string{"mac"}, nil),
-		operStateDesc:         prometheus.NewDesc("test_oper_state", "test", []string{"mac", "state"}, nil),
+		operStateDesc:         prometheus.NewDesc("test_oper_state", "test", []string{"mac"}, nil),
 	}
 
 	capwapMap := map[string]ap.CAPWAPData{
@@ -2338,45 +2348,55 @@ func TestAPJoinModule_WithholdsTheEpochSentinel(t *testing.T) {
 	}
 }
 
-// TestAPJoinModule_ReasonsCarryTheControllerSpelling pins each enum leaf to its own
-// series. The two DTLS channels carry different spellings in the fixture, so a swap
-// between them changes which label value each channel reports.
-func TestAPJoinModule_ReasonsCarryTheControllerSpelling(t *testing.T) {
+// TestAPJoinModule_ReasonsReportTheNumberTheirEnumerationAssigns pins each enum leaf to
+// its own descriptor and its own table. The six AP-keyed readings of the fixture carry
+// six distinct numbers, so exchanging two rows of the emit table — which a compiler and
+// every count assertion accept — changes a number pinned here.
+func TestAPJoinModule_ReasonsReportTheNumberTheirEnumerationAssigns(t *testing.T) {
 	t.Parallel()
 
-	values := gatherJoinValues(t, fullFixtureSnapshot(), labelState)
+	values := gatherJoinValues(t, fullFixtureSnapshot(), labelChannel)
 
 	tests := []struct {
-		name  string
-		state string
+		name string
+		want float64
 	}{
-		{"wnc_ap_last_discovery_failure_reason", "disc-fail-none"},
-		{"wnc_ap_last_join_failure_reason", "jf-none"},
-		{"wnc_ap_last_config_failure_reason", "cf-none"},
-		{"wnc_ap_last_error_phase", "ap-con-failure-run"},
-		{"wnc_ap_last_reboot_reason", "ap-reboot-reason-reboot-cmd"},
-		{"wnc_ap_last_disconnect_reason", "wtp-controller-initiated-reason"},
+		{"wnc_ap_last_discovery_failure_reason", 14},
+		{"wnc_ap_last_join_failure_reason", 40},
+		{"wnc_ap_last_config_failure_reason", 12},
+		{"wnc_ap_last_error_phase", 6},
+		{"wnc_ap_last_reboot_reason", 4},
+		{"wnc_ap_last_disconnect_reason", 20},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			byState := values[tt.name]
-			if len(byState) != 1 {
-				t.Fatalf("%s has %d series, want one per AP", tt.name, len(byState))
+			byChannel := values[tt.name]
+			if len(byChannel) != 1 {
+				t.Fatalf("%s has %d series, want one per AP", tt.name, len(byChannel))
 			}
-			if got, ok := byState[tt.state]; !ok || got != 1 {
-				t.Errorf("%s{state=%q} = %v (present %v), want 1", tt.name, tt.state, got, ok)
+			// These families carry no channel label, so the single sample is indexed
+			// under the empty string.
+			if got, ok := byChannel[""]; !ok || got != tt.want {
+				t.Errorf("%s = %v (present %v), want %v", tt.name, got, ok, tt.want)
 			}
 		})
 	}
 
-	byState := values["wnc_ap_last_dtls_failure_reason"]
-	for state, want := range map[string]bool{"dtls-hs-success": true, "dtls-hs-fragment-error": true} {
-		if _, ok := byState[state]; ok != want {
-			t.Errorf("wnc_ap_last_dtls_failure_reason{state=%q} present = %v, want %v", state, ok, want)
-		}
+	// The data channel carries a spelling no release of this enumeration declares, so it
+	// is withheld while the control channel keeps its reading. A swap between the two
+	// leaves inverts which channel is published, and a lookup that ignored its second
+	// result would publish the data channel as zero.
+	byChannel := values["wnc_ap_last_dtls_failure_reason"]
+	if got, ok := byChannel[dtlsChannelControl]; !ok || got != 0 {
+		t.Errorf("wnc_ap_last_dtls_failure_reason{channel=%q} = %v (present %v), want 0 for dtls-hs-success",
+			dtlsChannelControl, got, ok)
+	}
+	if got, ok := byChannel[dtlsChannelData]; ok {
+		t.Errorf("wnc_ap_last_dtls_failure_reason{channel=%q} = %v for a spelling no enumeration "+
+			"declares, want it withheld", dtlsChannelData, got)
 	}
 }
 

@@ -11,53 +11,36 @@ import (
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
 
-// TestClientCollector_StateReportsSpellingInLabel pins the label encoding. Nothing
-// else in the suite reads the state label or the value, so folding the state back
-// into a number, dropping the label or moving the emit under the run filter would
-// all ship green.
-func TestClientCollector_StateReportsSpellingInLabel(t *testing.T) {
+// TestClientCollector_StateReportsTheNumberTheEnumerationAssigns pins the encoding.
+// Nothing else in the suite reads this value, so folding the state back into a boolean,
+// numbering it this exporter's own way or moving the emit under the run filter would all
+// ship green.
+func TestClientCollector_StateReportsTheNumberTheEnumerationAssigns(t *testing.T) {
 	t.Parallel()
 
-	const heldState = "client-status-authenticating"
+	const (
+		heldMAC    = "22:33:44:55:66:77"
+		noStateMAC = "33:44:55:66:77:88"
+		heldState  = "client-status-authenticating"
+	)
 
 	data := fullFixtureSnapshot()
 	data.CommonOperData = append(data.CommonOperData,
-		client.CommonOperData{ClientMAC: "22:33:44:55:66:77", CoState: heldState},
-		client.CommonOperData{ClientMAC: "33:44:55:66:77:88"},
+		client.CommonOperData{ClientMAC: heldMAC, CoState: heldState},
+		client.CommonOperData{ClientMAC: noStateMAC},
 	)
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewClientCollector(
-		wnc.NewClientSource(fixtureSource{data: data}), ClientMetrics{General: true},
-	))
+	states := gatherClientValuesByMAC(t, data)["wnc_client_state"]
 
-	families, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Gather() error = %v, want nil", err)
-	}
-
-	states := make(map[string]float64)
-	for _, family := range families {
-		if family.GetName() != "wnc_client_state" {
-			continue
-		}
-		for _, metric := range family.GetMetric() {
-			for _, label := range metric.GetLabel() {
-				if label.GetName() == labelState {
-					states[label.GetValue()] = metric.GetGauge().GetValue()
-				}
-			}
+	// 3 is client-status-authenticating and 11 is client-status-run. The held client is
+	// below the run filter, so a series for it also pins that the emit stays above it.
+	for mac, want := range map[string]float64{heldMAC: 3, fixtureClientMAC: 11} {
+		if got, ok := states[mac]; !ok || got != want {
+			t.Errorf("wnc_client_state{mac=%q} = %v (present %v), want %v", mac, got, ok, want)
 		}
 	}
-
-	if got := states[heldState]; got != 1 {
-		t.Errorf("wnc_client_state{state=%q} = %v, want 1 with the state in the label", heldState, got)
-	}
-	if _, ok := states[ClientStatusRun]; !ok {
-		t.Errorf("wnc_client_state has no series for %q, want every reported state", ClientStatusRun)
-	}
-	if _, ok := states[""]; ok {
-		t.Error("wnc_client_state carries an empty state label, want that series omitted")
+	if got, ok := states[noStateMAC]; ok {
+		t.Errorf("wnc_client_state{mac=%q} = %v for an empty leaf, want it withheld", noStateMAC, got)
 	}
 }
 
@@ -171,44 +154,20 @@ func TestClientCollector_WithholdsStateTransitionWithoutAMeasurement(t *testing.
 func TestClientCollector_RoamTypeReadsTheCurrentAssociation(t *testing.T) {
 	t.Parallel()
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewClientCollector(
-		wnc.NewClientSource(fixtureSource{data: fullFixtureSnapshot()}), ClientMetrics{General: true},
-	))
+	roamTypes := gatherClientValuesByMAC(t, fullFixtureSnapshot())["wnc_client_roam_type"]
 
-	families, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Gather() error = %v, want nil", err)
+	// 2 is dot11-roam-type-fast-okc, the newest entry of the history. The older entry is
+	// dot11-roam-type-slow-11i, which the same enumeration numbers 1, so reading the far
+	// end of the list changes this number rather than the series count.
+	if got, ok := roamTypes[fixtureClientMAC]; !ok || got != 2 {
+		t.Errorf("wnc_client_roam_type{mac=%q} = %v (present %v), want 2 for %q",
+			fixtureClientMAC, got, ok, fixtureRoamType)
 	}
 
-	spellings := map[string]bool{}
-	for _, family := range families {
-		if family.GetName() != "wnc_client_roam_type" {
-			continue
-		}
-		for _, metric := range family.GetMetric() {
-			for _, pair := range metric.GetLabel() {
-				if pair.GetName() == labelState {
-					spellings[pair.GetValue()] = true
-				}
-			}
-		}
-	}
-
-	if !spellings[fixtureRoamType] {
-		t.Errorf("wnc_client_roam_type carries %v, want the spelling of the current association %q",
-			spellings, fixtureRoamType)
-	}
-
-	if spellings[fixtureOlderRoamType] {
-		t.Errorf("wnc_client_roam_type carries %q, which belongs to an association the client "+
-			"no longer holds", fixtureOlderRoamType)
-	}
-
-	// The clients whose history records no spelling are withheld rather than labeled with
-	// an empty one, so exactly one client of the fixture is published here.
-	if len(spellings) != 1 {
-		t.Errorf("wnc_client_roam_type carries %d spellings, want 1: %v", len(spellings), spellings)
+	// The clients whose history records no spelling are withheld rather than published
+	// as the number of the none member, so exactly one client of the fixture is here.
+	if len(roamTypes) != 1 {
+		t.Errorf("wnc_client_roam_type has %d series, want 1: %v", len(roamTypes), roamTypes)
 	}
 }
 

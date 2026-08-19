@@ -7,7 +7,7 @@ AP collector focuses on RF foundation and radio performance.
 | Module   | Metric                                            | Type    | Description                                                 |
 | :------- | :------------------------------------------------ | :------ | :---------------------------------------------------------- |
 | general  | `wnc_ap_admin_state`                              | Gauge   | Admin state, absent if unreported **(\*12)**                |
-| general  | `wnc_ap_oper_state`                               | Gauge   | Operational state in `state` label                          |
+| general  | `wnc_ap_oper_state`                               | Gauge   | Operational state (4=registered)                            |
 | general  | `wnc_ap_radio_state`                              | Gauge   | Radio state, absent if unreported **(\*12)**                |
 | general  | `wnc_ap_config_state`                             | Gauge   | Tag config state (0=valid, 1=invalid)                       |
 | general  | `wnc_ap_uptime_seconds`                           | Gauge   | AP uptime in seconds, absent without boot time              |
@@ -77,13 +77,13 @@ AP collector focuses on RF foundation and radio performance.
 | join     | `wnc_ap_last_discovery_failure_timestamp_seconds` | Gauge   | Last failed discovery **(\*9)**                             |
 | join     | `wnc_ap_last_dtls_success_timestamp_seconds`      | Gauge   | Last DTLS session, per `channel` **(\*9)**                  |
 | join     | `wnc_ap_last_dtls_failure_timestamp_seconds`      | Gauge   | Last failed DTLS, per `channel` **(\*9)**                   |
-| join     | `wnc_ap_last_discovery_failure_reason`            | Gauge   | Discovery failure reason in `state` **(\*10)**              |
-| join     | `wnc_ap_last_join_failure_reason`                 | Gauge   | Join failure reason in `state` **(\*10)**                   |
-| join     | `wnc_ap_last_config_failure_reason`               | Gauge   | Configuration failure reason in `state` **(\*10)**          |
-| join     | `wnc_ap_last_error_phase`                         | Gauge   | Phase of the last error in `state` **(\*10)**               |
-| join     | `wnc_ap_last_dtls_failure_reason`                 | Gauge   | DTLS outcome in `state`, per `channel` **(\*10)**           |
-| join     | `wnc_ap_last_reboot_reason`                       | Gauge   | Reboot reason in `state` **(\*10)**                         |
-| join     | `wnc_ap_last_disconnect_reason`                   | Gauge   | Disconnect reason in `state` **(\*10)**                     |
+| join     | `wnc_ap_last_discovery_failure_reason`            | Gauge   | Discovery failure reason **(\*10)**                         |
+| join     | `wnc_ap_last_join_failure_reason`                 | Gauge   | Join failure reason **(\*10)**                              |
+| join     | `wnc_ap_last_config_failure_reason`               | Gauge   | Configuration failure reason **(\*10)**                     |
+| join     | `wnc_ap_last_error_phase`                         | Gauge   | Phase of the last error **(\*10)**                          |
+| join     | `wnc_ap_last_dtls_failure_reason`                 | Gauge   | DTLS outcome per `channel` **(\*10)**                       |
+| join     | `wnc_ap_last_reboot_reason`                       | Gauge   | Reboot reason **(\*10)**                                    |
+| join     | `wnc_ap_last_disconnect_reason`                   | Gauge   | Disconnect reason **(\*10)**                                |
 | spectrum | `wnc_ap_air_quality_index_avg`                    | Gauge   | CleanAir air quality of the channel **(\*11)**              |
 | spectrum | `wnc_ap_air_quality_index_min`                    | Gauge   | CleanAir air quality minimum **(\*11)**                     |
 | spectrum | `wnc_ap_interferers`                              | Gauge   | Interference devices on that channel **(\*11)**             |
@@ -315,7 +315,7 @@ The series is published only for a radio whose last-radar leaf carries a real in
 
 The join statistics list is keyed by the AP radio MAC and **keeps a record for an AP that has left CAPWAP**: a record was observed for an AP absent from the AP inventory for months, with its counters frozen and its join state reporting `0`. Every other AP series is read from the inventory and disappears with it, so before this module nothing distinguished an AP that had gone from a fetch that had failed.
 
-The join state and the phase counters carry `mac` and nothing else, deliberately. A bare `and` requires both sides to carry identical label sets, so one extra label on either side would make the query below return an empty result rather than an error. The DTLS series add `channel` and the reason series add `state`, so an `and` written against one of those needs `on(mac)` or `ignoring(...)`:
+The join state and the phase counters carry `mac` and nothing else, deliberately. A bare `and` requires both sides to carry identical label sets, so one extra label on either side would make the query below return an empty result rather than an error. The reason series carry `mac` alone as well, so only the DTLS series add `channel`, and an `and` written against one of those needs `on(mac)` or `ignoring(...)`:
 
 ```bash
 rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0
@@ -349,17 +349,19 @@ The controller writes `1970-01-01T00:00:00+00:00` into a timestamp leaf for an e
 
 </details>
 
-<details><summary><b>*10</b> The reason series freeze with the record, and the controller misspells one value</summary><br/>
+<details><summary><b>*10</b> The reason series freeze with the record, and the controller misspells a value</summary><br/>
 
-Each of these reports the controller's own spelling in the `state` label and always has the value `1`, so `== 0` never fires — see [States](README.md#a-state-is-a-label-not-a-number). They report the **last recorded** event rather than a current state, and they freeze with the record, so an AP that has left CAPWAP keeps reporting the reason it recorded while it was joined.
+Each of these publishes the number the controller's own enumeration assigns the spelling it sent — [Enumeration values](enums.md) is the mapping and [States](README.md#a-state-is-a-number-not-a-label) is the query shape. They report the **last recorded** event rather than a current state, and they freeze with the record, so an AP that has left CAPWAP keeps reporting the reason it recorded while it was joined.
 
-`wnc_ap_last_error_phase` is the sharpest example: an AP that is not joined reports the same `ap-con-failure-run` phase as one that is, on every record measured. Read it as the phase of the last error, never as a health check.
+`wnc_ap_last_error_phase` is the sharpest example: an AP that is not joined reports the same `ap-con-failure-run` phase, `6`, as one that is, on every record measured. Read it as the phase of the last error, never as a health check.
 
-On the controller measured, `wnc_ap_last_join_failure_reason` reported `jf-none`, `wnc_ap_last_config_failure_reason` `cf-none`, `wnc_ap_last_discovery_failure_reason` `disc-fail-none` and `wnc_ap_last_dtls_failure_reason` `dtls-hs-success` on every AP. Those are the healthy sentinels of their enumerations, so an equality match on them selects the healthy APs and any other spelling is the alertable set.
+On the controller measured, `wnc_ap_last_join_failure_reason` reported `jf-none`, `wnc_ap_last_config_failure_reason` `cf-none`, `wnc_ap_last_discovery_failure_reason` `disc-fail-none` and `wnc_ap_last_dtls_failure_reason` `dtls-hs-success` on every AP. Each of those four is the healthy sentinel of its own enumeration and each is numbered `0`, so `== 0` selects the healthy APs and `!= 0` is the alertable set.
 
-**The disconnect reason enumeration spells its unknown value `unkown`**, and that misspelling is on the wire: a rule matching it has to use that spelling. It is recorded here rather than in the metric's HELP text because this repository's spell check rejects it in Go source.
+**The recipe covers those four and no others.** `wnc_ap_last_error_phase` numbers an unknown phase `0` and `wnc_ap_last_disconnect_reason` numbers the enumeration's own unknown member `0`, so a `0` on either reports that the controller does not know rather than that nothing went wrong. `wnc_ap_last_reboot_reason` numbers `ap-reboot-reason-none` `0` and classifies a past cause rather than reporting health, as note \*14 describes.
 
-The record also carries two free-text leaves — a prose disconnect description and a message-decryption failure reason — and neither is published, because neither has a value domain that a label can be matched against.
+**The disconnect reason enumeration declares its own unknown member misspelled, as `unkown`**, and that misspelling is on the wire. No query needs it now that the value is the reading — it is `0` — but [Enumeration values](enums.md) carries the spelling verbatim, because the lookup that resolves a reading has to match what the controller sends.
+
+The record also carries two free-text leaves — a prose disconnect description and a message-decryption failure reason — and neither is published, because neither has a bounded value domain to number.
 
 </details>
 
@@ -409,7 +411,7 @@ The series is absent as well for a radio the slot list has no record for, for a 
 changes(wnc_ap_last_join_success_timestamp_seconds[1h]) > 0
 ```
 
-Three cautions on the alternatives. Whether an AP that has gone silent leaves the inventory at all, and how long its record keeps the reading it had, was not the same on every model measured, so do not build an outage rule on the absence of these series. `wnc_ap_last_reboot_reason` classifies a cause and dates nothing: it reports the controller's spelling in a `state` label and always reads `1`, so two reboots recorded with the same reason cannot be told from one. And a state that lasts less than the interval between refreshes, which `--wnc.cache-ttl` sets, may never be sampled at all.
+Three cautions on the alternatives. Whether an AP that has gone silent leaves the inventory at all, and how long its record keeps the reading it had, was not the same on every model measured, so do not build an outage rule on the absence of these series. `wnc_ap_last_reboot_reason` classifies a cause and dates nothing: it reports the number the controller's enumeration assigns the cause, so two reboots recorded with the same reason cannot be told from one. And a state that lasts less than the interval between refreshes, which `--wnc.cache-ttl` sets, may never be sampled at all.
 
 </details>
 

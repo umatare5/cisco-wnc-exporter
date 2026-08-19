@@ -71,15 +71,20 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.General {
 		collector.stateDesc = prometheus.NewDesc(
 			"wnc_client_state",
-			"Client connection state reported in the state label, always 1",
-			[]string{labelMAC, labelState}, nil,
+			"Client connection state, as the value the controller's own enumeration assigns "+
+				"its spelling. 11 is client-status-run, the state a client holds while it "+
+				"passes traffic. The numbering follows the onboarding sequence, so a value "+
+				"below 11 has not reached it and a value above 11 is a deletion",
+			labels, nil,
 		)
 		collector.roamTypeDesc = prometheus.NewDesc(
 			"wnc_client_roam_type",
-			"How the client reached the association it currently holds, reported in the "+
-				"state label, always 1. It is a property of that association rather than a "+
-				"count, so it does not move until the client associates again",
-			[]string{labelMAC, labelState}, nil,
+			"How the client reached the association it currently holds, as the value the "+
+				"controller's own enumeration assigns its spelling (0=dot11-roam-type-none, "+
+				"1=dot11-roam-type-slow-11i, 2=dot11-roam-type-fast-okc, 3=dot11-roam-type-cckm, "+
+				"4=dot11-roam-type-fast-11r). It is a property of that association rather than "+
+				"a count, so it does not move until the client associates again",
+			labels, nil,
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
@@ -338,16 +343,9 @@ func (c *ClientCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, data := range clientData {
 		// A client the controller holds short of the run state is the failure an
-		// operator most needs to see, and the filter below would drop it. An empty
-		// leaf is not a state, and an empty label reads as no label at all.
-		if c.metrics.General && data.CoState != "" {
-			ch <- prometheus.MustNewConstMetric(
-				c.stateDesc,
-				prometheus.GaugeValue,
-				1,
-				data.ClientMAC,
-				data.CoState,
-			)
+		// operator most needs to see, and the filter below would drop it.
+		if c.metrics.General {
+			emitEnumReading(ch, c.stateDesc, clientStates, data.CoState, data.ClientMAC)
 		}
 
 		if data.CoState != ClientStatusRun {
@@ -399,7 +397,8 @@ func (c *ClientCollector) collectGeneralMetrics(
 	if latency, ok := determineLastRunLatency(mobilityMap[data.ClientMAC]); ok {
 		metrics = append(metrics, Float64Metric{c.stateTransitionSecondsDesc, latency})
 	}
-	emitStateReading(ch, c.roamTypeDesc, firstRoamType(mobilityMap[data.ClientMAC]), data.ClientMAC)
+	emitEnumReading(ch, c.roamTypeDesc, clientRoamTypes,
+		firstRoamType(mobilityMap[data.ClientMAC]), data.ClientMAC)
 	if traffic, ok := trafficMap[data.ClientMAC]; ok {
 		metrics = append(metrics,
 			Float64Metric{c.powerSaveStateDesc, float64(traffic.PowerSaveState)})

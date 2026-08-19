@@ -2,7 +2,6 @@ package collector
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -1262,15 +1261,18 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 // subject here is the wiring, not a deployable configuration.
 // TestWLANCollector_ConfigStatesMatchLeaves pins each state series to the leaf it
 // reads. Both leaves are value-typed strings, so swapping the two descriptors is a
-// change no compiler and no count assertion catches — only the label value does.
-// The empty case is asserted too, because a state label carrying an empty string
-// reads as no label at all.
+// change no compiler and no count assertion catches — only the published value does.
+// The empty case is asserted too, because one of the two fixture readings is a member
+// its enumeration numbers zero, which no value-based presence check separates from an
+// absent series.
 func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 	t.Parallel()
 
-	// stateOf returns the state label of the single series in each named family,
-	// and reports whether that family carried a gauge at value 1 at all.
-	stateOf := func(t *testing.T, mutate func(*wnc.WNCDataCache)) map[string]string {
+	// valuesOf returns the value of the single series in each family the config module
+	// publishes, and reports through the second result whether the family exists at all.
+	// Presence must be read that way rather than from the value: the fixture's fast
+	// transition mode is a member its enumeration numbers zero.
+	valuesOf := func(t *testing.T, mutate func(*wnc.WNCDataCache)) map[string]float64 {
 		t.Helper()
 
 		data := fullFixtureSnapshot()
@@ -1288,7 +1290,7 @@ func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 			t.Fatalf("Gather() error = %v, want nil", err)
 		}
 
-		states := make(map[string]string, len(families))
+		values := make(map[string]float64, len(families))
 		for _, family := range families {
 			metrics := family.GetMetric()
 			if len(metrics) != 1 {
@@ -1299,34 +1301,28 @@ func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 				t.Errorf("%s is not a gauge", family.GetName())
 				continue
 			}
-			if got := gauge.GetValue(); got != 1 {
-				states[family.GetName()] = "value=" + strconv.FormatFloat(got, 'f', -1, 64)
-				continue
-			}
-			for _, label := range metrics[0].GetLabel() {
-				if label.GetName() == labelState {
-					states[family.GetName()] = label.GetValue()
-				}
-			}
+			values[family.GetName()] = gauge.GetValue()
 		}
-		return states
+		return values
 	}
 
 	t.Run("Each series carries its own leaf", func(t *testing.T) {
 		t.Parallel()
 
-		states := stateOf(t, func(*wnc.WNCDataCache) {})
+		values := valuesOf(t, func(*wnc.WNCDataCache) {})
 
-		for name, want := range map[string]string{
-			"wnc_wlan_pmf_state": fixturePMFOptions,
-			"wnc_wlan_ft_state":  fixtureFTMode,
+		// 2 is apf-vap-pmf-required and 0 is dot11r-disabled, the two spellings the
+		// fixture carries, so a descriptor reading the sibling leaf exchanges them.
+		for name, want := range map[string]float64{
+			"wnc_wlan_pmf_state": 2,
+			"wnc_wlan_ft_state":  0,
 		} {
-			got, ok := states[name]
+			got, ok := values[name]
 			if !ok {
-				t.Fatalf("%s carries no gauge at 1 with a state label, so its leaf is unpinned", name)
+				t.Fatalf("%s has no series, so its leaf is unpinned", name)
 			}
 			if got != want {
-				t.Errorf("%s state = %q, want %q", name, got, want)
+				t.Errorf("%s = %v, want %v", name, got, want)
 			}
 		}
 	})
@@ -1338,31 +1334,31 @@ func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 	t.Run("One empty leaf leaves the other published", func(t *testing.T) {
 		t.Parallel()
 
-		states := stateOf(t, func(d *wnc.WNCDataCache) {
+		values := valuesOf(t, func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].PMFOptions = ""
 			d.WLANPolicyListEntries = nil
 		})
 
-		if got, ok := states["wnc_wlan_pmf_state"]; ok {
-			t.Errorf("wnc_wlan_pmf_state emitted state %q for an empty leaf, want no series", got)
+		if got, ok := values["wnc_wlan_pmf_state"]; ok {
+			t.Errorf("wnc_wlan_pmf_state = %v for an empty leaf, want no series", got)
 		}
-		if got := states["wnc_wlan_ft_state"]; got != fixtureFTMode {
-			t.Errorf("wnc_wlan_ft_state state = %q, want %q — it reads the WLAN entry, "+
-				"so neither the sibling leaf nor the policy binding gates it", got, fixtureFTMode)
+		if got, ok := values["wnc_wlan_ft_state"]; !ok || got != 0 {
+			t.Errorf("wnc_wlan_ft_state = %v (present %v), want 0 — it reads the WLAN entry, "+
+				"so neither the sibling leaf nor the policy binding gates it", got, ok)
 		}
 	})
 
 	t.Run("An empty leaf publishes no series", func(t *testing.T) {
 		t.Parallel()
 
-		states := stateOf(t, func(d *wnc.WNCDataCache) {
+		values := valuesOf(t, func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].PMFOptions = ""
 			d.WLANConfigEntries[0].FTMode = ""
 		})
 
 		for _, name := range []string{"wnc_wlan_pmf_state", "wnc_wlan_ft_state"} {
-			if got, ok := states[name]; ok {
-				t.Errorf("%s emitted state %q for an empty leaf, want no series", name, got)
+			if got, ok := values[name]; ok {
+				t.Errorf("%s = %v for an empty leaf, want no series", name, got)
 			}
 		}
 	})
@@ -1537,8 +1533,8 @@ func TestWLANCollector_collectMetrics_NilSafety(t *testing.T) {
 					centralDHCPDesc:           prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					centralAssocEnableDesc:    prometheus.NewDesc("test", "test", []string{"id"}, nil),
 					policyEnabledDesc:         prometheus.NewDesc("test", "test", []string{"id"}, nil),
-					pmfStateDesc:              prometheus.NewDesc("pmf", "pmf", []string{"id", "state"}, nil),
-					ftStateDesc:               prometheus.NewDesc("ft", "ft", []string{"id", "state"}, nil),
+					pmfStateDesc:              prometheus.NewDesc("pmf", "pmf", []string{"id"}, nil),
+					ftStateDesc:               prometheus.NewDesc("ft", "ft", []string{"id"}, nil),
 				}
 				ch := make(chan prometheus.Metric, 20)
 				defer func() {

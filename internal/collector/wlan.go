@@ -165,18 +165,23 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 			labels, nil,
 		)
 		// Protected management frames has three configurations, and the middle one
-		// admits an unprotected association, so the controller's spelling goes into
-		// the label rather than being collapsed to a boolean.
+		// admits an unprotected association, so the setting is published as the value
+		// the controller assigns it rather than collapsed to a boolean.
 		collector.pmfStateDesc = prometheus.NewDesc(
 			"wnc_wlan_pmf_state",
-			"Protected management frames setting reported in the state label, always 1. "+
-				"It covers 2.4GHz and 5GHz — a 6GHz BSS requires PMF whatever this reports",
-			[]string{labelID, labelState}, nil,
+			"Protected management frames setting, as the value the controller's own "+
+				"enumeration assigns its spelling (0=apf-vap-pmf-disabled, "+
+				"1=apf-vap-pmf-optional, 2=apf-vap-pmf-required). It covers 2.4GHz and 5GHz "+
+				"— a 6GHz BSS requires PMF whatever this reports",
+			labels, nil,
 		)
 		collector.ftStateDesc = prometheus.NewDesc(
 			"wnc_wlan_ft_state",
-			"802.11r fast transition mode reported in the state label, always 1",
-			[]string{labelID, labelState}, nil,
+			"802.11r fast transition mode, as the value the controller's own enumeration "+
+				"assigns its spelling (0=dot11r-disabled, 1=dot11r-enabled, "+
+				"2=dot11r-adaptive-enabled). Match by equality: 2 is a third mode for clients "+
+				"that cannot use the FT AKM, not a stronger form of 1",
+			labels, nil,
 		)
 		// The six policy series above name neither the tag nor the profile they read, so
 		// this is what makes a WLAN bound through several tags observable.
@@ -493,23 +498,11 @@ func (c *WLANCollector) collectConfigMetrics(
 		)
 	}
 
-	// An empty spelling is not a state, and an empty state label reads as no label
-	// at all, so the series is withheld rather than published with one.
-	for _, state := range []struct {
-		desc    *prometheus.Desc
-		reading string
-	}{
-		{c.pmfStateDesc, entry.PMFOptions},
-		{c.ftStateDesc, entry.FTMode},
-	} {
-		if state.reading == "" {
-			continue
-		}
-
-		ch <- prometheus.MustNewConstMetric(
-			state.desc, prometheus.GaugeValue, 1, labels[0], state.reading,
-		)
-	}
+	// An omitted leaf means the default is in force rather than that the feature is
+	// off, so a reading the controller did not send is withheld rather than published
+	// as the value of the spelling that would have been its zero.
+	emitEnumReading(ch, c.pmfStateDesc, wlanPMFPolicies, entry.PMFOptions, labels[0])
+	emitEnumReading(ch, c.ftStateDesc, wlanFTModes, entry.FTMode, labels[0])
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(

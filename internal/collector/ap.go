@@ -136,8 +136,11 @@ func NewAPCollector(
 		)
 		collector.operStateDesc = prometheus.NewDesc(
 			"wnc_ap_oper_state",
-			"AP operational state reported in the state label, always 1",
-			[]string{labelMAC, labelState},
+			"AP operational state, as the value the controller's own enumeration assigns its "+
+				"spelling (1=ap-down, 2=ap-up, 3=unregistered, 4=registered, 5=downloading, "+
+				"6=pre-downloading). The enumeration declares no 0, and a larger value is not a "+
+				"healthier state, so match by equality",
+			baseAPLabels,
 			nil,
 		)
 		collector.configStateDesc = prometheus.NewDesc(
@@ -669,17 +672,9 @@ func (c *APCollector) collectSystemMetrics(
 
 	// The controller lists only APs that have joined. A record is replaced rather than
 	// removed while an AP rejoins, so this series can carry the state from before it left,
-	// and it disappears only for an AP the controller drops from the list. An empty leaf
-	// is not a state, and an empty label reads as no label at all.
-	if operState := capwapMap[wtpMAC].ApState.ApOperationState; operState != "" {
-		ch <- prometheus.MustNewConstMetric(
-			c.operStateDesc,
-			prometheus.GaugeValue,
-			1,
-			wtpMAC,
-			operState,
-		)
-	}
+	// and it disappears only for an AP the controller drops from the list.
+	emitEnumReading(ch, c.operStateDesc, apOperationStates,
+		capwapMap[wtpMAC].ApState.ApOperationState, wtpMAC)
 
 	metrics := []Float64Metric{
 		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},

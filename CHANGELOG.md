@@ -4,7 +4,10 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
-## Unreleased
+## v0.11.0
+
+> [!IMPORTANT]
+> **BREAKING CHANGE** — twelve gauges drop their `state` label and publish the number the controller's own enumeration assigns the spelling that label carried. All twelve are listed below; **every name, type and remaining label is unchanged**, so a query keeps working and returns something different — a selector on `state` matches nothing, a negated selector matches everything, and a `sum()` that counted series now adds enumeration values. [docs/enums.md](docs/enums.md) lists every spelling with its value.
 
 ### Added
 
@@ -12,6 +15,31 @@ Three families arrive behind flags that already exist: one joins the AP `spectru
 
 - `wnc_ap_last_air_quality_timestamp_seconds{mac,radio}` reports the instant the controller stamped on the CleanAir row that `wnc_ap_air_quality_index_avg`, `wnc_ap_air_quality_index_min` and `wnc_ap_interferers` already read, so it adds no request and it is one series per CleanAir-reporting radio — the same cardinality as the average. An instant that does not advance means the reading is held from an earlier report, which no value can show: **the readings and the instant froze together** over a window of about twelve minutes. It is withheld where the controller carries no instant this exporter can use, so this one series can be absent while the three readings publish — note \*11 on the [AP](docs/collector.ap.md) page carries the rest.
 - `wnc_rrm_last_rf_grouping_run_timestamp_seconds{band}` and `wnc_rrm_last_dca_run_timestamp_seconds{band}` date the RF grouping run and the channel assignment the controller last ran for a band. They carry `band` alone because that is the whole identifier the controller gives the record, they join the AP `radio` module, and each is one series per band. They add the `rrm_main_data` read, whose cost does not grow with the number of APs. **The two instants need not advance together** — the grouping instant advanced between two reads while the DCA instant did not move on any band — so a range that catches one can miss the other, and **a band whose PHY type this exporter cannot name is withheld as a row rather than labelled `unknown`**.
+
+### Changed
+
+Twelve families drop the `state` label and publish the number the controller's own enumeration assigns each spelling. Every name, type and subject is unchanged, and the table gives each family's label set and value range — [docs/enums.md](docs/enums.md) carries all 221 spellings, the six schema modules that declare them and the revision each was read at. Cardinality is unchanged for every spelling this release carries: nine series per AP, up to two per client and up to two per WLAN, each one label pair smaller.
+
+| Metric                                 | v0.10.0                           | v0.11.0              |
+| :------------------------------------- | :-------------------------------- | :------------------- |
+| `wnc_ap_oper_state`                    | `{mac,state}`, always `1`         | `{mac}`, 1-6         |
+| `wnc_ap_last_discovery_failure_reason` | `{mac,state}`, always `1`         | `{mac}`, 0-16        |
+| `wnc_ap_last_join_failure_reason`      | `{mac,state}`, always `1`         | `{mac}`, 0-41        |
+| `wnc_ap_last_config_failure_reason`    | `{mac,state}`, always `1`         | `{mac}`, 0-13        |
+| `wnc_ap_last_error_phase`              | `{mac,state}`, always `1`         | `{mac}`, 0-6         |
+| `wnc_ap_last_dtls_failure_reason`      | `{mac,channel,state}`, always `1` | `{mac,channel}`, 0-9 |
+| `wnc_ap_last_reboot_reason`            | `{mac,state}`, always `1`         | `{mac}`, 0-58        |
+| `wnc_ap_last_disconnect_reason`        | `{mac,state}`, always `1`         | `{mac}`, 0-40        |
+| `wnc_client_state`                     | `{mac,state}`, always `1`         | `{mac}`, 0-13        |
+| `wnc_client_roam_type`                 | `{mac,state}`, always `1`         | `{mac}`, 0-4         |
+| `wnc_wlan_pmf_state`                   | `{id,state}`, always `1`          | `{id}`, 0-2          |
+| `wnc_wlan_ft_state`                    | `{id,state}`, always `1`          | `{id}`, 0-2          |
+
+- **A negated label matcher inverts, and it does so silently.** `{state!="..."}` selected the unhealthy subjects; with the label gone it matches every series the metric publishes, because a matcher of that form also matches a series that carries no such label. An alert of that shape fires on the whole estate at its next evaluation and a panel of that shape draws every subject. Compare the value instead — `wnc_client_state != 11` for a client short of the run state, `wnc_ap_oper_state != 4` for an AP that is not registered — and drop the `group by` that aggregated `state` away: the series identity no longer moves when the reading does, so `for:` accumulates across a transition rather than restarting on each one.
+- **A `sum` over one of the twelve has to become a `count`.** Each series was `1`, so `sum by (...)` counted subjects; it now adds enumeration values. An expression of the form `sum by (...) (wnc_client_state * on(mac) group_left(...) wnc_client_info)` counted clients while both sides were `1`, and because the info series exists only for a client in the run state the total is now exactly eleven times the count. `count by (...)` is what counts them, and under `max_over_time` the multiplier is not even constant — a client that passed through `client-status-delete-in-progress` or `client-status-deleted` inside the range contributes `12` or `13`.
+- **A `== 1` guard and a presence join both change what they mean.** `== 1` was always true, so `and on(mac) wnc_ap_oper_state == 1` meant "this AP reports a state"; it now means `ap-down`, and the guard that survives is the bare `and on(mac) wnc_ap_oper_state`. A `* on(...) group_left(...)` join still returns its series, but the product now carries the enumeration value rather than a `1`, so a panel whose value mapping covers only `0` and `1` no longer names what the series reports — on `wnc_ap_oper_state` such a mapping names `ap-down` and nothing else, because the healthy `registered` is `4`.
+- **`== 0` becomes meaningful, and not uniformly.** It never fired before. It is now the healthy sentinel on the discovery, join, configuration and DTLS reasons, `ap-reboot-reason-none` on the reboot reason, `dot11-roam-type-none` on `wnc_client_roam_type`, `client-status-idle` on `wnc_client_state` and the disabled setting on the two WLAN families — but an unknown phase rather than an absence of failure on `wnc_ap_last_error_phase`, the enumeration's own unknown member on `wnc_ap_last_disconnect_reason`, and no match at all on `wnc_ap_oper_state`, whose enumeration declares no `0`. A rule copied from one family to another is wrong on arrival.
+- **A spelling this release does not number is withheld.** No value is free to stand for one, so the series is absent for that subject rather than carrying a wrong number, and the spelling reaches the log at `--log.level=debug` and nowhere else. `absent()` does not detect that loss for a per-subject family, because one publishing subject keeps it silent — cross-check against a series of the same module that is published unconditionally, as in `wnc_ap_config_state unless wnc_ap_oper_state` or `wnc_ap_joined unless wnc_ap_last_reboot_reason`. The client and WLAN families have no exact equivalent, so treat an absent series there as a reading that has to be recovered from the log.
 
 ### Fixed
 
