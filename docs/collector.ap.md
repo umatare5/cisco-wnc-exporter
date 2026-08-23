@@ -9,7 +9,7 @@ AP collector focuses on RF foundation and radio performance.
 | general  | `wnc_ap_admin_state`                              | Gauge   | Admin state, absent if unreported **(\*12)**                |
 | general  | `wnc_ap_oper_state`                               | Gauge   | Operational state (4=registered)                            |
 | general  | `wnc_ap_radio_state`                              | Gauge   | Radio state, absent if unreported **(\*12)**                |
-| general  | `wnc_ap_config_state`                             | Gauge   | Tag config state (0=valid, 1=invalid)                       |
+| general  | `wnc_ap_config_state`                             | Gauge   | Tag config state, absent if unreported (0=valid, 1=invalid) |
 | general  | `wnc_ap_uptime_seconds`                           | Gauge   | AP uptime in seconds, absent without boot time              |
 | general  | `wnc_ap_association_uptime_seconds`               | Gauge   | Age of the current association **(\*14)**                   |
 | general  | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1) **(\*1)**                       |
