@@ -725,14 +725,15 @@ func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
 
 // RESTCONF module names the mock replies are keyed by.
 const (
-	mockAPGlobalOperModule   = "Cisco-IOS-XE-wireless-ap-global-oper"
-	mockClientGlobalModule   = "Cisco-IOS-XE-wireless-client-global-oper"
-	mockDeviceHardwareModule = "Cisco-IOS-XE-device-hardware-oper"
-	mockAPOperModule         = "Cisco-IOS-XE-wireless-access-point-oper"
-	mockClientOperModule     = "Cisco-IOS-XE-wireless-client-oper"
-	mockRRMOperModule        = "Cisco-IOS-XE-wireless-rrm-oper"
-	mockRRMGlobalOperModule  = "Cisco-IOS-XE-wireless-rrm-global-oper"
-	mockWLANCfgModule        = "Cisco-IOS-XE-wireless-wlan-cfg"
+	mockAPGlobalOperModule    = "Cisco-IOS-XE-wireless-ap-global-oper"
+	mockClientGlobalModule    = "Cisco-IOS-XE-wireless-client-global-oper"
+	mockDeviceHardwareModule  = "Cisco-IOS-XE-device-hardware-oper"
+	mockAPOperModule          = "Cisco-IOS-XE-wireless-access-point-oper"
+	mockGeolocationOperModule = "Cisco-IOS-XE-wireless-geolocation-oper"
+	mockClientOperModule      = "Cisco-IOS-XE-wireless-client-oper"
+	mockRRMOperModule         = "Cisco-IOS-XE-wireless-rrm-oper"
+	mockRRMGlobalOperModule   = "Cisco-IOS-XE-wireless-rrm-global-oper"
+	mockWLANCfgModule         = "Cisco-IOS-XE-wireless-wlan-cfg"
 )
 
 const (
@@ -765,6 +766,9 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"ap-mac":"`+mockAPMAC+`","radio-id":0}`)},
 	"ap-join-stats": {dataAPJoinStats, mockList(mockAPGlobalOperModule, "ap-join-stats",
 		`{"wtp-mac":"`+mockAPMAC+`","ap-join-info":{"ap-name":"TEST-AP01","is-joined":true}}`)},
+	"ap-geo-loc-data": {dataAPGeoLocData, mockList(mockGeolocationOperModule, "ap-geo-loc-data",
+		`{"ap-mac":"`+mockAPMAC+`","loc":{"ellipse":{"center":`+
+			`{"longitude":"139.700000","latitude":"35.700000"}}}}`)},
 	"wlan-client-stats": {dataWLANClientStats, mockList(mockAPGlobalOperModule, "wlan-client-stats",
 		`{"wlan-id":1,"data-usage":"6884480"}`)},
 	"common-oper-data": {dataClientCommonOperData, mockList(mockClientOperModule, "common-oper-data",
@@ -886,7 +890,7 @@ func allModules() config.Collectors {
 	return config.Collectors{
 		AP: config.APCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Join: true,
-			Spectrum: true, Info: true,
+			Geolocation: true, Spectrum: true, Info: true,
 		},
 		Client: config.ClientCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Info: true,

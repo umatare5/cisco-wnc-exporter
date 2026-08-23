@@ -226,6 +226,13 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			[]string{dataAPCAPWAPData, dataAPRadioOperData, dataRRMSpectrumAqWorst, dataRRMSpectrumAqTable},
 		},
 		{
+			// The coordinate list carries its own ap-mac, so the module needs neither the
+			// inventory nor the radio list to label a series.
+			"AP geolocation reads its own list alone",
+			config.Collectors{AP: config.APCollectorModules{Geolocation: true}},
+			[]string{dataAPGeoLocData},
+		},
+		{
 			"AP info reads only the two the AP collector fetches unconditionally",
 			config.Collectors{AP: config.APCollectorModules{Info: true}},
 			[]string{dataAPCAPWAPData, dataAPRadioOperData},
