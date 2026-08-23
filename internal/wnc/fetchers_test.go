@@ -576,3 +576,73 @@ func TestRequiredDataTypes_EveryModuleFlagReadsSomething(t *testing.T) {
 		}
 	}
 }
+
+// TestFetchers_BootTimeAbsenceAndFailureAreDistinct pins the contract the typed accessor
+// changed. An omitted leaf stays a successful read of nothing — no error, zero items, the
+// instant left nil — while an instant the wire form cannot express is now a read failure that
+// raises wnc_refresh_errors_total for this data type. The published series is withheld either
+// way, so nothing in the metrics tells the two apart and only this test does.
+func TestFetchers_BootTimeAbsenceAndFailureAreDistinct(t *testing.T) {
+	t.Parallel()
+
+	instant := func(value string) string {
+		return mockContainer(mockDeviceHardwareModule, "boot-time", value)
+	}
+
+	tests := []struct {
+		name      string
+		body      string
+		wantItems int
+		wantErr   bool
+		wantSet   bool
+	}{
+		{"an instant the controller reports", instant(`"2026-01-01T00:00:00+00:00"`), 1, false, true},
+		{"no body at all", "", 0, false, false},
+		{"an explicit null", instant("null"), 0, false, false},
+		{"an instant that is not RFC 3339", instant(`"2026-01-13"`), 0, true, false},
+		{"an empty instant", instant(`""`), 0, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/yang-data+json")
+				w.WriteHeader(http.StatusOK)
+				if tt.body != "" {
+					w.Write([]byte(tt.body))
+				}
+			}))
+			defer server.Close()
+
+			source := newTestDataSource(t, server.URL, time.Second)
+			cache := &WNCDataCache{}
+
+			var count int
+			var err error
+			found := false
+			for _, f := range source.fetchers() {
+				if f.name != dataControllerBootTime {
+					continue
+				}
+				found = true
+				count, err = f.fetch(context.Background(), cache)
+			}
+			if !found {
+				t.Fatalf("%s is not a fetcher, so this test reads nothing", dataControllerBootTime)
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("fetch() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if count != tt.wantItems {
+				t.Errorf("fetch() reported %d items, want %d", count, tt.wantItems)
+			}
+			if (cache.ControllerBootTime != nil) != tt.wantSet {
+				t.Errorf("ControllerBootTime set = %v, want %v",
+					cache.ControllerBootTime != nil, tt.wantSet)
+			}
+		})
+	}
+}

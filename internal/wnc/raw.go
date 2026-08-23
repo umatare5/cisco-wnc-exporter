@@ -17,8 +17,6 @@ import (
 // route table internal, so these are literals; the envelope check in soleValue is what
 // catches a wrong one, and a wrong path answers 404 rather than an empty success.
 const (
-	routeControllerBootTime = "Cisco-IOS-XE-device-hardware-oper:device-hardware-data" +
-		"/device-hardware/device-system-data/boot-time"
 	routeCoClientDelReason = "Cisco-IOS-XE-wireless-client-global-oper:client-global-oper-data" +
 		"/client-stats/co-client-del-reason"
 	routeClientRoamingStats = "Cisco-IOS-XE-wireless-client-global-oper:client-global-oper-data" +
