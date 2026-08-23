@@ -565,19 +565,21 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	// Every module below reads the AP inventory or the radio list. The join and
-	// coordinate modules read neither, so a deployment enabling only those must not go on
-	// to ask for data types no enabled module declared.
+	// Every module below reads the radio list, and the general and info modules read the
+	// AP inventory as well. The join and coordinate modules read neither, so a deployment
+	// enabling only those must not go on to ask for data types no enabled module declared.
 	if !c.isAnyRadioKeyedFlagEnabled() {
 		return
 	}
 
 	var capwapMap map[string]ap.CAPWAPData
-	capwapData, err := c.src.GetCAPWAPData(ctx)
-	if err != nil {
-		slog.Debug("Failed to get CAPWAP data", "error", err)
+	if IsEnabled(c.metrics.General, c.metrics.Info) {
+		capwapData, err := c.src.GetCAPWAPData(ctx)
+		if err != nil {
+			slog.Debug("Failed to get CAPWAP data", "error", err)
+		}
+		capwapMap = buildCAPWAPMap(capwapData)
 	}
-	capwapMap = buildCAPWAPMap(capwapData)
 
 	var radioDataMap map[string]*ap.RadioOperData
 	radioDataSlice, err := c.src.GetRadioData(ctx)
