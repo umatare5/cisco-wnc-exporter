@@ -242,12 +242,17 @@ func (s *dataSource) fetchers() []dataFetcher {
 			return len(c.WLANClientStats), nil
 		}},
 		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
-			bootTime, present, err := rawValue[string](ctx, s.client, routeControllerBootTime)
+			// A read answered with no body decodes to a zero value of the wrapper, so the
+			// leaf has to be tested rather than the error: without this an omitted instant
+			// counts as one item and the collector dereferences nil.
+			data, err := s.client.Controller().GetBootTime(ctx)
 			if err != nil {
 				return 0, err
 			}
-			c.ControllerBootTime = bootTime
-			return boolToInt(present), nil
+			if data != nil {
+				c.ControllerBootTime = data.BootTime
+			}
+			return boolToInt(c.ControllerBootTime != nil), nil
 		}},
 		{dataCoClientDelReason, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			leaves, present, err := rawValue[map[string]json.RawMessage](

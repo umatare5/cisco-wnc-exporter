@@ -2722,7 +2722,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (ap, band, wlan) (wnc_client_state * on(mac) group_left(ap, band, wlan) wnc_client_info{ap=~\"$ap_name\", wlan=~\"$wlan_id\"})",
+          "expr": "sum by (ap, band, wlan) (wnc_client_state * on(mac) group_left(ap, band, wlan) wnc_client_info{ap=~\"$ap_name\", wlan_id=~\"$wlan_id\"})",
           "legendFormat": "{{ap}} [{{wlan}} ({{band}}GHz)]",
           "range": true,
           "refId": "A"
@@ -3027,7 +3027,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (ap, band, wlan) (max_over_time(wnc_client_state[$rollup_interval]) * on(mac) group_left(ap, band, wlan) wnc_client_info{ap=~\"$ap_name\", wlan=~\"$wlan_id\"})",
+          "expr": "sum by (ap, band, wlan) (max_over_time(wnc_client_state[$rollup_interval]) * on(mac) group_left(ap, band, wlan) wnc_client_info{ap=~\"$ap_name\", wlan_id=~\"$wlan_id\"})",
           "legendFormat": "{{ap}} [{{wlan}}] ({{band}}GHz)",
           "refId": "A"
         }

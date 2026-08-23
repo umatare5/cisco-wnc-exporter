@@ -23,6 +23,10 @@ const (
 	labelIPv6     = "ipv6"     // Client IPv6 address
 	labelUsername = "username" // Client authentication username
 	labelWLAN     = "wlan"     // WLAN SSID name
+	// labelWLANID is not spelled id: wnc_wlan_info already carries the WLAN identifier
+	// under that name, and an id on a client series cannot say whose it is.
+	labelWLANID     = "wlan_id"     // WLAN identifier the client is associated to
+	labelDeviceType = "device_type" // Device class the controller assigned the client
 
 	// WLAN-specific labels.
 	labelID = "id" // WLAN identifier

@@ -14,7 +14,7 @@ Every series here describes the whole controller, so none of them carries an ide
 | general | `wnc_controller_client_ap_auth_dot11i_fast_roams_total` | Counter | 802.11i fast roams on that path **(\*3)**    |
 | general | `wnc_controller_client_ap_auth_dot11i_slow_roams_total` | Counter | 802.11i slow roams on that path **(\*3)**    |
 
-One flag, `--collector.controller.general`, enables all five, and all three of its reads bypass the SDK's typed accessors — see note **(\*4)**. Neither counter container on this page reports an epoch of its own, so the boot time is the only reset anchor available, and putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
+One flag, `--collector.controller.general`, enables all five, and two of its three reads bypass the SDK's typed accessors — see note **(\*4)**. Neither counter container on this page reports an epoch of its own, so the boot time is the only reset anchor available, and putting it behind a second flag would let an operator enable the counters and lose the anchor they need — a rule of the form `and on() (time() - wnc_controller_boot_time_seconds > 3600)` returns nothing when the right-hand side is absent, silently and forever.
 
 ## Notes
 
@@ -22,7 +22,7 @@ One flag, `--collector.controller.general`, enables all five, and all three of i
 
 The leaf was observed alternating between two adjacent seconds across repeated reads, so **a rule must not use `changes()` or an equality on this series.** Compare a delta against a threshold instead, as in `time() - wnc_controller_boot_time_seconds < 600` for a controller that has just restarted.
 
-The series is absent when the controller does not carry the leaf, when the value cannot be parsed, and when it reads as the Unix epoch. A zero there would report a boot in 1970, which makes an uptime derived from it five decades long and a counter-reset check quietly wrong.
+The series is absent when the controller does not carry the leaf and when it reads as the Unix epoch. A zero there would report a boot in 1970, which makes an uptime derived from it five decades long and a counter-reset check quietly wrong. **An instant the wire form cannot express is a different case**: it fails the read, so it raises `wnc_refresh_errors_total{data="controller_boot_time"}` while the series is withheld all the same — the metrics look identical to a leaf the controller simply omitted, and only the error counter separates them.
 
 The controller reports the same instant in a second model as well, derived rather than native, and that copy was observed a second away from this one — this series reads the native leaf.
 
@@ -50,13 +50,13 @@ Both are cumulative, and the container reports no epoch of its own, so read `wnc
 
 <details><summary><b>*4</b> These reads do not go through a typed SDK accessor, and what that changes</summary><br/>
 
-Three of this exporter's data types are read by building the RESTCONF path directly, because the SDK carries no route and no type for any of the three containers behind this page: `controller_boot_time`, `co_client_del_reason` and `client_roaming_stats`. They reuse the SDK client, so the credentials, the TLS settings, the request timeout, the connection pool and the error typing are the same as everywhere else, and each is a registered data type like any other — gated by its flag, bounded by the refresh deadline, and counted in `wnc_refresh_items` and `wnc_refresh_errors_total`.
+Two of this exporter's data types are read by building the RESTCONF path directly, because the SDK carries no route and no type for either container: `co_client_del_reason` and `client_roaming_stats`. The boot instant is read through the SDK's own accessor and is not one of them. The two reuse the SDK client, so the credentials, the TLS settings, the request timeout, the connection pool and the error typing are the same as everywhere else, and each is a registered data type like any other — gated by its flag, bounded by the refresh deadline, and counted in `wnc_refresh_items` and `wnc_refresh_errors_total`.
 
 Two consequences are worth knowing.
 
 A response is decoded without struct tags, and the exporter checks that the container the controller answered with is the one the path asked for. A decode that trusted a tag would turn a container renamed between releases into an empty family with no error at all, which is the failure this check exists to prevent.
 
-**A controller or an image that does not carry one of these containers answers `404`, and a `404` is a failure rather than an absence.** That is deliberate: a path this exporter got wrong answers `404` as well, and making it silent would hide the mistake. The cost is that enabling this module against a controller without the container raises `wnc_refresh_errors_total` for that data type indefinitely. Leave the module disabled there, or exclude the three data types from the rule:
+**A controller or an image that does not carry one of these containers answers `404`, and a `404` is a failure rather than an absence.** That is deliberate: a path this exporter got wrong answers `404` as well, and making it silent would hide the mistake. The cost is that enabling this module against a controller without the container raises `wnc_refresh_errors_total` for that data type indefinitely. Leave the module disabled there, or exclude the data types from the rule. `controller_boot_time` belongs in the exclusion even though it now goes through a typed accessor, because an instant the wire form cannot express fails its read the same way:
 
 ```bash
 increase(wnc_refresh_errors_total{data!~"controller_boot_time|co_client_del_reason|client_roaming_stats"}[15m]) > 0

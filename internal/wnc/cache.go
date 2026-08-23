@@ -96,9 +96,10 @@ type WNCDataCache struct {
 	SpectrumAqTable  []rrm.SpectrumAqTable
 	SpectrumAqWorst  []rrm.SpectrumAqWorstTable
 
-	// Controller-wide data. Each comes from a container the SDK has no route for, and
-	// each is empty rather than absent when the controller does not carry it.
-	ControllerBootTime  string
+	// Controller-wide data. The two counter containers come from routes the SDK has none
+	// of and are empty rather than absent when the controller does not carry them; the
+	// boot instant has a typed accessor and is nil when the controller omits the leaf.
+	ControllerBootTime  *time.Time
 	ClientDeleteReasons map[string]float64
 	ClientRoamingStats  map[string]float64
 

@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+	"github.com/umatare5/cisco-wnc-exporter/internal/config"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
 )
 
@@ -1529,4 +1531,213 @@ func TestClientCollector_collectMetrics_NilSafety(t *testing.T) {
 			tt.testFunc(t)
 		})
 	}
+}
+
+// clientInfoLabels gathers wnc_client_info over one snapshot with the given labels requested
+// and returns the label pairs of the series carrying mac, so a case can assert a value rather
+// than a count.
+func clientInfoLabels(
+	t *testing.T, data *wnc.WNCDataCache, mac string, requested []string,
+) map[string]string {
+	t.Helper()
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(NewClientCollector(
+		wnc.NewClientSource(fixtureSource{data: data}),
+		ClientMetrics{Info: true, InfoLabels: requested},
+	))
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	for _, family := range families {
+		if family.GetName() != "wnc_client_info" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			pairs := make(map[string]string, len(metric.GetLabel()))
+			for _, pair := range metric.GetLabel() {
+				pairs[pair.GetName()] = pair.GetValue()
+			}
+			if pairs[labelMAC] == mac {
+				return pairs
+			}
+		}
+	}
+
+	t.Fatalf("wnc_client_info carries no series for the fixture client")
+	return nil
+}
+
+// TestClientCollector_InfoLabelValues reads the label values rather than counting the series.
+// Nothing else in this package does: a name present in the available list but missing from the
+// assembly switch falls through to the empty string, which MustNewConstMetric accepts because
+// it validates only the value count, so the label ships empty forever with no error.
+func TestClientCollector_InfoLabelValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		omit  func(*wnc.WNCDataCache)
+		label string
+		want  string
+	}{
+		{"wlan_id from the record being iterated", nil, labelWLANID, "1"},
+		{"device_type from the classification record", nil, labelDeviceType, "Un-Classified Device"},
+		{
+			// The identifier comes from the record itself, so the only way it goes
+			// missing is the controller omitting the leaf, which decodes to zero. No
+			// WLAN carries identifier 0, so a "0" here would name one that cannot exist.
+			"wlan_id when the controller omits the leaf",
+			func(d *wnc.WNCDataCache) { d.CommonOperData[0].WlanID = 0 },
+			labelWLANID, "",
+		},
+		{
+			"device_type when the client has no classification record",
+			func(d *wnc.WNCDataCache) { d.DCInfo = nil },
+			labelDeviceType, "",
+		},
+		{
+			// The SSID comes from the dot11 map, which can miss, while the identifier
+			// cannot — so these two labels do not go absent together.
+			"wlan_id survives a dot11 record the identifier does not come from",
+			func(d *wnc.WNCDataCache) { d.Dot11OperData = nil },
+			labelWLANID, "1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := fullFixtureSnapshot()
+			if tt.omit != nil {
+				tt.omit(data)
+			}
+
+			pairs := clientInfoLabels(t, data, fixtureClientMAC,
+				[]string{labelWLANID, labelDeviceType, labelWLAN})
+			got, ok := pairs[tt.label]
+			if !ok {
+				t.Fatalf("wnc_client_info carries no %s label, so the value proves nothing", tt.label)
+			}
+			if got != tt.want {
+				t.Errorf("wnc_client_info{%s} = %q, want %q", tt.label, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestInfoLabels_AvailableListsAgreeAcrossPackages closes a silent drop. Each collector holds
+// its own list of the labels it can assemble, and internal/config holds the list its validation
+// accepts. A name in the config list alone validates and is then dropped by buildInfoLabels,
+// so the operator asks for a label, gets no error, and gets no label.
+func TestInfoLabels_AvailableListsAgreeAcrossPackages(t *testing.T) {
+	t.Parallel()
+
+	src := fixtureSource{data: fullFixtureSnapshot()}
+
+	tests := []struct {
+		subject   string
+		available string
+		names     func(labels []string) []string
+	}{
+		{"ap", config.AvailableAPInfoLabels, func(labels []string) []string {
+			return NewAPCollector(
+				wnc.NewAPSource(src), wnc.NewRRMSource(src), wnc.NewClientSource(src),
+				APMetrics{Info: true, InfoLabels: labels},
+			).infoLabelNames
+		}},
+		{"client", config.AvailableClientInfoLabels, func(labels []string) []string {
+			return NewClientCollector(
+				wnc.NewClientSource(src), ClientMetrics{Info: true, InfoLabels: labels},
+			).infoLabelNames
+		}},
+		{"wlan", config.AvailableWLANInfoLabels, func(labels []string) []string {
+			return NewWLANCollector(
+				wnc.NewWLANSource(src), wnc.NewClientSource(src),
+				WLANMetrics{Info: true, InfoLabels: labels},
+			).infoLabelNames
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.subject, func(t *testing.T) {
+			t.Parallel()
+
+			requested := strings.Split(tt.available, ",")
+			published := tt.names(requested)
+
+			for _, label := range requested {
+				if !slices.Contains(published, label) {
+					t.Errorf("%s: config offers %q but the collector drops it, so asking for it "+
+						"yields no error and no label", tt.subject, label)
+				}
+			}
+		})
+	}
+}
+
+// TestClientCollector_EveryAvailableLabelCarriesAValue closes the gap the agreement test above
+// cannot see. A name present in both available lists but missing from the assembly switch falls
+// through to the empty string, which compiles, validates and ships: MustNewConstMetric checks
+// only the value count. Asserting that every offered label carries a value on a fully populated
+// client is what makes the switch's coverage observable at all.
+func TestClientCollector_EveryAvailableLabelCarriesAValue(t *testing.T) {
+	t.Parallel()
+
+	// A local snapshot rather than the shared fixture: this needs every leaf behind every
+	// offered label populated, which is a stronger contract than the shared one carries.
+	data := &wnc.WNCDataCache{
+		FetchErrors: map[string]error{},
+		RefreshedAt: time.Now(),
+		CommonOperData: []client.CommonOperData{{
+			ClientMAC:   fixtureClientMAC,
+			ApName:      fixtureAPName,
+			WlanID:      1,
+			Username:    "someone@example.com",
+			CoState:     ClientStatusRun,
+			MsRadioType: "client-dot11ax-24ghz-prot",
+		}},
+		Dot11OperData: []client.Dot11OperData{{
+			MsMACAddress: fixtureClientMAC,
+			VapSsid:      "TestWLAN",
+		}},
+		DCInfo: []client.DcInfo{{
+			ClientMAC:  fixtureClientMAC,
+			DeviceName: "Some Device",
+			DeviceType: "Un-Classified Device",
+		}},
+		SisfDBMac: []client.SisfDBMac{newFixtureSISFWithBothAddresses()},
+	}
+
+	requested := strings.Split(config.AvailableClientInfoLabels, ",")
+	pairs := clientInfoLabels(t, data, fixtureClientMAC, requested)
+
+	for _, label := range requested {
+		value, ok := pairs[label]
+		if !ok {
+			t.Errorf("wnc_client_info carries no %s label", label)
+			continue
+		}
+		if value == "" {
+			t.Errorf("wnc_client_info{%s} is empty for a fully populated client, so the label "+
+				"is offered to an operator and never assembled", label)
+		}
+	}
+}
+
+// newFixtureSISFWithBothAddresses fills one binding record with a routable address of each
+// family. The link-local prefix is deliberately absent: the IPv6 accessor skips it, so a
+// fixture carrying only that would leave the label empty for a reason the label name hides.
+func newFixtureSISFWithBothAddresses() client.SisfDBMac {
+	record := client.SisfDBMac{MACAddr: fixtureClientMAC}
+	record.Ipv4Binding.IPKey.IPAddr = "192.0.2.50"
+	// The binding element is an anonymous struct on the SDK type, so it is grown rather
+	// than written as a literal: transcribing the shape here would drift from the SDK's.
+	record.Ipv6Binding = slices.Grow(record.Ipv6Binding, 1)[:1]
+	record.Ipv6Binding[0].Ipv6BindingIPKey.IPAddr = "2001:db8::32"
+	return record
 }
