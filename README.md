@@ -121,17 +121,18 @@ The series a dashboard usually starts from:
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
-The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe the exporter itself rather than the wireless network.
+See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
 
 > [!Important]
 >
-> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC, and an exporter with no collector enabled never contacts the controller at all. Every enabled collector is served from one shared refresh, and a refresh runs no more often than `--wnc.cache-ttl`, so the controller sees one pass of requests per interval however many collectors are enabled and however often Prometheus scrapes. That pass reads only the `data` types the enabled modules need. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
+> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC, and an exporter with no collector enabled never contacts the controller at all.
+>
+> - Every enabled collector is served from one shared refresh, and a refresh runs no more often than `--wnc.cache-ttl`, so the controller sees one pass of requests per interval however many collectors are enabled and however often Prometheus scrapes.
+> - That pass reads only the `data` types the enabled modules need. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
 
 > [!Note]
 >
-> - The controller updates its counters on its own schedule, so use a range of **15 minutes or more** for `rate()` and `increase()`
-> - Twelve families report a state, a reason or a mode as the number the controller's own enumeration assigns it rather than as a label — [docs/enums.md](docs/enums.md) lists every value
-> - See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
+> The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe the exporter itself rather than the wireless network.
 
 ### Exporter Health Metrics
 
@@ -147,17 +148,12 @@ These series describe the exporter itself rather than the wireless network. They
 | `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type        |
 | `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read     |
 
-`wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled. The refresh series appear as soon as one collector is enabled.
-
 > [!Important]
 >
-> `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot, so the target's `up` reports only that the exporter's HTTP server answered.
+> `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot.
 
 > [!Note]
->
-> `wnc_refresh_items` is recorded on success only, and `wnc_refresh_errors_total` is seeded to zero at start-up for every `data` type the enabled modules need. Read the two together: a type in the errors series and not in the items series failed its fetch, a zero in the items series means the controller returned nothing, and a type in neither is one no enabled module reads.
->
-> The errors series is therefore the authoritative list of `data` label values for a given set of collector flags. Guard a rule that names one `data` type with `and on(job, instance) wnc_refresh_errors_total{data="..."}` so it stays silent where that type is never fetched.
+> `wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled.
 
 ## Use Cases
 
@@ -249,28 +245,6 @@ Import [examples/grafana_cisco-wnc-user-dashboard.json](https://github.com/umata
 
 > [!Tip]
 > See [cisco-wnc-user-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
-
-## Changes a Release Can Make
-
-This project is pre-1.0, so a minor release may rename or remove a metric, as the head of [CHANGELOG.md](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CHANGELOG.md) says. This section classifies the changes that arrive **without** a rename, because those carry no new name to grep for.
-
-| Change                      | Announced in                                   |
-| :-------------------------- | :--------------------------------------------- |
-| A corrected value           | The CHANGELOG section for that release         |
-| An unlisted enum spelling   | Nowhere — the series is withheld               |
-| A default `_info` label set | The CHANGELOG section for that release         |
-| The verified range          | This section                                   |
-
-- **A corrected value** is the most frequent change here: a series keeps its name and its reading changes, because what it published was wrong. `wnc_wlan_wpa2_enabled` and `wnc_wlan_11k_neighbor_list_enabled` flipped from `0` to `1` wherever the default was in force (v0.4.0). A correction can also withdraw a series — `wnc_ap_uptime_seconds` went absent for an AP whose boot time the controller does not report (v0.7.0) — so a rule that assumes one is always present needs `absent()` or `or vector(0)`.
-- **An unlisted enum spelling** is withheld rather than published, so an IOS-XE release that adds a member to one of the twelve enumerations in [docs/enums.md](docs/enums.md) takes that subject's series away with no change to this exporter and no CHANGELOG entry. The series returns when a release of this exporter numbers the new member.
-- **A default `_info` label set** is what `--collector.*.info-labels` overrides, and moving a default adds or removes labels on one series rather than renaming or removing a series. A deployment that names the labels it needs is unaffected. One that relies on a default set is not, and a label dropped from a default disappears without an error even from a rule that names it in `group_left()`.
-- **The verified range** is IOS-XE 17.12, which is where every value published here was measured. The controller owns each container this exporter reads, so an image outside that range may rename or drop one and take a series with it — a loss of that kind is outside the verified range rather than a regression.
-
-> [!Note]
->
-> A default label set is not the set the two example dashboards above need. They join `band` in nine `group_left()` calls and `ap` and `wlan` in three, and the user dashboard drives its variable chain from `username`. A default configuration therefore renders those panels with the breakdown collapsed, leaves the `username` list empty, and gives `Radio Wave Utilization` and `Other Devices Connected` no data at all, because the `and on(name, band)` in those two has nothing to match.
->
-> Name the labels the panels use, as in `--collector.ap.info-labels=name,ip,band` and `--collector.client.info-labels=name,ipv4,ap,band,wlan,username`. [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) enables every available label.
 
 ## Contributing
 
