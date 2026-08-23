@@ -31,7 +31,7 @@ const (
 	DefaultWLANInfoLabels   = "name"
 
 	AvailableAPInfoLabels     = "name,ip,band,model,serial,sw_version,eth_mac"
-	AvailableClientInfoLabels = "ap,band,wlan,name,username,ipv4,ipv6"
+	AvailableClientInfoLabels = "ap,band,wlan,wlan_id,name,device_type,username,ipv4,ipv6"
 	AvailableWLANInfoLabels   = "name"
 
 	RequiredAPInfoLabels     = "mac,radio"

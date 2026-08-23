@@ -21,7 +21,7 @@ tmp_dir = "tmp"
                   --collector.client.traffic \
                   --collector.client.errors \
                   --collector.client.info \
-                  --collector.client.info-labels "ap,band,wlan,name,username,ipv4,ipv6" \
+                  --collector.client.info-labels "ap,band,wlan,wlan_id,name,device_type,username,ipv4,ipv6" \
                   --collector.wlan.general \
                   --collector.wlan.traffic \
                   --collector.wlan.config \

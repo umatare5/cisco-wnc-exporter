@@ -37,16 +37,18 @@ Client collector focuses on user experience quality and connection performance.
 
 `info` module provides `wnc_client_info` contains following labels to join with other metrics:
 
-| Labels     | Description                 | Example Value                 | Default | Required |
-| :--------- | :-------------------------- | :---------------------------- | :-----: | :------: |
-| `mac`      | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
-| `ap`       | Access point identifier     | `TEST-AP01`                   |   No    |    No    |
-| `band`     | Radio band                  | `2.4`, `5`, `6`, `unknown`    |   No    |    No    |
-| `wlan`     | WLAN ESSID name             | `labo-wifi`                   |   No    |    No    |
-| `name`     | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** |    No    |
-| `username` | EAP authentication identity | `john.doe@example.com`        |   No    |    No    |
-| `ipv4`     | Client IPv4 address         | `192.168.1.100`               | **Yes** |    No    |
-| `ipv6`     | Client IPv6 address         | `2001:db8::1`                 |   No    |    No    |
+| Labels        | Description                 | Example Value                 | Default | Required |
+| :------------ | :-------------------------- | :---------------------------- | :-----: | :------: |
+| `mac`         | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
+| `ap`          | Access point identifier     | `TEST-AP01`                   |   No    |    No    |
+| `band`        | Radio band                  | `2.4`, `5`, `6`, `unknown`    |   No    |    No    |
+| `wlan`        | WLAN ESSID name             | `labo-wifi`                   |   No    |    No    |
+| `wlan_id`     | WLAN identifier             | `5`                           |   No    |    No    |
+| `name`        | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** |    No    |
+| `device_type` | Device Classification Type  | `Un-Classified Device`        |   No    |    No    |
+| `username`    | EAP authentication identity | `john.doe@example.com`        |   No    |    No    |
+| `ipv4`        | Client IPv4 address         | `192.168.1.100`               | **Yes** |    No    |
+| `ipv6`        | Client IPv6 address         | `2001:db8::1`                 |   No    |    No    |
 
 Use this info metric to add contextual labels to other metrics in PromQL queries:
 
@@ -57,6 +59,10 @@ wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
 The example joins `ap` and `wlan`, which are not in the default label set, so `--collector.client.info-labels` has to name them for those labels to carry a value. The product carries the left side's value, so it reports the connection state number rather than a `1` — [Enumeration values](enums.md) is the mapping.
 
 `wnc_client_info` exists only for clients that reached `client-status-run`, so this join silently drops a client held short of it. Keep an alert on stuck clients join-free, as shown in [States](README.md#states).
+
+**Joining to a WLAN series takes `label_replace`.** `wlan_id` carries the identifier `wnc_wlan_info` carries as `id`, and the two names do not match, so `on(wlan_id)` and `on(id)` both return an empty vector rather than an error. Rename one side: `wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")`. The label is not named `id` because an `id` on a client series cannot say whose it is. It reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}` for every client in the run state, and it is empty rather than `0` for a client whose identifier the controller omitted — no WLAN carries identifier `0`.
+
+**`device_type` moves the series identity, and the info cache holds the old one.** It is the controller's own classification rather than something the client states, and the confidence leaf beside it read `0` on most records measured, so it changes when the controller reclassifies. The whole info slice is served from a snapshot up to `--collector.info-cache-ttl` old, and Prometheus keeps the previous series for its staleness window, so a reclassification leaves two `wnc_client_info` series for one `mac` — and a `group_left` over them fails the whole query with a duplicate-series error rather than returning the newer one. This is the hazard the `ap` label already carries, and asking for both puts two churning labels on the same series.
 
 ## Notes
 

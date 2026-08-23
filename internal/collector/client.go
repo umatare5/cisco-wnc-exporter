@@ -224,7 +224,10 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 		infoLabels := buildInfoLabels(
 			labels,
 			metrics.InfoLabels,
-			[]string{labelAP, labelBand, labelWLAN, labelName, labelUsername, labelIPv4, labelIPv6},
+			[]string{
+				labelAP, labelBand, labelWLAN, labelWLANID, labelName, labelDeviceType,
+				labelUsername, labelIPv4, labelIPv6,
+			},
 		)
 		collector.infoDesc = prometheus.NewDesc(
 			"wnc_client_info",
@@ -535,7 +538,12 @@ func (c *ClientCollector) collectInfoMetrics(
 
 	band := ClientBand(data)
 	name := determineDeviceNameFromDeviceMap(deviceMap, data.ClientMAC)
+	deviceType := determineDeviceTypeFromDeviceMap(deviceMap, data.ClientMAC)
 	wlan := dot11.VapSsid
+	// The identifier comes from the record being iterated rather than from the dot11 map,
+	// which can miss, and it is the same leaf wnc_wlan_clients buckets by, so a
+	// sum by (wlan_id) over these reconciles with that series by construction.
+	wlanID := determineWLANIDLabel(data.WlanID)
 	ipv4 := determineIPv4FromSISF(sisfMap[data.ClientMAC])
 	ipv6 := determineIPv6FromSISF(sisfMap[data.ClientMAC])
 
@@ -551,6 +559,10 @@ func (c *ClientCollector) collectInfoMetrics(
 			values[i] = band
 		case labelWLAN:
 			values[i] = wlan
+		case labelWLANID:
+			values[i] = wlanID
+		case labelDeviceType:
+			values[i] = deviceType
 		case labelName:
 			values[i] = name
 		case labelUsername:
@@ -628,6 +640,28 @@ func determineDeviceNameFromDeviceMap(deviceMap map[string]client.DcInfo, mac st
 		return device.DeviceName
 	}
 	return ""
+}
+
+// determineDeviceTypeFromDeviceMap extracts the device class the controller assigned.
+//
+// The class is the controller's own conclusion rather than something the client claims, and
+// the confidence leaf beside it read 0 on most records measured, so read a change here as the
+// controller reclassifying rather than as the device changing.
+func determineDeviceTypeFromDeviceMap(deviceMap map[string]client.DcInfo, mac string) string {
+	if device, ok := deviceMap[mac]; ok {
+		return device.DeviceType
+	}
+	return ""
+}
+
+// determineWLANIDLabel renders the WLAN identifier as a label value, and empty for the zero
+// the leaf decodes to when the controller omits it. No WLAN carries identifier 0, so a "0"
+// here would name a WLAN that cannot exist.
+func determineWLANIDLabel(wlanID int) string {
+	if wlanID == 0 {
+		return ""
+	}
+	return strconv.Itoa(wlanID)
 }
 
 // determineIPv4FromSISF extracts IPv4 address from SISF data.
