@@ -141,13 +141,14 @@ var (
 	// fixtureEpochSentinel is what the controller writes into a timestamp leaf for an
 	// event that has not happened. It is not the zero time, so IsZero reports false.
 	fixtureEpochSentinel = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// fixtureBootTime is the controller boot instant, a day past the join timestamps so
+	// that a descriptor reading one of those reports another day. UTC is not incidental:
+	// value_test.go pins the published second, which time.Local would move.
+	fixtureBootTime = time.Date(2026, 1, 13, 0, 0, 0, 0, time.UTC)
 )
 
 const (
-	// fixtureBootTime is the controller boot instant, a day past the join timestamps so
-	// that a descriptor reading one of those reports another day.
-	fixtureBootTime = "2026-01-13T00:00:00Z"
-
 	// The AP boots before it joins, and the two instants are days apart here so that a
 	// series reading the wrong leaf reports another day.
 	fixtureAPBootTime = "2026-01-01T00:00:00Z"
@@ -550,7 +551,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			},
 		}},
 
-		ControllerBootTime: fixtureBootTime,
+		ControllerBootTime: &fixtureBootTime,
 		ClientDeleteReasons: map[string]float64{
 			fixtureDeleteReason:      6101,
 			fixtureOtherDeleteReason: 6102,

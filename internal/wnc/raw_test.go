@@ -100,12 +100,16 @@ func TestRawValue_RejectsAWrongEnvelopeKey(t *testing.T) {
 func TestRawValue_ReadsThePathItsRouteNames(t *testing.T) {
 	t.Parallel()
 
-	getter := &stubGetter{body: `{"Cisco-IOS-XE-device-hardware-oper:boot-time":"2026-01-01T00:00:00+00:00"}`}
-	if _, _, err := rawValue[string](context.Background(), getter, routeControllerBootTime); err != nil {
+	getter := &stubGetter{
+		body: `{"Cisco-IOS-XE-wireless-client-global-oper:co-client-del-reason":{"ap-delete":1}}`,
+	}
+	if _, _, err := rawValue[map[string]json.RawMessage](
+		context.Background(), getter, routeCoClientDelReason,
+	); err != nil {
 		t.Fatalf("rawValue() error = %v, want nil", err)
 	}
 
-	if want := restconfDataPath + routeControllerBootTime; getter.path != want {
+	if want := restconfDataPath + routeCoClientDelReason; getter.path != want {
 		t.Errorf("rawValue() read %q, want %q", getter.path, want)
 	}
 }
@@ -118,16 +122,21 @@ func TestRawValue_ReadsThePathItsRouteNames(t *testing.T) {
 func TestRawValue_EmptyBodyIsAbsenceAndAnErrorIsNot(t *testing.T) {
 	t.Parallel()
 
-	value, present, err := rawValue[string](context.Background(), &stubGetter{body: ""}, routeControllerBootTime)
+	value, present, err := rawValue[map[string]json.RawMessage](
+		context.Background(), &stubGetter{body: ""}, routeCoClientDelReason,
+	)
 	if err != nil {
 		t.Errorf("rawValue() error = %v for an empty body, want nil", err)
 	}
-	if present || value != "" {
-		t.Errorf("rawValue() present = %v value = %q for an empty body, want absence", present, value)
+	if present || value != nil {
+		t.Errorf("rawValue() present = %v value = %v for an empty body, want absence", present, value)
 	}
 
 	failing := &stubGetter{err: errors.New("404 not found")}
-	if _, present, err := rawValue[string](context.Background(), failing, routeControllerBootTime); err == nil {
+	_, present, err = rawValue[map[string]json.RawMessage](
+		context.Background(), failing, routeCoClientDelReason,
+	)
+	if err == nil {
 		t.Error("rawValue() error = nil for a failed request, want the error")
 	} else if present {
 		t.Error("rawValue() reported the value as present alongside a failed request")

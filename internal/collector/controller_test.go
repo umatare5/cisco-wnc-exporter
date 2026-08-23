@@ -2,6 +2,7 @@ package collector
 
 import (
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -117,15 +118,17 @@ func TestControllerCollector_DeleteReasonsAreOneSeriesPerLeaf(t *testing.T) {
 func TestControllerCollector_BootTimeWithheldWhenUnusable(t *testing.T) {
 	t.Parallel()
 
+	// An instant the wire form cannot express is refused by the SDK's decode, so it never
+	// reaches the cache and is asserted at the fetcher instead — see
+	// TestFetchers_BootTimeAbsenceAndFailureAreDistinct in internal/wnc.
 	tests := []struct {
 		name        string
-		bootTime    string
+		bootTime    *time.Time
 		wantPresent bool
 	}{
-		{"absent leaf", "", false},
-		{"unparsable leaf", "2026-01-13", false},
-		{"epoch sentinel", "1970-01-01T00:00:00+00:00", false},
-		{"usable leaf", fixtureBootTime, true},
+		{"absent leaf", nil, false},
+		{"epoch sentinel", &fixtureEpochSentinel, false},
+		{"usable leaf", &fixtureBootTime, true},
 	}
 
 	for _, tt := range tests {
@@ -137,7 +140,7 @@ func TestControllerCollector_BootTimeWithheldWhenUnusable(t *testing.T) {
 
 			values := gatherControllerValues(t, data)
 			if _, ok := values["wnc_controller_boot_time_seconds"]; ok != tt.wantPresent {
-				t.Errorf("wnc_controller_boot_time_seconds present = %v for %q, want %v",
+				t.Errorf("wnc_controller_boot_time_seconds present = %v for %v, want %v",
 					ok, tt.bootTime, tt.wantPresent)
 			}
 
