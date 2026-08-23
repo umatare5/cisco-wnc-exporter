@@ -22,8 +22,9 @@ const (
 	dtlsChannelData    = "data"
 )
 
-// apJoinDescs holds the descriptors of the join module. A nil value means the module
-// is disabled, which is what keeps every series of it out of a default scrape.
+// apJoinDescs holds the descriptors of the join module. It is nil when the join module is off,
+// and the metrics.Join guards in the AP collector's Describe and Collect are what keep every
+// series of it out of a scrape and the nil out of a dereference.
 type apJoinDescs struct {
 	joined *prometheus.Desc
 	name   *prometheus.Desc

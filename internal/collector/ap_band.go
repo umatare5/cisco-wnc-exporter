@@ -8,9 +8,9 @@ import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 )
 
-// apBandDescs holds the descriptors of the band-keyed air quality series. A nil value
-// means the spectrum module is disabled, which is what keeps them out of a default
-// scrape.
+// apBandDescs holds the descriptors of the band-keyed air quality series. It is nil when the
+// spectrum module is off, and the metrics.Spectrum guards in the AP collector's Describe and
+// Collect are what keep the series out of a scrape and the nil out of a dereference.
 type apBandDescs struct {
 	worstAirQuality    *prometheus.Desc
 	worstAirQualityMin *prometheus.Desc

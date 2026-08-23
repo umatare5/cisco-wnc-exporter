@@ -622,14 +622,12 @@ func buildWLANToPolicyMap(
 	policyListEntries []wlan.PolicyListEntry,
 	wlanPolicies []wlan.WlanPolicy,
 ) map[string]*wlan.WlanPolicy {
-	// Step 1: Build policy map by policy-profile-name for O(1) lookups
 	policyMap := make(map[string]*wlan.WlanPolicy)
 	for i := range wlanPolicies {
 		policy := &wlanPolicies[i]
 		policyMap[policy.PolicyProfileName] = policy
 	}
 
-	// Step 2: Build WLAN profile to policy mapping using policy-list-entries
 	wlanToPolicyMap := make(map[string]*wlan.WlanPolicy)
 	for _, entry := range policyListEntries {
 		if entry.WLANPolicies != nil {

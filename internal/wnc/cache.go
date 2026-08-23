@@ -161,8 +161,8 @@ type dataSource struct {
 	names []string
 
 	// failures counts consecutive failed refreshes. It must stay atomic rather
-	// than mu-protected: Stats holds mu and calls serving, and sync.Mutex is not
-	// reentrant.
+	// than mu-protected: serving reads it on the scrape path with no lock held,
+	// and onRefreshDone writes it from the refresh goroutine.
 	failures atomic.Int64
 
 	// defaultsFallbacks counts WLAN configuration fetches that fell back to a

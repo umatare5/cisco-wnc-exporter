@@ -15,7 +15,6 @@ func createWNCClient(cfg config.WNC) *wnc.Client {
 		wnc.WithInsecureSkipVerify(cfg.TLSSkipVerify),
 	}
 
-	// Create WNC client
 	wncClient, err := wnc.NewClient(cfg.Controller, cfg.AccessToken, options...)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create WNC client: %v", err))

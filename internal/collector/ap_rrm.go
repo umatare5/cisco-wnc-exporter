@@ -8,8 +8,9 @@ import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 )
 
-// apRRMDescs holds the descriptors of the band-keyed RRM run instants. A nil value means
-// the radio module is disabled, which is what keeps them out of a default scrape.
+// apRRMDescs holds the descriptors of the band-keyed RRM run instants. It is nil when the
+// radio module is off, and the metrics.Radio guards in the AP collector's Describe and Collect
+// are what keep the series out of a scrape and the nil out of a dereference.
 type apRRMDescs struct {
 	lastRFGroupingRunAt *prometheus.Desc
 	lastDCARunAt        *prometheus.Desc

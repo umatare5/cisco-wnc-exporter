@@ -542,7 +542,8 @@ func (c *ClientCollector) collectInfoMetrics(
 	wlan := dot11.VapSsid
 	// The identifier comes from the record being iterated rather than from the dot11 map,
 	// which can miss, and it is the same leaf wnc_wlan_clients buckets by, so a
-	// sum by (wlan_id) over these reconciles with that series by construction.
+	// sum by (wlan_id) over these reconciles with that series at each collection.
+	// Publication then sits behind the info cache for up to --collector.info-cache-ttl.
 	wlanID := determineWLANIDLabel(data.WlanID)
 	ipv4 := determineIPv4FromSISF(sisfMap[data.ClientMAC])
 	ipv6 := determineIPv6FromSISF(sisfMap[data.ClientMAC])
