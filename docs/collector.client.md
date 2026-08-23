@@ -60,7 +60,7 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 `wnc_client_info` exists only for clients that reached `client-status-run`, so this join silently drops a client held short of it. Keep an alert on stuck clients join-free, as shown in [States](README.md#states).
 
-**Joining to a WLAN series takes `label_replace`.** `wlan_id` carries the identifier `wnc_wlan_info` carries as `id`, and the two names do not match, so `on(wlan_id)` and `on(id)` both return an empty vector rather than an error. Rename one side: `wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")`. The label is not named `id` because an `id` on a client series cannot say whose it is. It reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}` for every client in the run state, and it is empty rather than `0` for a client whose identifier the controller omitted — no WLAN carries identifier `0`.
+**Joining to a WLAN series takes `label_replace`.** `wlan_id` carries the identifier `wnc_wlan_info` carries as `id`, and the two names do not match, so `on(wlan_id)` and `on(id)` both return an empty vector rather than an error. Rename one side: `wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")`. The label is not named `id` because an `id` on a client series cannot say whose it is. It reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}` for every client in the run state once the info cache has refreshed since the last association change, and it is empty rather than `0` for a client whose identifier the controller omitted — no WLAN carries identifier `0`. Until that refresh the two counts diverge.
 
 **`device_type` moves the series identity, and the info cache holds the old one.** It is the controller's own classification rather than something the client states, and the confidence leaf beside it read `0` on most records measured, so it changes when the controller reclassifies. The whole info slice is served from a snapshot up to `--collector.info-cache-ttl` old, and Prometheus keeps the previous series for its staleness window, so a reclassification leaves two `wnc_client_info` series for one `mac` — and a `group_left` over them fails the whole query with a duplicate-series error rather than returning the newer one. This is the hazard the `ap` label already carries, and asking for both puts two churning labels on the same series.
 
@@ -74,7 +74,7 @@ The example joins `ap` and `wlan`, which are not in the default label set, so `-
 
 No series here counts roams. The controller maintains a roam count for itself rather than per client, and the exporter publishes it on the [Controller](collector.controller.md) page. The controller reports two per-client roam-type leaves and they are not the same reading: `wnc_client_roam_type` publishes `dot11-roam-type` from the association the client currently holds, while the mobility manager's own `mm-client-roam-type` stays unpublished because it read the same value for every client while the controller counted tens of thousands of roams. Neither is a count.
 
-Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module, and the ratio series removed in v0.3.0 sat in the errors module alone. Both flags default off.
+Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module. Both flags default off.
 
 <details><summary><b>*1</b> Power save state value domain</summary><br/>
 
@@ -87,8 +87,7 @@ The exporter decodes this leaf as an integer and publishes it unchanged, so a fr
 The index is parsed out of the rate string the controller reports for the client, which spells it as `m<index>` followed by the stream count. The value is not bounded at 11:
 
 - 802.11n encodes the stream count in the index itself, so a two-stream client reports 8 through 15, and observed values already exceed 11.
-- 802.11ac indexes 0 through 9 and 802.11ax 0 through 11, both with the stream count in a separate leaf, so the same number means a different rate depending on the protocol. Read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
-- 802.11be adds indexes 12 and 13 for the standard rate set.
+- On every later protocol the stream count sits in a separate leaf, so the same index means a different rate — read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
 
 `-1` is reported whenever no index can be parsed. That covers a legacy client whose rate carries none, and equally a rate string that is empty or spelled in a form the parser does not recognise. The two are not distinguished.
 

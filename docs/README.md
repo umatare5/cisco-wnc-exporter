@@ -111,8 +111,6 @@ wnc_client_state != 11
 ### Utilization is reported as a ratio
 
 - Metric names ending in `_ratio` carry 0 to 1, the Prometheus base unit for a percentage
-- Multiply by 100 for a percentage axis, as in `wnc_ap_channel_utilization_ratio * 100`
-- Grafana renders these series without that multiplication under the `percentunit` unit
 
 ### The `band` label
 

@@ -180,7 +180,7 @@ The metrics below were observed at zero on every radio of the access points this
 
 Sampling the container twice separated by an interval showed the same leaves at zero while their neighbours advanced, and the controller CLI reported the same values, so the zeros are in the data the controller holds rather than in this exporter.
 
-The container also carries `rx-data-pkt-count` and `tx-data-pkt-count`, which no series reads. Both were observed at zero on every radio measured, through RESTCONF and through the CLI, including radios whose data-frame counters advanced over the same interval. v0.2.0 published a pair of packet series that read the data-frame leaves rather than these, and v0.3.0 removed those series as duplicates. Re-pointing a series at these leaves would publish a constant zero on a radio carrying traffic.
+The container also carries `rx-data-pkt-count` and `tx-data-pkt-count`, which no series reads. Both were observed at zero on every radio measured, through RESTCONF and through the CLI, including radios whose data-frame counters advanced over the same interval. Re-pointing a series at these leaves would publish a constant zero on a radio carrying traffic.
 
 This was verified through direct RESTCONF API access to the live WNC environment:
 
@@ -473,7 +473,7 @@ No leaf names the last cause and none orders the entries. Reading the container 
 
 <details><summary><b>*19</b> Reading the AP coordinates</summary><br/>
 
-The two series come from the geolocation operational container, which is a module of its own on the controller rather than part of the AP inventory, so the `geolocation` module reads it and nothing else. That is why the flag is separate: enabling it adds one request whose cost does not grow with the number of APs, and no other module pays for it. The container answered `200` on IOS-XE 17.12 and `204` on 17.15, 17.18 and 26.01 — the three had no AP joined, and a `204` is a successful read of nothing, so an estate with no coordinates configured leaves both series absent without raising `wnc_refresh_errors_total`.
+The two series come from the geolocation operational container, which is a module of its own on the controller rather than part of the AP inventory, so the `geolocation` module reads it and nothing else. That is why the flag is separate: enabling it adds one request whose cost does not grow with the number of APs, and no other module pays for it. The container answered `200` on IOS-XE 17.12 and `204` on 17.15, 17.18 and 26.01 — the three had no AP joined, and a `204` is a successful read of nothing, so an estate with no coordinates configured leaves both series absent without raising `wnc_refresh_errors_total`. It answered `404` on none of the four.
 
 **The unit is the platform's own.** `show ap geolocation summary` heads both columns with degrees, and the schema the controller serves declares `units "degree"` on both leaves. They are two families rather than one carrying an axis label because longitude and latitude are different quantities over different domains, `±180` against `±90`, so an average or a sum across such a label denotes nothing and a `sum()` spanning both mixes them silently.
 

@@ -61,9 +61,6 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
   ghcr.io/umatare5/cisco-wnc-exporter:latest
 ```
 
-- `-p`: Maps container port `10039/tcp` to host port `10039/tcp`.
-- `-e`: Passes the environment variables into the container.
-
 > [!Tip]
 > If you prefer using binaries, download them from the [release page](https://github.com/umatare5/cisco-wnc-exporter/releases).
 >
