@@ -86,6 +86,8 @@ type APCollectorModules struct {
 	Errors bool `json:"errors"`
 	// Join: CAPWAP discovery, join, configuration and DTLS statistics
 	Join bool `json:"join"`
+	// Geolocation: WGS 84 coordinates of the AP
+	Geolocation bool `json:"geolocation"`
 	// Spectrum: CleanAir air quality
 	Spectrum bool `json:"spectrum"`
 	// Info: info metric with labels
@@ -156,14 +158,15 @@ func Parse(cmd *cli.Command) (*Config, error) {
 		},
 		Collectors: Collectors{
 			AP: APCollectorModules{
-				General:    cmd.Bool("collector.ap.general"),
-				Radio:      cmd.Bool("collector.ap.radio"),
-				Traffic:    cmd.Bool("collector.ap.traffic"),
-				Errors:     cmd.Bool("collector.ap.errors"),
-				Join:       cmd.Bool("collector.ap.join"),
-				Spectrum:   cmd.Bool("collector.ap.spectrum"),
-				Info:       cmd.Bool("collector.ap.info"),
-				InfoLabels: parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
+				General:     cmd.Bool("collector.ap.general"),
+				Radio:       cmd.Bool("collector.ap.radio"),
+				Traffic:     cmd.Bool("collector.ap.traffic"),
+				Errors:      cmd.Bool("collector.ap.errors"),
+				Join:        cmd.Bool("collector.ap.join"),
+				Geolocation: cmd.Bool("collector.ap.geolocation"),
+				Spectrum:    cmd.Bool("collector.ap.spectrum"),
+				Info:        cmd.Bool("collector.ap.info"),
+				InfoLabels:  parseAPInfoLabels(cmd.String("collector.ap.info-labels")),
 			},
 			Client: ClientCollectorModules{
 				General:    cmd.Bool("collector.client.general"),

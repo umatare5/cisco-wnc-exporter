@@ -17,14 +17,15 @@ import (
 
 // APMetrics represents which AP metrics are enabled.
 type APMetrics struct {
-	General    bool
-	Radio      bool
-	Traffic    bool
-	Errors     bool
-	Join       bool
-	Spectrum   bool
-	Info       bool
-	InfoLabels []string
+	General     bool
+	Radio       bool
+	Traffic     bool
+	Errors      bool
+	Join        bool
+	Geolocation bool
+	Spectrum    bool
+	Info        bool
+	InfoLabels  []string
 }
 
 // APCollector implements prometheus.Collector for AP metrics from WNC.
@@ -33,6 +34,7 @@ type APCollector struct {
 	infoDesc       *prometheus.Desc
 	infoLabelNames []string
 	join           *apJoinDescs
+	geo            *apGeoDescs
 	band           *apBandDescs
 	rrmRuns        *apRRMDescs
 	src            wnc.APSource
@@ -117,6 +119,10 @@ func NewAPCollector(
 
 	if metrics.Join {
 		collector.join = newAPJoinDescs()
+	}
+
+	if metrics.Geolocation {
+		collector.geo = newAPGeoDescs()
 	}
 
 	if metrics.General {
@@ -515,6 +521,9 @@ func (c *APCollector) Describe(ch chan<- *prometheus.Desc) {
 	if c.metrics.Join {
 		c.join.describe(ch)
 	}
+	if c.metrics.Geolocation {
+		c.geo.describe(ch)
+	}
 	if c.metrics.Spectrum {
 		ch <- c.airQualityDesc
 		ch <- c.airQualityMinDesc
@@ -544,9 +553,21 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	// Every module below reads the AP inventory or the radio list. The join module
-	// reads neither, so a deployment enabling only that one must not go on to ask for
-	// data types no enabled module declared.
+	// The coordinate list carries its own ap-mac, so this reads no other AP data type and
+	// runs here rather than in the per-radio loop below, where the AP-keyed label set would
+	// repeat on a multi-radio AP.
+	if c.metrics.Geolocation {
+		geoData, err := c.src.GetAPGeoLocData(ctx)
+		if err != nil {
+			slog.Debug("Failed to get AP geolocation data", "error", err)
+		} else {
+			c.geo.collect(ch, geoData)
+		}
+	}
+
+	// Every module below reads the AP inventory or the radio list. The join and
+	// coordinate modules read neither, so a deployment enabling only those must not go on
+	// to ask for data types no enabled module declared.
 	if !c.isAnyRadioKeyedFlagEnabled() {
 		return
 	}
@@ -1271,7 +1292,7 @@ func determineUptimeFromTimestamp(timestamp string) (int64, bool) {
 }
 
 func (c *APCollector) isAnyMetricFlagEnabled() bool {
-	return c.isAnyRadioKeyedFlagEnabled() || c.metrics.Join
+	return c.isAnyRadioKeyedFlagEnabled() || c.metrics.Join || c.metrics.Geolocation
 }
 
 // isAnyRadioKeyedFlagEnabled reports whether a module keyed by the AP inventory or

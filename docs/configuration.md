@@ -33,6 +33,7 @@ GLOBAL OPTIONS:
 
    --collector.ap.errors              Enable AP error metrics
    --collector.ap.general             Enable AP general metrics
+   --collector.ap.geolocation         Enable AP coordinate metrics
    --collector.ap.info                Enable AP info metrics
    --collector.ap.info-labels string  Comma-separated list of AP info labels (default: "name,ip")
    --collector.ap.join                Enable AP CAPWAP join metrics

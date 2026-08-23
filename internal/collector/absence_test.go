@@ -12,6 +12,7 @@ import (
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/geolocation"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
 	"github.com/umatare5/cisco-wnc-exporter/internal/wnc"
@@ -28,6 +29,7 @@ const (
 	typeAPRadioOperStats      = "ap_radio_oper_stats"
 	typeAPRadioResetStats     = "ap_radio_reset_stats"
 	typeAPJoinStats           = "ap_join_stats"
+	typeAPGeoLocData          = "ap_geo_loc_data"
 	typeControllerBootTime    = "controller_boot_time"
 	typeCoClientDelReason     = "co_client_del_reason"
 	typeClientRoamingStats    = "client_roaming_stats"
@@ -52,7 +54,7 @@ const (
 
 var allDataTypes = []string{
 	typeAPCAPWAPData, typeAPOperData, typeAPRadioOperData, typeAPNameMACMap,
-	typeAPRadioOperStats, typeAPRadioResetStats, typeAPJoinStats,
+	typeAPRadioOperStats, typeAPRadioResetStats, typeAPJoinStats, typeAPGeoLocData,
 	typeControllerBootTime, typeCoClientDelReason, typeClientRoamingStats,
 	typeClientCommonOperData, typeClientDCInfo, typeClientDot11OperData,
 	typeClientSISFDBMac, typeClientTrafficStats, typeClientMMIFHistory,
@@ -221,6 +223,9 @@ func TestAllCollectors_OmitSeriesWhenDataTypeFails(t *testing.T) {
 			"wnc_ap_joined", "wnc_ap_join_info", "wnc_ap_discovery_requests_total",
 			"wnc_ap_dtls_session_requests_total", "wnc_ap_last_join_success_timestamp_seconds",
 			"wnc_ap_last_dtls_success_timestamp_seconds", "wnc_ap_last_reboot_reason",
+		}},
+		{typeAPGeoLocData, []string{
+			"wnc_ap_longitude_degrees", "wnc_ap_latitude_degrees",
 		}},
 		{typeControllerBootTime, []string{"wnc_controller_boot_time_seconds"}},
 		{typeCoClientDelReason, []string{"wnc_controller_client_deletes_total"}},
@@ -402,7 +407,7 @@ func fixtureCollectors(t *testing.T, data *wnc.WNCDataCache) []prometheus.Collec
 
 	apMetrics := APMetrics{
 		General: true, Radio: true, Traffic: true, Errors: true, Join: true,
-		Spectrum: true, Info: true,
+		Geolocation: true, Spectrum: true, Info: true,
 	}
 	clientMetrics := ClientMetrics{General: true, Radio: true, Traffic: true, Errors: true, Info: true}
 	wlanMetrics := WLANMetrics{General: true, Traffic: true, Config: true, Info: true}
@@ -529,6 +534,21 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		},
 		NameMACMaps: []ap.ApNameMACMap{{WtpName: fixtureAPName, WtpMAC: fixtureAPMAC, EthMAC: fixtureAPMAC}},
 		JoinStats:   []ap.ApJoinStats{newFixtureJoinStats()},
+		// The coordinates are strings on the wire: the schema types both leaves as
+		// decimal64, which RFC 7951 writes quoted. Each is well inside its own domain
+		// and they differ from one another, so a descriptor reading the wrong one of
+		// the pair reports a number the value assertions do not expect.
+		APGeoLocData: []geolocation.ApGeoLocData{{
+			ApMAC: fixtureAPMAC,
+			Loc: &geolocation.GeoLocInfo{
+				Ellipse: &geolocation.GeoLocEllipse{
+					Center: &geolocation.GeoLocPoint{
+						Longitude: ptr("139.700000"),
+						Latitude:  ptr("35.700000"),
+					},
+				},
+			},
+		}},
 
 		ControllerBootTime: fixtureBootTime,
 		ClientDeleteReasons: map[string]float64{

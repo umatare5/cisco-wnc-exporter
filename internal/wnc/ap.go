@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/geolocation"
 )
 
 // APSource provides access to AP data from WNC via REST API.
@@ -17,6 +18,7 @@ type APSource interface {
 	GetRadioResetStats(ctx context.Context) ([]ap.RadioResetStats, error)
 	ListNameMACMaps(ctx context.Context) ([]ap.ApNameMACMap, error)
 	GetAPJoinStats(ctx context.Context) ([]ap.ApJoinStats, error)
+	GetAPGeoLocData(ctx context.Context) ([]geolocation.ApGeoLocData, error)
 }
 
 // apSource implements APSource using SharedDataSource for caching.
@@ -83,6 +85,15 @@ func (s *apSource) GetAPJoinStats(ctx context.Context) ([]ap.ApJoinStats, error)
 		return nil, err
 	}
 	return data.JoinStats, nil
+}
+
+// GetAPGeoLocData returns AP geolocation data from WNC via SharedDataSource (cached).
+func (s *apSource) GetAPGeoLocData(ctx context.Context) ([]geolocation.ApGeoLocData, error) {
+	data, err := snapshot(ctx, s.sharedDataSource, dataAPGeoLocData)
+	if err != nil {
+		return nil, err
+	}
+	return data.APGeoLocData, nil
 }
 
 // ListNameMACMaps returns AP name to MAC mapping data from WNC via SharedDataSource (cached).
