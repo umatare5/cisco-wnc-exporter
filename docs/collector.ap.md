@@ -15,7 +15,7 @@ AP collector focuses on RF foundation and radio performance.
 | general     | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1) **(\*1)**                       |
 | general     | `wnc_ap_memory_utilization_ratio`                 | Gauge   | Memory utilization ratio (0-1) **(\*1)**                    |
 | radio       | `wnc_ap_channel_number`                           | Gauge   | Operating channel number, absent if unreported **(\*2)**    |
-| radio       | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth (MHz) **(\*2)**                           |
+| radio       | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth (MHz)                                     |
 | radio       | `wnc_ap_tx_power_dbm`                             | Gauge   | Current transmit power (dBm)                                |
 | radio       | `wnc_ap_tx_power_max_dbm`                         | Gauge   | Maximum TX power capability (dBm)                           |
 | radio       | `wnc_ap_noise_floor_dbm`                          | Gauge   | Noise on the operating channel (dBm) **(\*2)**              |
@@ -143,7 +143,7 @@ While it is disabled the statistics block is still present in the controller's r
 
 </details>
 
-<details><summary><b>*2</b> Channel numbers do not identify the band, noise is reported per channel, and a monitor-mode radio reports no channel</summary><br/>
+<details><summary><b>*2</b> Channel numbers do not identify the band, and noise is reported per channel</summary><br/>
 
 6 GHz channel numbering restarts at 1, so a 6 GHz channel number collides with a 2.4 GHz one and overlaps the 5 GHz range as well. `wnc_ap_channel_number` reports the number the controller gives, without a band.
 
@@ -155,11 +155,7 @@ wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
 
 The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
 
-`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
-
-**A radio in monitor mode reports no channel.** The controller omits the channel leaf there — measured on IOS-XE 17.12 — so `wnc_ap_channel_number` is withheld rather than published as the `0` a plain integer decodes to, which is not a channel on any band. `wnc_ap_channel_width_mhz`, `wnc_ap_tx_power_dbm` and `wnc_ap_tx_power_max_dbm` stay published for that radio, because the controller keeps sending their leaves even where `show ap dot11 <band> summary` renders all three as N/A.
-
-**Sniffer mode was not measured.** The schema the controller serves declares the channel absent there as well, but a sniffer channel is operator-assigned, so the leaf may be present — the guard reads the value, so a channel the controller does send is published either way. `wnc_ap_channel_width_mhz` carries the same guard on its own leaf: `0` MHz is no width a radio can use, and it has not been observed, guarded because the leaf is a plain integer no absence guard would catch — the reason note \*13 gives for the zero channel energy.
+`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode. `wnc_ap_channel_number` is absent on such a radio too, because the controller omits the channel leaf there rather than reporting a channel the radio does not serve.
 
 </details>
 
