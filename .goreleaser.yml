@@ -127,7 +127,7 @@ release:
     This release contains the Prometheus Exporter for Cisco WNC.
 
     > [!IMPORTANT]
-    > This project is pre-1.0 and a minor release may rename or remove a metric. Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md) before upgrading.
+    > A minor release may rename or remove a metric. Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md) before upgrading.
 
     ### 🐳 Container Images
 

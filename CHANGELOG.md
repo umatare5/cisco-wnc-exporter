@@ -2,7 +2,7 @@
 
 Notable changes to the metric surface, one section per release — a short preamble, then the flag changes, then the metric changes. Each version heading links its GitHub release, which carries the date, the downloads and the full commit list. The measurement prose these sections carried before v0.13.0 is preserved in the [CHANGELOG at v0.12.0](https://github.com/umatare5/cisco-wnc-exporter/blob/v0.12.0/CHANGELOG.md).
 
-This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
+A minor release may rename or remove a metric, because the controller owns the schema every series reads. Read the section for the version you are upgrading to before you upgrade.
 
 ## [v0.12.0]
 

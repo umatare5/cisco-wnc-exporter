@@ -60,7 +60,7 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - The CleanAir readings hold their value between reports, and `wnc_ap_last_air_quality_timestamp_seconds` dates the row they read
 - The four `wnc_rrm_worst_channel_*` series are refreshed on the same period with no leaf dating their row
 - `wnc_rrm_last_rf_grouping_run_timestamp_seconds` and `wnc_rrm_last_dca_run_timestamp_seconds` date the RRM runs themselves, and need not advance together — see note \*16 on the [AP](collector.ap.md) page
-- Whether a reading is one the controller aggregated is a claim only the name or the HELP makes: `_avg` and `_min` name it, and where neither says so this exporter has not established it
+- Only the name or the HELP says whether a reading is one the controller aggregated — `_avg` and `_min` name it, and the rest are silent on the question
 
 ### Counter reset timing
 

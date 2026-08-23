@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-This project is pre-1.0, so only the latest release carries fixes — a fix lands on `main` and ships in the next release, with no patch branch for an older tag. Reproduce a finding against the latest release before reporting it.
+Only the latest release carries fixes — a fix lands on `main` and ships in the next release, with no patch branch for an older tag. Reproduce a finding against the latest release before reporting it.
 
 ## Reporting a vulnerability
 
@@ -12,10 +12,10 @@ This project is maintained by one person in their own time, so no response time 
 
 ## What this exporter holds and exposes
 
-- It holds a controller credential for its whole lifetime. `--wnc.access-token` is the Base64 of `username:password` for a controller account, so the exporter is exactly as sensitive as that account. Prefer `WNC_ACCESS_TOKEN` over the flag, which puts the credential in the process table.
-- `--wnc.tls-skip-verify` disables certificate verification on the controller connection, which leaves the read open to interception. It exists for a controller with a self-signed certificate and is not for production — see the warning in [README.md](README.md).
-- `/metrics` is served over plain HTTP with no authentication, and its series carry AP and client MAC addresses. The default `--collector.*.info-labels` sets publish the AP name and IP address and the client IPv4 address, leaving the client username and IPv6 address opt-in. Reach the endpoint over a controlled path rather than an exposed one.
-- A controller response with a status of 400 or above has its body logged at error level, and the same body reaches the error string this exporter logs in turn. Nothing redacts either line — the SDK bounds each to a prefix of the body, which is the controller's own error document rather than configuration data. The credential appears in neither.
+- It holds a controller credential for its whole lifetime. `--wnc.access-token` is the Base64 of `username:password`, so the exporter is exactly as sensitive as that account — prefer `WNC_ACCESS_TOKEN`, because the flag puts the credential in the process table.
+- `--wnc.tls-skip-verify` disables certificate verification, which leaves the read open to interception. It exists for a controller with a self-signed certificate and is not for production — see the warning in [README.md](README.md).
+- `/metrics` is served over plain HTTP with no authentication, and its series carry AP and client MAC addresses. The default `--collector.*.info-labels` sets publish the AP name and IP address and the client IPv4 address, leaving the client username and IPv6 address opt-in — reach the endpoint over a controlled path rather than an exposed one.
+- A controller response with a status of 400 or above reaches the log at error level, both from the SDK and from the error string this exporter logs in turn. Nothing redacts either line, and the credential appears in neither.
 
 ## Out of scope
 

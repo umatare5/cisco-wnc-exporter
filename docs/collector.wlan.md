@@ -46,7 +46,7 @@ The controller keeps one byte total per WLAN, and this series publishes it uncha
 
 It counts **both directions together** and keeps the bytes of clients that have since disconnected, so it is **not** the sum of the per-client counters — a WLAN with no clients at all can carry a large and unmoving value. For a rate use `rate()` over it directly, and to attribute traffic to a client use the per-client counters instead.
 
-**An administrative shutdown of the WLAN returned this counter to zero, and re-enabling the WLAN started the count again from zero.** So `increase()` over a range spanning the shutdown loses everything counted before it, and the value is not a lifetime total for the WLAN. Whether any other event zeroes it was not measured.
+**An administrative shutdown of the WLAN returned this counter to zero, and re-enabling the WLAN started the count again from zero.** So `increase()` over a range spanning the shutdown loses everything counted before it, and the value is not a lifetime total for the WLAN.
 
 The series is absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails.
 
@@ -56,7 +56,7 @@ The series is absent for a WLAN the controller lists no statistics record for, a
 
 The controller keeps one count per phase rather than one enumerated leaf, so the four `phase` values — `l2auth`, `mobility`, `iplearn` and `webauth_pending` — are this exporter's own names for those four leaves.
 
-**They are current counts, not cumulative ones.** The fifth count in the same record, the clients in the run state, equalled the per-WLAN client records exactly on every WLAN and in total, which is what types all five as gauges. Whether the five counts partition a WLAN's clients was not measured, so do not add them to `wnc_wlan_clients`, which counts the run state only.
+**They are current counts, not cumulative ones**, established against the run-state count in the same record. Do not add them to `wnc_wlan_clients`, which counts the run state only.
 
 **What they detect is a stall, not a failure rate.** A client that onboards normally occupies a phase for milliseconds, so a scrape lands on it only by coincidence: all four leaves read zero in every one of ninety consecutive reads taken ten seconds apart. A client held in a phase, by contrast, stays there and is what the series is for. Alert on a count that persists rather than on any non-zero reading:
 
