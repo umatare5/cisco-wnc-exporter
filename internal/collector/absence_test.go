@@ -1100,3 +1100,76 @@ func TestAllCollectors_OmitSeriesWhenLeafAbsent(t *testing.T) {
 		})
 	}
 }
+
+// TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf covers the two phy-ht-cfg leaves, which the
+// SDK types as plain integers: a leaf the controller omits — curr-freq on a radio in monitor
+// mode, measured — arrives as 0 rather than nil, so the pointer cases above cannot reach them.
+// The survivors pin the absence to its own leaf, so a guard taking a sibling with it fails here
+// as surely as no guard at all.
+func TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		leaf string
+		omit func(*wnc.WNCDataCache)
+		// absent lists the families the zero must take out; survive lists the families of
+		// the same radio the mutation must leave at their baseline counts.
+		absent  []string
+		survive []string
+	}{
+		{
+			"curr-freq",
+			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.CurrFreq = 0 },
+			// The noise and air quality readings are selected by the operating channel,
+			// so they go absent with it.
+			[]string{
+				"wnc_ap_channel_number", "wnc_ap_noise_floor_dbm",
+				"wnc_ap_air_quality_index_avg", "wnc_ap_air_quality_index_min",
+				"wnc_ap_interferers", "wnc_ap_last_air_quality_timestamp_seconds",
+			},
+			[]string{
+				"wnc_ap_channel_width_mhz", "wnc_ap_tx_power_dbm",
+				"wnc_ap_tx_power_max_dbm", "wnc_ap_radio_state",
+			},
+		},
+		{
+			"chan-width",
+			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.ChanWidth = 0 },
+			[]string{"wnc_ap_channel_width_mhz"},
+			[]string{
+				"wnc_ap_channel_number", "wnc_ap_noise_floor_dbm",
+				"wnc_ap_air_quality_index_avg", "wnc_ap_tx_power_dbm",
+				"wnc_ap_radio_state",
+			},
+		},
+	}
+
+	baseline := gatherSeriesCounts(t, nil)
+
+	for _, tt := range tests {
+		t.Run(tt.leaf, func(t *testing.T) {
+			t.Parallel()
+
+			// Without this a case would pass on a family the fixture never populated.
+			for _, family := range slices.Concat(tt.absent, tt.survive) {
+				if baseline[family] == 0 {
+					t.Fatalf("%s is absent from the all-present baseline, so zeroing %s proves nothing",
+						family, tt.leaf)
+				}
+			}
+
+			got := gatherSeriesCounts(t, tt.omit)
+			for _, family := range tt.absent {
+				if got[family] != 0 {
+					t.Errorf("%s carries %d series with %s zero, want 0", family, got[family], tt.leaf)
+				}
+			}
+			for _, family := range tt.survive {
+				if got[family] != baseline[family] {
+					t.Errorf("%s carries %d series with %s zero, want %d: absence is per leaf",
+						family, got[family], tt.leaf, baseline[family])
+				}
+			}
+		})
+	}
+}

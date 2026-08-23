@@ -793,11 +793,18 @@ func (c *APCollector) collectRadioMetrics(
 		metrics = appendNumber(metrics, c.txPowerMaxDesc, cfgData.TxPowerLevel1)
 	}
 
+	// The controller omits curr-freq on a radio in monitor mode, measured on 17.12, and the
+	// SDK types both leaves as plain integers, so an omitted one decodes to a zero that is
+	// neither a channel on any band nor a width a radio can use. The schema the controller
+	// serves declares the same absence for sniffer mode, which is unmeasured. Each leaf is
+	// withheld on its own zero: the measured radio kept its width while its channel was gone.
 	if radio.PhyHtCfg != nil {
-		metrics = append(metrics,
-			Float64Metric{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
-			Float64Metric{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
-		)
+		if channel := radio.PhyHtCfg.CfgData.CurrFreq; channel != 0 {
+			metrics = append(metrics, Float64Metric{c.channelDesc, float64(channel)})
+		}
+		if width := radio.PhyHtCfg.CfgData.ChanWidth; width != 0 {
+			metrics = append(metrics, Float64Metric{c.channelWidthDesc, float64(width)})
+		}
 	}
 
 	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {
