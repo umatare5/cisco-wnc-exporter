@@ -169,6 +169,12 @@ func registerAPCollectorFlags() []cli.Flag {
 			HideDefault: true,
 		},
 		&cli.BoolFlag{
+			Name:        "collector.ap.geolocation",
+			Usage:       "Enable AP coordinate metrics",
+			Category:    "# AP Collector Options",
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
 			Name:        "collector.ap.spectrum",
 			Usage:       "Enable AP CleanAir spectrum metrics",
 			Category:    "# AP Collector Options",

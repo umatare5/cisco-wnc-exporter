@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
+
+// testBootInstant is the boot instant the source is asked to carry through unchanged.
+var testBootInstant = time.Date(2026, 1, 13, 0, 0, 0, 0, time.UTC)
 
 func TestControllerSource_GetBootTime(t *testing.T) {
 	t.Parallel()
@@ -12,22 +16,22 @@ func TestControllerSource_GetBootTime(t *testing.T) {
 	tests := []struct {
 		name    string
 		mock    *mockDataSource
-		want    string
+		want    *time.Time
 		wantErr bool
 	}{
 		{
 			name: "Success with a boot instant",
 			mock: &mockDataSource{
-				data: &WNCDataCache{ControllerBootTime: "2026-01-13T00:00:00+00:00"},
+				data: &WNCDataCache{ControllerBootTime: ptr(testBootInstant)},
 			},
-			want: "2026-01-13T00:00:00+00:00",
+			want: ptr(testBootInstant),
 		},
 		{
 			// A controller that does not carry the leaf answers with no body, which the
 			// refresh records as a successful read of nothing rather than as a failure.
-			name:    "Empty when the controller carries no leaf",
+			name:    "Nil when the controller carries no leaf",
 			mock:    &mockDataSource{data: &WNCDataCache{}},
-			want:    "",
+			want:    nil,
 			wantErr: false,
 		},
 		{
@@ -48,8 +52,15 @@ func TestControllerSource_GetBootTime(t *testing.T) {
 				t.Errorf("GetBootTime() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && got != tt.want {
-				t.Errorf("GetBootTime() = %q, want %q", got, tt.want)
+			if tt.wantErr {
+				return
+			}
+			switch {
+			case got == nil && tt.want == nil:
+			case got == nil || tt.want == nil:
+				t.Errorf("GetBootTime() = %v, want %v", got, tt.want)
+			case !got.Equal(*tt.want):
+				t.Errorf("GetBootTime() = %v, want %v", *got, *tt.want)
 			}
 		})
 	}

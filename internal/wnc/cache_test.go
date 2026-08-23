@@ -725,14 +725,15 @@ func TestConfig_RefreshDeadlineExceedsPerRequestTimeout(t *testing.T) {
 
 // RESTCONF module names the mock replies are keyed by.
 const (
-	mockAPGlobalOperModule   = "Cisco-IOS-XE-wireless-ap-global-oper"
-	mockClientGlobalModule   = "Cisco-IOS-XE-wireless-client-global-oper"
-	mockDeviceHardwareModule = "Cisco-IOS-XE-device-hardware-oper"
-	mockAPOperModule         = "Cisco-IOS-XE-wireless-access-point-oper"
-	mockClientOperModule     = "Cisco-IOS-XE-wireless-client-oper"
-	mockRRMOperModule        = "Cisco-IOS-XE-wireless-rrm-oper"
-	mockRRMGlobalOperModule  = "Cisco-IOS-XE-wireless-rrm-global-oper"
-	mockWLANCfgModule        = "Cisco-IOS-XE-wireless-wlan-cfg"
+	mockAPGlobalOperModule    = "Cisco-IOS-XE-wireless-ap-global-oper"
+	mockClientGlobalModule    = "Cisco-IOS-XE-wireless-client-global-oper"
+	mockDeviceHardwareModule  = "Cisco-IOS-XE-device-hardware-oper"
+	mockAPOperModule          = "Cisco-IOS-XE-wireless-access-point-oper"
+	mockGeolocationOperModule = "Cisco-IOS-XE-wireless-geolocation-oper"
+	mockClientOperModule      = "Cisco-IOS-XE-wireless-client-oper"
+	mockRRMOperModule         = "Cisco-IOS-XE-wireless-rrm-oper"
+	mockRRMGlobalOperModule   = "Cisco-IOS-XE-wireless-rrm-global-oper"
+	mockWLANCfgModule         = "Cisco-IOS-XE-wireless-wlan-cfg"
 )
 
 const (
@@ -765,6 +766,9 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"ap-mac":"`+mockAPMAC+`","radio-id":0}`)},
 	"ap-join-stats": {dataAPJoinStats, mockList(mockAPGlobalOperModule, "ap-join-stats",
 		`{"wtp-mac":"`+mockAPMAC+`","ap-join-info":{"ap-name":"TEST-AP01","is-joined":true}}`)},
+	"ap-geo-loc-data": {dataAPGeoLocData, mockList(mockGeolocationOperModule, "ap-geo-loc-data",
+		`{"ap-mac":"`+mockAPMAC+`","loc":{"ellipse":{"center":`+
+			`{"longitude":"139.700000","latitude":"35.700000"}}}}`)},
 	"wlan-client-stats": {dataWLANClientStats, mockList(mockAPGlobalOperModule, "wlan-client-stats",
 		`{"wlan-id":1,"data-usage":"6884480"}`)},
 	"common-oper-data": {dataClientCommonOperData, mockList(mockClientOperModule, "common-oper-data",
@@ -793,8 +797,9 @@ var mockEndpoints = map[string]mockEndpoint{
 		`{"wtp-mac":"`+mockAPMAC+`","band":"dot11-2-dot-4-ghz-band"}`)},
 	"spectrum-aq-worst-table": {dataRRMSpectrumAqWorst, mockList(mockRRMGlobalOperModule, "spectrum-aq-worst-table",
 		`{"band-id":1,"channel-num":11}`)},
-	// The two raw reads answer with the node itself as the only key rather than with a
-	// list, which is what mockContainer wraps and mockList cannot.
+	// These three answer with the node itself as the only key rather than with a list,
+	// which is what mockContainer wraps and mockList cannot. Two are raw reads; the boot
+	// instant goes through a typed accessor and is shaped the same way.
 	"boot-time": {dataControllerBootTime, mockContainer(mockDeviceHardwareModule, "boot-time",
 		`"2026-01-01T00:00:00+00:00"`)},
 	"co-client-del-reason": {dataCoClientDelReason, mockContainer(mockClientGlobalModule, "co-client-del-reason",
@@ -886,7 +891,7 @@ func allModules() config.Collectors {
 	return config.Collectors{
 		AP: config.APCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Join: true,
-			Spectrum: true, Info: true,
+			Geolocation: true, Spectrum: true, Info: true,
 		},
 		Client: config.ClientCollectorModules{
 			General: true, Radio: true, Traffic: true, Errors: true, Info: true,

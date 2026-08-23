@@ -32,7 +32,7 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 - A refresh reads only the data types the enabled modules need, so a narrower flag set leaves more of that budget per data type
 - `wnc_refresh_errors_total` names the data types a configuration reads — a type absent from both refresh series is one no enabled module reads
 - Data series are withheld after three consecutive failed refreshes, so Prometheus can mark them stale
-- Every read is a registered data type, so it is gated by a module flag, bounded by the refresh deadline and counted in both refresh series alike — twenty-four of the twenty-seven go through a typed SDK accessor, and the three the SDK has no route for build their path directly and check the container they were answered with, as [Controller](collector.controller.md) note *4 describes
+- Every read is a registered data type, so it is gated by a module flag, bounded by the refresh deadline and counted in both refresh series alike — twenty-six of the twenty-eight go through a typed SDK accessor, and the two the SDK has no route for build their path directly and check the container they were answered with, as [Controller](collector.controller.md) note *4 describes
 
 ### Request timeout (`--wnc.timeout`)
 

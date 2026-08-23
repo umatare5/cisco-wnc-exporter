@@ -4,11 +4,12 @@ package wnc
 
 import (
 	"context"
+	"time"
 )
 
 // ControllerSource provides access to controller-wide data from WNC via REST API.
 type ControllerSource interface {
-	GetBootTime(ctx context.Context) (string, error)
+	GetBootTime(ctx context.Context) (*time.Time, error)
 	GetClientDeleteReasons(ctx context.Context) (map[string]float64, error)
 	GetClientRoamingStats(ctx context.Context) (map[string]float64, error)
 }
@@ -26,12 +27,12 @@ func NewControllerSource(sharedDataSource DataSource) ControllerSource {
 }
 
 // GetBootTime returns the controller boot time from WNC via SharedDataSource (cached).
-// It is empty when the controller carries no such leaf, which the collector reads as
+// It is nil when the controller carries no such leaf, which the collector reads as
 // absence rather than as an instant.
-func (s *controllerSource) GetBootTime(ctx context.Context) (string, error) {
+func (s *controllerSource) GetBootTime(ctx context.Context) (*time.Time, error) {
 	data, err := snapshot(ctx, s.sharedDataSource, dataControllerBootTime)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return data.ControllerBootTime, nil
 }

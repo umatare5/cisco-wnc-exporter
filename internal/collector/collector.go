@@ -89,6 +89,7 @@ func (c *Collector) RegisterServiceCollectors() {
 		c.cfg.Collectors.AP.Traffic,
 		c.cfg.Collectors.AP.Errors,
 		c.cfg.Collectors.AP.Join,
+		c.cfg.Collectors.AP.Geolocation,
 		c.cfg.Collectors.AP.Spectrum,
 		c.cfg.Collectors.AP.Info,
 	) {
@@ -161,14 +162,15 @@ func (c *Collector) registerRefreshCollector() {
 // registerAPCollector registers the AP collector with its modules.
 func (c *Collector) registerAPCollector(apSource wnc.APSource, rrmSource wnc.RRMSource, clientSource wnc.ClientSource) {
 	baseCollector := NewAPCollector(apSource, rrmSource, clientSource, APMetrics{
-		General:    c.cfg.Collectors.AP.General,
-		Radio:      c.cfg.Collectors.AP.Radio,
-		Traffic:    c.cfg.Collectors.AP.Traffic,
-		Errors:     c.cfg.Collectors.AP.Errors,
-		Join:       c.cfg.Collectors.AP.Join,
-		Spectrum:   c.cfg.Collectors.AP.Spectrum,
-		Info:       c.cfg.Collectors.AP.Info,
-		InfoLabels: c.cfg.Collectors.AP.InfoLabels,
+		General:     c.cfg.Collectors.AP.General,
+		Radio:       c.cfg.Collectors.AP.Radio,
+		Traffic:     c.cfg.Collectors.AP.Traffic,
+		Errors:      c.cfg.Collectors.AP.Errors,
+		Join:        c.cfg.Collectors.AP.Join,
+		Geolocation: c.cfg.Collectors.AP.Geolocation,
+		Spectrum:    c.cfg.Collectors.AP.Spectrum,
+		Info:        c.cfg.Collectors.AP.Info,
+		InfoLabels:  c.cfg.Collectors.AP.InfoLabels,
 	})
 
 	// Recover panics next to the base collector so the goroutine InfoCacheCollector spawns is covered.

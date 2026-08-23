@@ -18,6 +18,7 @@ var dataTypeNames = []string{
 	dataAPRadioOperData,
 	dataAPNameMACMap,
 	dataAPJoinStats,
+	dataAPGeoLocData,
 	dataRRMMeasurement,
 	dataWLANCfgEntries,
 	dataWLANPolicies,
@@ -105,6 +106,10 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		// The join module is keyed by the statistics list itself, which keeps a record
 		// for an AP the inventory has dropped, so it reads no other AP data type.
 		return modules.AP.Join
+	case dataAPGeoLocData:
+		// The coordinate module is keyed by the ap-mac of its own list, so like the join
+		// module it reads no other AP data type.
+		return modules.AP.Geolocation
 	case dataAPRadioOperStats:
 		return anyOf(modules.AP.Traffic, modules.AP.Errors)
 	case dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData:
@@ -182,6 +187,14 @@ func (s *dataSource) fetchers() []dataFetcher {
 			c.JoinStats = data.ApJoinStats
 			return len(c.JoinStats), nil
 		}},
+		{dataAPGeoLocData, func(ctx context.Context, c *WNCDataCache) (int, error) {
+			data, err := s.client.Geolocation().ListAPGeolocationData(ctx)
+			if err != nil {
+				return 0, err
+			}
+			c.APGeoLocData = data.ApGeoLocData
+			return len(c.APGeoLocData), nil
+		}},
 		{dataRRMMeasurement, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			data, err := s.client.RRM().ListRRMMeasurement(ctx)
 			if err != nil {
@@ -229,12 +242,17 @@ func (s *dataSource) fetchers() []dataFetcher {
 			return len(c.WLANClientStats), nil
 		}},
 		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
-			bootTime, present, err := rawValue[string](ctx, s.client, routeControllerBootTime)
+			// A read answered with no body decodes to a zero value of the wrapper, so the
+			// leaf has to be tested rather than the error: without this an omitted instant
+			// counts as one item and the collector dereferences nil.
+			data, err := s.client.Controller().GetBootTime(ctx)
 			if err != nil {
 				return 0, err
 			}
-			c.ControllerBootTime = bootTime
-			return boolToInt(present), nil
+			if data != nil {
+				c.ControllerBootTime = data.BootTime
+			}
+			return boolToInt(c.ControllerBootTime != nil), nil
 		}},
 		{dataCoClientDelReason, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			leaves, present, err := rawValue[map[string]json.RawMessage](

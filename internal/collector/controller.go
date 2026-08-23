@@ -5,7 +5,6 @@ package collector
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -145,22 +144,21 @@ func (c *ControllerCollector) collectRoams(ctx context.Context, ch chan<- promet
 }
 
 // collectBootTime publishes the boot instant, and publishes nothing when the leaf is
-// absent, unparsable or the epoch. A zero there would report a boot in 1970, which
-// makes an uptime derived from it five decades long.
+// absent or the epoch. A zero there would report a boot in 1970, which makes an uptime
+// derived from it five decades long. An instant the wire form cannot express now fails
+// the read instead of arriving here, so it raises the refresh error counter.
 func (c *ControllerCollector) collectBootTime(ctx context.Context, ch chan<- prometheus.Metric) {
 	bootTime, err := c.src.GetBootTime(ctx)
 	if err != nil {
 		slog.Debug("Failed to get controller boot time", "error", err)
 		return
 	}
-
-	at, err := time.Parse(time.RFC3339, bootTime)
-	if err != nil {
-		slog.Debug("Controller reported no usable boot time")
+	if bootTime == nil {
+		slog.Debug("Controller reported no boot time")
 		return
 	}
 
-	emitTimestamp(ch, c.bootTimeDesc, at)
+	emitTimestamp(ch, c.bootTimeDesc, *bootTime)
 }
 
 // collectClientDeletes publishes one counter per reason leaf, including the leaves

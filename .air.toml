@@ -12,6 +12,7 @@ tmp_dir = "tmp"
                   --collector.ap.traffic \
                   --collector.ap.errors \
                   --collector.ap.join \
+                  --collector.ap.geolocation \
                   --collector.ap.spectrum \
                   --collector.ap.info \
                   --collector.ap.info-labels "name,ip,band,model,serial,sw_version,eth_mac" \
@@ -20,7 +21,7 @@ tmp_dir = "tmp"
                   --collector.client.traffic \
                   --collector.client.errors \
                   --collector.client.info \
-                  --collector.client.info-labels "ap,band,wlan,name,username,ipv4,ipv6" \
+                  --collector.client.info-labels "ap,band,wlan,wlan_id,name,device_type,username,ipv4,ipv6" \
                   --collector.wlan.general \
                   --collector.wlan.traffic \
                   --collector.wlan.config \

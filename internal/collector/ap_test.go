@@ -270,6 +270,11 @@ func TestAPCollector_Describe(t *testing.T) {
 			32,
 		},
 		{
+			"Geolocation module only",
+			APMetrics{Geolocation: true},
+			2, // longitude and latitude
+		},
+		{
 			"Spectrum module only",
 			APMetrics{Spectrum: true},
 			// The four per-radio air quality series and the four band-keyed ones
@@ -283,15 +288,16 @@ func TestAPCollector_Describe(t *testing.T) {
 		{
 			"All modules enabled",
 			APMetrics{
-				General:  true,
-				Radio:    true,
-				Traffic:  true,
-				Errors:   true,
-				Join:     true,
-				Spectrum: true,
-				Info:     true,
+				General:     true,
+				Radio:       true,
+				Traffic:     true,
+				Errors:      true,
+				Join:        true,
+				Geolocation: true,
+				Spectrum:    true,
+				Info:        true,
 			},
-			87, // 8+15+10+13+32+8+1
+			89, // 8+15+10+13+32+2+8+1
 		},
 	}
 

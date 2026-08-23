@@ -16,6 +16,7 @@ import (
 	wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/client"
+	"github.com/umatare5/cisco-ios-xe-wireless-go/service/geolocation"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/rrm"
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/wlan"
 	"github.com/umatare5/cisco-wnc-exporter/internal/config"
@@ -34,6 +35,7 @@ const (
 	dataAPRadioOperStats      = "ap_radio_oper_stats"
 	dataAPRadioResetStats     = "ap_radio_reset_stats"
 	dataAPJoinStats           = "ap_join_stats"
+	dataAPGeoLocData          = "ap_geo_loc_data"
 	dataWLANClientStats       = "wlan_client_stats"
 	dataClientCommonOperData  = "client_common_oper_data"
 	dataClientDCInfo          = "client_dc_info"
@@ -76,6 +78,7 @@ type WNCDataCache struct {
 	RadioResetStats []ap.RadioResetStats
 	NameMACMaps     []ap.ApNameMACMap
 	JoinStats       []ap.ApJoinStats
+	APGeoLocData    []geolocation.ApGeoLocData
 
 	CommonOperData    []client.CommonOperData
 	DCInfo            []client.DcInfo
@@ -93,9 +96,10 @@ type WNCDataCache struct {
 	SpectrumAqTable  []rrm.SpectrumAqTable
 	SpectrumAqWorst  []rrm.SpectrumAqWorstTable
 
-	// Controller-wide data. Each comes from a container the SDK has no route for, and
-	// each is empty rather than absent when the controller does not carry it.
-	ControllerBootTime  string
+	// Controller-wide data. The two counter containers come from routes the SDK has none
+	// of and are empty rather than absent when the controller does not carry them; the
+	// boot instant has a typed accessor and is nil when the controller omits the leaf.
+	ControllerBootTime  *time.Time
 	ClientDeleteReasons map[string]float64
 	ClientRoamingStats  map[string]float64
 
