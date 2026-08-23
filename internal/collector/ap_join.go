@@ -10,11 +10,6 @@ import (
 	"github.com/umatare5/cisco-ios-xe-wireless-go/service/ap"
 )
 
-// epochYear is the year of the sentinel the controller writes into a timestamp leaf
-// for an event that has not happened. It sends 1970-01-01T00:00:00+00:00, which
-// parses to a real instant, so IsZero does not recognize it.
-const epochYear = 1970
-
 // The controller keeps one set of DTLS counters per tunnel channel in a single
 // container, so the two sets are folded into one series carrying this label.
 const (
@@ -435,15 +430,4 @@ func (d *apJoinDescs) collectReasons(ch chan<- prometheus.Metric, record *ap.ApJ
 		dtls.CtrlDTLSFailureType, record.WtpMAC, dtlsChannelControl)
 	emitEnumReading(ch, d.lastDTLSFailureReason, apDTLSFailureReasons,
 		dtls.DataDTLSFailureType, record.WtpMAC, dtlsChannelData)
-}
-
-// emitTimestamp publishes the instant as a Unix timestamp gauge, and publishes
-// nothing for the epoch sentinel. A zero there would read as an event in 1970, and
-// time() minus the series as five decades.
-func emitTimestamp(ch chan<- prometheus.Metric, desc *prometheus.Desc, at time.Time, labels ...string) {
-	if at.Year() <= epochYear {
-		return
-	}
-
-	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, float64(at.Unix()), labels...)
 }
