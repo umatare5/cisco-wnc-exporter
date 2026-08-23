@@ -74,7 +74,9 @@ func (d *apGeoDescs) collect(ch chan<- prometheus.Metric, records []geolocation.
 
 		// The list key is mandatory in the schema, but this house has measured another
 		// list of this controller padded with rows whose key leaf was empty, and ApMAC
-		// is a plain string with no omitempty, so an omitted key arrives as one.
+		// is a plain string with no omitempty, so an omitted key arrives as one. Two such
+		// rows would be one label set emitted twice, which fails Gather and costs the
+		// whole endpoint rather than these two series.
 		if record.ApMAC == "" {
 			continue
 		}
