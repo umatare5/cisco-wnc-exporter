@@ -417,8 +417,12 @@ func fixtureCollectors(t *testing.T, data *wnc.WNCDataCache) []prometheus.Collec
 	}
 }
 
-// fullFixtureSnapshot returns a snapshot in which every data type carries one
-// entry, so every series exists in the baseline.
+// fullFixtureSnapshot returns a snapshot in which every data type carries one entry and
+// every leaf a collector reads carries a value, so every series exists in the baseline.
+//
+// Leaf granularity is the contract, not record granularity: a leaf the SDK types as a
+// pointer is withheld when it is nil, so leaving one unset removes its series from the
+// baseline and every absence assertion resting on that series then proves nothing.
 func fullFixtureSnapshot() *wnc.WNCDataCache {
 	return &wnc.WNCDataCache{
 		FetchErrors: map[string]error{},
@@ -430,6 +434,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			Name:       fixtureAPName,
 			ApTimeInfo: ap.ApTimeInfo{BootTime: fixtureAPBootTime, JoinTime: fixtureAPJoinTime},
 			ApState:    ap.ApState{ApOperationState: "registered"},
+			TagInfo:    ap.TagInfo{IsApMisconfigured: ptr(false)},
 		}},
 		ApOperData: []ap.OperData{{
 			WtpMAC:  fixtureAPMAC,
@@ -456,7 +461,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			RadioBandInfo: []ap.RadioBandInfo{{
 				BandID: fixtureBandID,
 				PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{
-					CfgData: ap.PhyTxPwrLvlCfgData{CurrTxPowerInDbm: 14, TxPowerLevel1: 20},
+					CfgData: ap.PhyTxPwrLvlCfgData{CurrTxPowerInDbm: ptr[int8](14), TxPowerLevel1: ptr[int8](20)},
 				},
 			}},
 		}, {
@@ -626,10 +631,10 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WtpMAC:      fixtureAPMAC,
 			RadioSlotID: 0,
 			RadioData: &rrm.RadioData{
-				CoverageProfilePassed:     true,
-				LoadProfPassed:            false,
-				InterferenceProfilePassed: false,
-				NoiseProfilePassed:        true,
+				CoverageProfilePassed:     ptr(true),
+				LoadProfPassed:            ptr(false),
+				InterferenceProfilePassed: ptr(false),
+				NoiseProfilePassed:        ptr(true),
 				DCAStats: &rrm.DCAStats{
 					BestChan:          31,
 					CurrentChanEnergy: -32,
@@ -732,18 +737,25 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			ClientCurrStateRun:      7107,
 		}},
 		WLANConfigEntries: []wlan.WlanCfgEntry{{
-			WlanID:         1,
-			ProfileName:    fixtureProfile,
-			AuthKeyMgmtPsk: true,
-			WPA2Enabled:    true,
-			PMFOptions:     fixturePMFOptions,
-			FTMode:         fixtureFTMode,
-			APFVapIDData:   &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true},
+			WlanID:           1,
+			ProfileName:      fixtureProfile,
+			AuthKeyMgmtPsk:   true,
+			AuthKeyMgmtDot1x: ptr(false),
+			WPA2Enabled:      ptr(true),
+			Wlan11kNeighList: ptr(false),
+			PMFOptions:       fixturePMFOptions,
+			FTMode:           fixtureFTMode,
+			APFVapIDData:     &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: ptr(true)},
 		}},
 		WLANPolicies: []wlan.WlanPolicy{{
-			PolicyProfileName:   fixturePolicy,
-			WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{CentralSwitching: true},
-			WlanTimeout:         &wlan.WlanTimeout{SessionTimeout: 1800},
+			PolicyProfileName: fixturePolicy,
+			WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
+				CentralSwitching:      ptr(true),
+				CentralAuthentication: ptr(false),
+				CentralDHCP:           ptr(false),
+				CentralAssocEnable:    ptr(false),
+			},
+			WlanTimeout: &wlan.WlanTimeout{SessionTimeout: ptr(1800)},
 		}},
 		WLANPolicyListEntries: []wlan.PolicyListEntry{{
 			TagName: "test-tag",
@@ -767,19 +779,19 @@ func newFixtureJoinStats() ap.ApJoinStats {
 		WtpMAC: fixtureAPMAC,
 		ApJoinInfo: ap.ApJoinInfo{
 			ApName:   fixtureAPName,
-			IsJoined: true,
+			IsJoined: ptr(true),
 
 			// Neither address is published: the record is keyed by wtp-mac, and an IP in a
 			// counter's labels would turn a DHCP lease change into a counter reset.
 			ApIPAddr:      "192.0.2.99",
 			ApEthernetMAC: "aa:bb:cc:dd:ee:00",
 
-			NumJoinReqRecvd:       5101,
-			NumSuccJoinRespSent:   5102,
-			NumUnsuccJoinReqProcn: 5103,
-			NumConfigReqRecvd:     5104,
-			NumSuccConfRespSent:   5105,
-			NumUnsuccConfReqProcn: 5106,
+			NumJoinReqRecvd:       ptr(5101),
+			NumSuccJoinRespSent:   ptr(5102),
+			NumUnsuccJoinReqProcn: ptr(5103),
+			NumConfigReqRecvd:     ptr(5104),
+			NumSuccConfRespSent:   ptr(5105),
+			NumUnsuccConfReqProcn: ptr(5106),
 
 			// Each of the six AP-keyed reason leaves carries a spelling its own
 			// enumeration numbers differently from the other five, so exchanging two
@@ -801,9 +813,9 @@ func newFixtureJoinStats() ap.ApJoinStats {
 			EthernetMAC: "aa:bb:cc:dd:ee:00",
 			ApIPAddress: "192.0.2.99",
 
-			NumDiscoveryReqRecvd: 5201,
-			NumSuccDiscRespSent:  5202,
-			NumErrDiscReq:        5203,
+			NumDiscoveryReqRecvd: ptr(5201),
+			NumSuccDiscRespSent:  ptr(5202),
+			NumErrDiscReq:        ptr(5203),
 			LastDiscFailureType:  "disc-fail-resp-send-fail",
 			LastSuccessDiscTime:  fixtureDiscoverySuccessAt,
 			LastFailedDiscTime:   fixtureDiscoveryFailureAt,
@@ -811,17 +823,17 @@ func newFixtureJoinStats() ap.ApJoinStats {
 		DTLSSessInfo: ap.DTLSSessInfo{
 			MACAddr: fixtureAPMAC,
 
-			CtrlDTLSSetupReq:      5301,
-			CtrlDTLSSuccess:       5302,
-			CtrlDTLSFailure:       5303,
-			CtrlDTLSDecryptErr:    5304,
-			CtrlDTLSAntiReplayErr: 5305,
+			CtrlDTLSSetupReq:      ptr(5301),
+			CtrlDTLSSuccess:       ptr(5302),
+			CtrlDTLSFailure:       ptr(5303),
+			CtrlDTLSDecryptErr:    ptr(5304),
+			CtrlDTLSAntiReplayErr: ptr(5305),
 
-			DataDTLSSetupReq:      5401,
-			DataDTLSSuccess:       5402,
-			DataDTLSFailure:       5403,
-			DataDTLSDecryptErr:    5404,
-			DataDTLSAntiReplayErr: 5405,
+			DataDTLSSetupReq:      ptr(5401),
+			DataDTLSSuccess:       ptr(5402),
+			DataDTLSFailure:       ptr(5403),
+			DataDTLSDecryptErr:    ptr(5404),
+			DataDTLSAntiReplayErr: ptr(5405),
 
 			// The data channel carries a well-formed spelling that no release of this
 			// enumeration declares, so it is the withhold canary of the encoding; the
@@ -889,4 +901,181 @@ func newFixtureZeroLatencyHistory() client.MmIfClientHistory {
 		Role:   "mm-client-role-local",
 	})
 	return history
+}
+
+// gatherSeriesCounts registers every data collector over a snapshot the given function has
+// mutated and reports how many series each family carries. Counting rather than testing for
+// presence is what makes a family of several series usable here: clearing one leaf of a
+// per-channel counter leaves the family present with one series fewer.
+func gatherSeriesCounts(t *testing.T, omit func(*wnc.WNCDataCache)) map[string]int {
+	t.Helper()
+
+	data := fullFixtureSnapshot()
+	if omit != nil {
+		omit(data)
+	}
+
+	registry := prometheus.NewRegistry()
+	for _, collector := range fixtureCollectors(t, data) {
+		registry.MustRegister(collector)
+	}
+
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("Gather() error = %v, want nil", err)
+	}
+
+	counts := make(map[string]int, len(families))
+	for _, family := range families {
+		counts[family.GetName()] = len(family.GetMetric())
+	}
+	return counts
+}
+
+// TestAllCollectors_OmitSeriesWhenLeafAbsent is the leaf-level counterpart of the data-type
+// experiment above, and it is the guarantee behind every pointer-typed leaf this exporter reads.
+// A leaf the controller omitted arrives as a nil pointer, and publishing zero or false for one
+// fabricates a reading: on a counter it reports one that has never advanced, and on a
+// configuration boolean it reports the inverse of the setting, because the controller omits the
+// leaf whose default is in force and that default is often true.
+//
+// Each case clears one leaf and asserts the exact series count of the family that reads it, so a
+// guard withholding nothing and a guard withholding a sibling both fail here.
+func TestAllCollectors_OmitSeriesWhenLeafAbsent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		leaf   string
+		omit   func(*wnc.WNCDataCache)
+		family string
+		// want is the series the family keeps once the leaf is cleared. It is not zero
+		// wherever a sibling series of the same family reads a leaf of its own.
+		want int
+	}{
+		{"is-ap-misconfigured", func(d *wnc.WNCDataCache) {
+			d.CAPWAPData[0].TagInfo.IsApMisconfigured = nil
+		}, "wnc_ap_config_state", 0},
+		{"curr-tx-power-in-dbm", func(d *wnc.WNCDataCache) {
+			d.RadioOperData[0].RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm = nil
+		}, "wnc_ap_tx_power_dbm", 0},
+		{"tx-power-level-1", func(d *wnc.WNCDataCache) {
+			d.RadioOperData[0].RadioBandInfo[0].PhyTxPwrLvlCfg.CfgData.TxPowerLevel1 = nil
+		}, "wnc_ap_tx_power_max_dbm", 0},
+
+		// One verdict of four. The other three are the sibling check: absence is per leaf,
+		// so a guard reading the container would take all four out together.
+		{"coverage-profile-passed", func(d *wnc.WNCDataCache) {
+			d.RadioSlots[0].RadioData.CoverageProfilePassed = nil
+		}, "wnc_ap_rrm_profile_passed", 3},
+		{"every profile verdict", func(d *wnc.WNCDataCache) {
+			d.RadioSlots[0].RadioData.CoverageProfilePassed = nil
+			d.RadioSlots[0].RadioData.LoadProfPassed = nil
+			d.RadioSlots[0].RadioData.InterferenceProfilePassed = nil
+			d.RadioSlots[0].RadioData.NoiseProfilePassed = nil
+		}, "wnc_ap_rrm_profile_passed", 0},
+
+		{"is-joined", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.IsJoined = nil
+		}, "wnc_ap_joined", 0},
+		{"num-discovery-req-recvd", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApDiscoveryInfo.NumDiscoveryReqRecvd = nil
+		}, "wnc_ap_discovery_requests_total", 0},
+		{"num-succ-disc-resp-sent", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApDiscoveryInfo.NumSuccDiscRespSent = nil
+		}, "wnc_ap_discovery_responses_total", 0},
+		{"num-err-disc-req", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApDiscoveryInfo.NumErrDiscReq = nil
+		}, "wnc_ap_discovery_errors_total", 0},
+		{"num-join-req-recvd", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumJoinReqRecvd = nil
+		}, "wnc_ap_join_requests_total", 0},
+		{"num-succ-join-resp-sent", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumSuccJoinRespSent = nil
+		}, "wnc_ap_join_responses_total", 0},
+		{"num-unsucc-join-req-procn", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumUnsuccJoinReqProcn = nil
+		}, "wnc_ap_join_failures_total", 0},
+		{"num-config-req-recvd", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumConfigReqRecvd = nil
+		}, "wnc_ap_config_requests_total", 0},
+		{"num-succ-conf-resp-sent", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumSuccConfRespSent = nil
+		}, "wnc_ap_config_responses_total", 0},
+		{"num-unsucc-conf-req-procn", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].ApJoinInfo.NumUnsuccConfReqProcn = nil
+		}, "wnc_ap_config_failures_total", 0},
+
+		// The two DTLS channels share one family, so clearing the control leaf must leave
+		// the data channel's series standing.
+		{"ctrl-dtls-setup-req", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSSetupReq = nil
+		}, "wnc_ap_dtls_session_requests_total", 1},
+		{"data-dtls-setup-req", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.DataDTLSSetupReq = nil
+		}, "wnc_ap_dtls_session_requests_total", 1},
+		{"ctrl-dtls-success", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSSuccess = nil
+		}, "wnc_ap_dtls_session_successes_total", 1},
+		{"ctrl-dtls-failure", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSFailure = nil
+		}, "wnc_ap_dtls_session_failures_total", 1},
+		{"ctrl-dtls-decrypt-err", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSDecryptErr = nil
+		}, "wnc_ap_dtls_decrypt_errors_total", 1},
+		{"ctrl-dtls-anti-replay-err", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSAntiReplayErr = nil
+		}, "wnc_ap_dtls_anti_replay_errors_total", 1},
+		{"both dtls channels", func(d *wnc.WNCDataCache) {
+			d.JoinStats[0].DTLSSessInfo.CtrlDTLSSetupReq = nil
+			d.JoinStats[0].DTLSSessInfo.DataDTLSSetupReq = nil
+		}, "wnc_ap_dtls_session_requests_total", 0},
+
+		{"wlan-status", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].APFVapIDData.WlanStatus = nil
+		}, "wnc_wlan_enabled", 0},
+		{"auth-key-mgmt-dot1x", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1x = nil
+		}, "wnc_wlan_auth_dot1x_enabled", 0},
+		{"wpa2-enabled", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].WPA2Enabled = nil
+		}, "wnc_wlan_wpa2_enabled", 0},
+		{"wlan-11k-neigh-list", func(d *wnc.WNCDataCache) {
+			d.WLANConfigEntries[0].Wlan11kNeighList = nil
+		}, "wnc_wlan_11k_neighbor_list_enabled", 0},
+		{"session-timeout", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanTimeout.SessionTimeout = nil
+		}, "wnc_wlan_session_timeout_seconds", 0},
+		{"central-switching", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = nil
+		}, "wnc_wlan_central_switching_enabled", 0},
+		{"central-authentication", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAuthentication = nil
+		}, "wnc_wlan_central_authentication_enabled", 0},
+		{"central-dhcp", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralDHCP = nil
+		}, "wnc_wlan_central_dhcp_enabled", 0},
+		{"central-assoc-enable", func(d *wnc.WNCDataCache) {
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = nil
+		}, "wnc_wlan_central_association_enabled", 0},
+	}
+
+	baseline := gatherSeriesCounts(t, nil)
+
+	for _, tt := range tests {
+		t.Run(tt.leaf, func(t *testing.T) {
+			t.Parallel()
+
+			// Without this the case would pass on a family the fixture never populated,
+			// and on one the leaf turns out not to feed.
+			if baseline[tt.family] <= tt.want {
+				t.Fatalf("%s carries %d series in the all-present baseline, so clearing %s "+
+					"down to %d proves nothing", tt.family, baseline[tt.family], tt.leaf, tt.want)
+			}
+
+			if got := gatherSeriesCounts(t, tt.omit)[tt.family]; got != tt.want {
+				t.Errorf("%s carries %d series with %s cleared, want %d",
+					tt.family, got, tt.leaf, tt.want)
+			}
+		})
+	}
 }

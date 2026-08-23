@@ -11,6 +11,16 @@ Reference pages for cisco-wnc-exporter. The [README](../README.md) covers gettin
 | [WLAN](collector.wlan.md)             | Logical SSID performance and parameter checks      |
 | [Controller](collector.controller.md) | The controller itself, with no per-device label    |
 
+## Absence
+
+### A leaf the controller omits is withheld, not published as zero
+
+- A C9800 omits a leaf whose value equals its schema default, so absence on the wire is not a reading and publishing `0` or `false` for it invents one
+- The direction of the error is what makes this matter: on IOS-XE 17.12, a plain read of `wlan-cfg-entries` omitted `wpa2-enabled` and `wlan-11k-neigh-list` from exactly the WLANs where they were **on**, so a zero there reported the inverse of the setting
+- Absence is per leaf, not per container: a `wlan-switching-policy` was observed carrying two of its four `central-*` leaves with the other two omitted, so a sibling series being present is no evidence that this one's leaf was sent
+- Where the SDK preserves the absence, the series goes absent on its own and its HELP says so — where it does not, an omitted leaf still decodes to `0` and the series' HELP says that instead
+- `wnc_refresh_defaults_fallback_total` is what tells the two apart in practice: while it is flat the exporter is reading the values in force and few leaves are omitted at all, and while it is rising the controller is refusing that request and the omissions are back
+
 ## Data refresh and caching
 
 ### WNC data refresh (`--wnc.cache-ttl`)

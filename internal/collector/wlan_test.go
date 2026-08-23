@@ -385,41 +385,47 @@ func TestDetermineWLANEnabledStatus(t *testing.T) {
 	tests := []struct {
 		name      string
 		wlanEntry wlan.WlanCfgEntry
-		expected  int
+		expected  *bool
 	}{
 		{
 			"Enabled WLAN",
 			wlan.WlanCfgEntry{
 				APFVapIDData: &wlan.APFVapIDData{
-					WlanStatus: true,
+					WlanStatus: ptr(true),
 				},
 			},
-			1,
+			ptr(true),
 		},
 		{
 			"Disabled WLAN",
 			wlan.WlanCfgEntry{
 				APFVapIDData: &wlan.APFVapIDData{
-					WlanStatus: false,
+					WlanStatus: ptr(false),
 				},
 			},
-			0,
+			ptr(false),
+		},
+		{
+			"Omitted status leaf",
+			wlan.WlanCfgEntry{
+				APFVapIDData: &wlan.APFVapIDData{},
+			},
+			nil,
 		},
 		{
 			"Nil APFVapIDData",
 			wlan.WlanCfgEntry{
 				APFVapIDData: nil,
 			},
-			0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineWLANEnabledStatus(tt.wlanEntry); got != tt.expected {
-				t.Errorf("determineWLANEnabledStatus() = %d, want %d", got, tt.expected)
-			}
+			wantLeaf(t, "determineWLANEnabledStatus",
+				determineWLANEnabledStatus(tt.wlanEntry), tt.expected)
 		})
 	}
 }
@@ -476,46 +482,52 @@ func TestDetermineSessionTimeout(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *wlan.WlanPolicy
-		expected int
+		expected *int
 	}{
 		{
 			"Valid timeout",
 			&wlan.WlanPolicy{
 				WlanTimeout: &wlan.WlanTimeout{
-					SessionTimeout: 3600,
+					SessionTimeout: ptr(3600),
 				},
 			},
-			3600,
+			ptr(3600),
 		},
 		{
+			// Zero is a configured timeout, so it must not read as the absent case below.
 			"Zero timeout",
 			&wlan.WlanPolicy{
 				WlanTimeout: &wlan.WlanTimeout{
-					SessionTimeout: 0,
+					SessionTimeout: ptr(0),
 				},
 			},
-			0,
+			ptr(0),
+		},
+		{
+			"Omitted timeout leaf",
+			&wlan.WlanPolicy{
+				WlanTimeout: &wlan.WlanTimeout{},
+			},
+			nil,
 		},
 		{
 			"Nil WlanTimeout",
 			&wlan.WlanPolicy{
 				WlanTimeout: nil,
 			},
-			0,
+			nil,
 		},
 		{
 			"Nil policy",
 			nil,
-			0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineSessionTimeout(tt.policy); got != tt.expected {
-				t.Errorf("determineSessionTimeout() = %d, want %d", got, tt.expected)
-			}
+			wantLeaf(t, "determineSessionTimeout", determineSessionTimeout(tt.policy), tt.expected)
 		})
 	}
 }
@@ -525,46 +537,53 @@ func TestDetermineCentralSwitchingValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *wlan.WlanPolicy
-		expected float64
+		expected *bool
 	}{
 		{
 			"Central switching enabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralSwitching: true,
+					CentralSwitching: ptr(true),
 				},
 			},
-			1.0,
+			ptr(true),
 		},
 		{
 			"Central switching disabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralSwitching: false,
+					CentralSwitching: ptr(false),
 				},
 			},
-			0.0,
+			ptr(false),
+		},
+		{
+			// The controller omits these per leaf, so a sibling being present is not
+			// evidence that this one is.
+			"Omitted CentralSwitching leaf",
+			&wlan.WlanPolicy{
+				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{},
+			},
+			nil,
 		},
 		{
 			"Nil WlanSwitchingPolicy",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: nil,
 			},
-			0.0,
+			nil,
 		},
 		{
 			"Nil policy",
 			nil,
-			0.0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineCentralSwitchingValue(tt.policy); got != tt.expected {
-				t.Errorf("determineCentralSwitchingValue() = %f, want %f", got, tt.expected)
-			}
+			wantLeaf(t, "determineCentralSwitchingValue", determineCentralSwitchingValue(tt.policy), tt.expected)
 		})
 	}
 }
@@ -574,46 +593,54 @@ func TestDetermineCentralAuthenticationValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *wlan.WlanPolicy
-		expected float64
+		expected *bool
 	}{
 		{
 			"Central authentication enabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralAuthentication: true,
+					CentralAuthentication: ptr(true),
 				},
 			},
-			1.0,
+			ptr(true),
 		},
 		{
 			"Central authentication disabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralAuthentication: false,
+					CentralAuthentication: ptr(false),
 				},
 			},
-			0.0,
+			ptr(false),
+		},
+		{
+			// The controller omits these per leaf, so a sibling being present is not
+			// evidence that this one is.
+			"Omitted CentralAuthentication leaf",
+			&wlan.WlanPolicy{
+				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{},
+			},
+			nil,
 		},
 		{
 			"Nil WlanSwitchingPolicy",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: nil,
 			},
-			0.0,
+			nil,
 		},
 		{
 			"Nil policy",
 			nil,
-			0.0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineCentralAuthenticationValue(tt.policy); got != tt.expected {
-				t.Errorf("determineCentralAuthenticationValue() = %f, want %f", got, tt.expected)
-			}
+			wantLeaf(t, "determineCentralAuthenticationValue",
+				determineCentralAuthenticationValue(tt.policy), tt.expected)
 		})
 	}
 }
@@ -623,46 +650,53 @@ func TestDetermineCentralDHCPValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *wlan.WlanPolicy
-		expected float64
+		expected *bool
 	}{
 		{
 			"Central DHCP enabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralDHCP: true,
+					CentralDHCP: ptr(true),
 				},
 			},
-			1.0,
+			ptr(true),
 		},
 		{
 			"Central DHCP disabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralDHCP: false,
+					CentralDHCP: ptr(false),
 				},
 			},
-			0.0,
+			ptr(false),
+		},
+		{
+			// The controller omits these per leaf, so a sibling being present is not
+			// evidence that this one is.
+			"Omitted CentralDHCP leaf",
+			&wlan.WlanPolicy{
+				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{},
+			},
+			nil,
 		},
 		{
 			"Nil WlanSwitchingPolicy",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: nil,
 			},
-			0.0,
+			nil,
 		},
 		{
 			"Nil policy",
 			nil,
-			0.0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineCentralDHCPValue(tt.policy); got != tt.expected {
-				t.Errorf("determineCentralDHCPValue() = %f, want %f", got, tt.expected)
-			}
+			wantLeaf(t, "determineCentralDHCPValue", determineCentralDHCPValue(tt.policy), tt.expected)
 		})
 	}
 }
@@ -672,46 +706,53 @@ func TestDetermineCentralAssocEnableValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *wlan.WlanPolicy
-		expected float64
+		expected *bool
 	}{
 		{
 			"Central association enabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralAssocEnable: true,
+					CentralAssocEnable: ptr(true),
 				},
 			},
-			1.0,
+			ptr(true),
 		},
 		{
 			"Central association disabled",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{
-					CentralAssocEnable: false,
+					CentralAssocEnable: ptr(false),
 				},
 			},
-			0.0,
+			ptr(false),
+		},
+		{
+			// The controller omits these per leaf, so a sibling being present is not
+			// evidence that this one is.
+			"Omitted CentralAssocEnable leaf",
+			&wlan.WlanPolicy{
+				WlanSwitchingPolicy: &wlan.WlanSwitchingPolicy{},
+			},
+			nil,
 		},
 		{
 			"Nil WlanSwitchingPolicy",
 			&wlan.WlanPolicy{
 				WlanSwitchingPolicy: nil,
 			},
-			0.0,
+			nil,
 		},
 		{
 			"Nil policy",
 			nil,
-			0.0,
+			nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := determineCentralAssocEnableValue(tt.policy); got != tt.expected {
-				t.Errorf("determineCentralAssocEnableValue() = %f, want %f", got, tt.expected)
-			}
+			wantLeaf(t, "determineCentralAssocEnableValue", determineCentralAssocEnableValue(tt.policy), tt.expected)
 		})
 	}
 }
@@ -1112,7 +1153,8 @@ func TestWLANCollector_collectGeneralMetrics(t *testing.T) {
 	entry := wlan.WlanCfgEntry{
 		WlanID: 1,
 		APFVapIDData: &wlan.APFVapIDData{
-			SSID: "TestWLAN",
+			SSID:       "TestWLAN",
+			WlanStatus: ptr(true),
 		},
 	}
 
@@ -1375,13 +1417,13 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 			d.WLANConfigEntries[0].AuthKeyMgmtPsk = true
 		}},
 		{"wnc_wlan_auth_dot1x_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANConfigEntries[0].AuthKeyMgmtDot1x = true
+			d.WLANConfigEntries[0].AuthKeyMgmtDot1x = ptr(true)
 		}},
 		{"wnc_wlan_auth_dot1x_sha256_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].AuthKeyMgmtDot1xSha256 = true
 		}},
 		{"wnc_wlan_wpa2_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANConfigEntries[0].WPA2Enabled = true
+			d.WLANConfigEntries[0].WPA2Enabled = ptr(true)
 		}},
 		{"wnc_wlan_wpa3_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].WPA3Enabled = true
@@ -1390,22 +1432,22 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 			d.WLANConfigEntries[0].LoadBalance = true
 		}},
 		{"wnc_wlan_11k_neighbor_list_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANConfigEntries[0].Wlan11kNeighList = true
+			d.WLANConfigEntries[0].Wlan11kNeighList = ptr(true)
 		}},
 		{"wnc_wlan_client_steering_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANConfigEntries[0].ClientSteering = true
 		}},
 		{"wnc_wlan_central_switching_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = true
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = ptr(true)
 		}},
 		{"wnc_wlan_central_authentication_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAuthentication = true
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAuthentication = ptr(true)
 		}},
 		{"wnc_wlan_central_dhcp_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANPolicies[0].WlanSwitchingPolicy.CentralDHCP = true
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralDHCP = ptr(true)
 		}},
 		{"wnc_wlan_central_association_enabled", func(d *wnc.WNCDataCache) {
-			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = true
+			d.WLANPolicies[0].WlanSwitchingPolicy.CentralAssocEnable = ptr(true)
 		}},
 		{"wnc_wlan_policy_enabled", func(d *wnc.WNCDataCache) {
 			d.WLANPolicies[0].Status = true
@@ -1422,8 +1464,8 @@ func TestWLANCollector_ConfigBooleansMatchLeaves(t *testing.T) {
 			// as a decoy, so a descriptor folded onto one is caught by the pairwise
 			// zeros this table asserts rather than by a decoy.
 			data.WLANConfigEntries[0].AuthKeyMgmtPsk = false
-			data.WLANConfigEntries[0].WPA2Enabled = false
-			data.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = false
+			data.WLANConfigEntries[0].WPA2Enabled = ptr(false)
+			data.WLANPolicies[0].WlanSwitchingPolicy.CentralSwitching = ptr(false)
 			tt.raise(data)
 			src := fixtureSource{data: data}
 
@@ -1579,8 +1621,8 @@ func TestWLANCollector_EnabledReportsBothLowCauses(t *testing.T) {
 		wantSeries bool
 		want       float64
 	}{
-		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: true}, true, 1},
-		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: false}, true, 0},
+		{"status flag set", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: ptr(true)}, true, 1},
+		{"status flag clear", &wlan.APFVapIDData{SSID: "TestWLAN", WlanStatus: ptr(false)}, true, 0},
 		{"container absent", nil, false, 0},
 	}
 
@@ -1648,8 +1690,13 @@ func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
 		"wnc_wlan_client_steering_enabled",
 	}
 
-	timeout := &wlan.WlanTimeout{SessionTimeout: 1800}
-	switching := &wlan.WlanSwitchingPolicy{CentralSwitching: true}
+	timeout := &wlan.WlanTimeout{SessionTimeout: ptr(1800)}
+	switching := &wlan.WlanSwitchingPolicy{
+		CentralSwitching:      ptr(true),
+		CentralAuthentication: ptr(true),
+		CentralDHCP:           ptr(true),
+		CentralAssocEnable:    ptr(true),
+	}
 
 	tests := []struct {
 		name      string
@@ -1658,7 +1705,22 @@ func TestWLANCollector_ConfigOmitsSeriesWhenContainerAbsent(t *testing.T) {
 		absent    []string
 	}{
 		{"both containers present", timeout, switching, nil},
-		{"both containers present with zero leaves", &wlan.WlanTimeout{}, &wlan.WlanSwitchingPolicy{}, nil},
+		{
+			// A present container whose leaves are all omitted carries no reading. The
+			// controller omits a leaf whose default is in force, so publishing zero here
+			// reported central switching as deliberately disabled and no session timeout set.
+			"both containers present with every leaf omitted",
+			&wlan.WlanTimeout{}, &wlan.WlanSwitchingPolicy{},
+			slices.Concat(timeoutDerived, switchingDerived),
+		},
+		{
+			// Absence is per leaf, so the three siblings of a leaf the controller sent are
+			// withheld on their own rather than carried by it.
+			"switching container present with one leaf",
+			timeout,
+			&wlan.WlanSwitchingPolicy{CentralSwitching: ptr(true)},
+			switchingDerived[1:],
+		},
 		{"timeout container absent", nil, switching, timeoutDerived},
 		{"switching container absent", timeout, nil, switchingDerived},
 		{"both containers absent", nil, nil, slices.Concat(timeoutDerived, switchingDerived)},

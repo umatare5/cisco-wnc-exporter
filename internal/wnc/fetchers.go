@@ -229,7 +229,7 @@ func (s *dataSource) fetchers() []dataFetcher {
 			return len(c.WLANClientStats), nil
 		}},
 		{dataControllerBootTime, func(ctx context.Context, c *WNCDataCache) (int, error) {
-			bootTime, present, err := rawValue[string](ctx, s.client.Core(), routeControllerBootTime)
+			bootTime, present, err := rawValue[string](ctx, s.client, routeControllerBootTime)
 			if err != nil {
 				return 0, err
 			}
@@ -238,7 +238,7 @@ func (s *dataSource) fetchers() []dataFetcher {
 		}},
 		{dataCoClientDelReason, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			leaves, present, err := rawValue[map[string]json.RawMessage](
-				ctx, s.client.Core(), routeCoClientDelReason,
+				ctx, s.client, routeCoClientDelReason,
 			)
 			if err != nil {
 				return 0, err
@@ -251,7 +251,7 @@ func (s *dataSource) fetchers() []dataFetcher {
 		}},
 		{dataClientRoamingStats, func(ctx context.Context, c *WNCDataCache) (int, error) {
 			leaves, present, err := rawValue[map[string]json.RawMessage](
-				ctx, s.client.Core(), routeClientRoamingStats,
+				ctx, s.client, routeClientRoamingStats,
 			)
 			if err != nil {
 				return 0, err

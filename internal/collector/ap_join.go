@@ -301,9 +301,11 @@ func (d *apJoinDescs) collect(ch chan<- prometheus.Metric, records []ap.ApJoinSt
 
 // collectSession publishes the join state and the name the record carries.
 func (d *apJoinDescs) collectSession(ch chan<- prometheus.Metric, record *ap.ApJoinStats) {
-	ch <- prometheus.MustNewConstMetric(
-		d.joined, prometheus.GaugeValue, boolToFloat64(record.ApJoinInfo.IsJoined), record.WtpMAC,
-	)
+	if joined := record.ApJoinInfo.IsJoined; joined != nil {
+		ch <- prometheus.MustNewConstMetric(
+			d.joined, prometheus.GaugeValue, boolToFloat64(*joined), record.WtpMAC,
+		)
+	}
 
 	// An empty name reads as no label at all, and this is the only container that
 	// still names an AP the inventory has dropped, so there is nothing to fall back on.
@@ -312,50 +314,68 @@ func (d *apJoinDescs) collectSession(ch chan<- prometheus.Metric, record *ap.ApJ
 	}
 }
 
+// counterLeaf pairs a descriptor with the counter leaf behind it. The leaf is a pointer so that
+// a leaf the controller omitted stays distinguishable from one it reported as zero, which is a
+// legitimate reading for every counter here.
+type counterLeaf struct {
+	desc  *prometheus.Desc
+	value *int
+}
+
 // collectCounters publishes the phase counters, including one series per DTLS channel.
+// Each counter is withheld on its own: absence is per leaf, so one omitted leaf must not cost
+// the rest of the record its series.
 func (d *apJoinDescs) collectCounters(ch chan<- prometheus.Metric, record *ap.ApJoinStats) {
 	join := record.ApJoinInfo
 	discovery := record.ApDiscoveryInfo
 	dtls := record.DTLSSessInfo
 
-	for _, metric := range []Float64Metric{
-		{d.discoveryRequests, float64(discovery.NumDiscoveryReqRecvd)},
-		{d.discoveryResponses, float64(discovery.NumSuccDiscRespSent)},
-		{d.discoveryErrors, float64(discovery.NumErrDiscReq)},
-		{d.joinRequests, float64(join.NumJoinReqRecvd)},
-		{d.joinResponses, float64(join.NumSuccJoinRespSent)},
-		{d.joinFailures, float64(join.NumUnsuccJoinReqProcn)},
-		{d.configRequests, float64(join.NumConfigReqRecvd)},
-		{d.configResponses, float64(join.NumSuccConfRespSent)},
-		{d.configFailures, float64(join.NumUnsuccConfReqProcn)},
+	for _, leaf := range []counterLeaf{
+		{d.discoveryRequests, discovery.NumDiscoveryReqRecvd},
+		{d.discoveryResponses, discovery.NumSuccDiscRespSent},
+		{d.discoveryErrors, discovery.NumErrDiscReq},
+		{d.joinRequests, join.NumJoinReqRecvd},
+		{d.joinResponses, join.NumSuccJoinRespSent},
+		{d.joinFailures, join.NumUnsuccJoinReqProcn},
+		{d.configRequests, join.NumConfigReqRecvd},
+		{d.configResponses, join.NumSuccConfRespSent},
+		{d.configFailures, join.NumUnsuccConfReqProcn},
 	} {
+		if leaf.value == nil {
+			continue
+		}
+
 		ch <- prometheus.MustNewConstMetric(
-			metric.Desc, prometheus.CounterValue, metric.Value, record.WtpMAC,
+			leaf.desc, prometheus.CounterValue, float64(*leaf.value), record.WtpMAC,
 		)
 	}
 
 	for _, channel := range []struct {
-		label   string
-		metrics []Float64Metric
+		label  string
+		leaves []counterLeaf
 	}{
-		{dtlsChannelControl, []Float64Metric{
-			{d.dtlsRequests, float64(dtls.CtrlDTLSSetupReq)},
-			{d.dtlsSuccesses, float64(dtls.CtrlDTLSSuccess)},
-			{d.dtlsFailures, float64(dtls.CtrlDTLSFailure)},
-			{d.dtlsDecryptErrors, float64(dtls.CtrlDTLSDecryptErr)},
-			{d.dtlsAntiReplayError, float64(dtls.CtrlDTLSAntiReplayErr)},
+		{dtlsChannelControl, []counterLeaf{
+			{d.dtlsRequests, dtls.CtrlDTLSSetupReq},
+			{d.dtlsSuccesses, dtls.CtrlDTLSSuccess},
+			{d.dtlsFailures, dtls.CtrlDTLSFailure},
+			{d.dtlsDecryptErrors, dtls.CtrlDTLSDecryptErr},
+			{d.dtlsAntiReplayError, dtls.CtrlDTLSAntiReplayErr},
 		}},
-		{dtlsChannelData, []Float64Metric{
-			{d.dtlsRequests, float64(dtls.DataDTLSSetupReq)},
-			{d.dtlsSuccesses, float64(dtls.DataDTLSSuccess)},
-			{d.dtlsFailures, float64(dtls.DataDTLSFailure)},
-			{d.dtlsDecryptErrors, float64(dtls.DataDTLSDecryptErr)},
-			{d.dtlsAntiReplayError, float64(dtls.DataDTLSAntiReplayErr)},
+		{dtlsChannelData, []counterLeaf{
+			{d.dtlsRequests, dtls.DataDTLSSetupReq},
+			{d.dtlsSuccesses, dtls.DataDTLSSuccess},
+			{d.dtlsFailures, dtls.DataDTLSFailure},
+			{d.dtlsDecryptErrors, dtls.DataDTLSDecryptErr},
+			{d.dtlsAntiReplayError, dtls.DataDTLSAntiReplayErr},
 		}},
 	} {
-		for _, metric := range channel.metrics {
+		for _, leaf := range channel.leaves {
+			if leaf.value == nil {
+				continue
+			}
+
 			ch <- prometheus.MustNewConstMetric(
-				metric.Desc, prometheus.CounterValue, metric.Value, record.WtpMAC, channel.label,
+				leaf.desc, prometheus.CounterValue, float64(*leaf.value), record.WtpMAC, channel.label,
 			)
 		}
 	}

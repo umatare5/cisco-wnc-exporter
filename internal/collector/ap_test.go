@@ -1391,6 +1391,7 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 			WtpMAC:     wtpMAC,
 			ApState:    ap.ApState{ApOperationState: "registered"},
 			ApTimeInfo: ap.ApTimeInfo{BootTime: "2026-01-01T00:00:00Z"},
+			TagInfo:    ap.TagInfo{IsApMisconfigured: ptr(false)},
 		},
 	}
 	sysStats := &ap.ApSystemStats{CPUUsage: 20, MemoryUsage: 40}
@@ -1398,7 +1399,8 @@ func TestAPCollector_collectSystemMetrics(t *testing.T) {
 	tests := []struct {
 		name          string
 		apOperDataMap map[string]ap.OperData
-		// Oper state, config state and uptime are always emitted, CPU and memory only with ApSysStats.
+		// Oper state and uptime are always emitted, config state while its leaf is present,
+		// CPU and memory only with ApSysStats.
 		expected int
 	}{
 		{
@@ -1684,13 +1686,13 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingBand(t *testing.T) {
 				{
 					BandID: idleBandID,
 					PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{CfgData: ap.PhyTxPwrLvlCfgData{
-						CurrTxPowerInDbm: idleBandPower, TxPowerLevel1: idleBandPower,
+						CurrTxPowerInDbm: ptr[int8](idleBandPower), TxPowerLevel1: ptr[int8](idleBandPower),
 					}},
 				},
 				{
 					BandID: operatingBandID,
 					PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{CfgData: ap.PhyTxPwrLvlCfgData{
-						CurrTxPowerInDbm: activePower, TxPowerLevel1: activeMaxPower,
+						CurrTxPowerInDbm: ptr[int8](activePower), TxPowerLevel1: ptr[int8](activeMaxPower),
 					}},
 				},
 			},
@@ -2173,7 +2175,7 @@ func TestAPCollector_ConfigStateReportsMisconfiguration(t *testing.T) {
 			t.Parallel()
 
 			data := fullFixtureSnapshot()
-			data.CAPWAPData[0].TagInfo.IsApMisconfigured = tt.misconfigured
+			data.CAPWAPData[0].TagInfo.IsApMisconfigured = ptr(tt.misconfigured)
 
 			if got := apSnapshotValues(t, data)["wnc_ap_config_state"]; got != tt.want {
 				t.Errorf("wnc_ap_config_state = %v, want %v with is-ap-misconfigured %v",
@@ -2445,7 +2447,7 @@ func TestAPJoinModule_NamesAnAPThatLeftCAPWAP(t *testing.T) {
 	departed := newFixtureJoinStats()
 	departed.WtpMAC = departedMAC
 	departed.ApJoinInfo.ApName = "TEST-AP99"
-	departed.ApJoinInfo.IsJoined = false
+	departed.ApJoinInfo.IsJoined = ptr(false)
 
 	data := fullFixtureSnapshot()
 	data.JoinStats = append(data.JoinStats, departed)
@@ -2504,14 +2506,26 @@ func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 
 	radio := &ap.RadioOperData{WtpMAC: fixtureAPMAC, RadioSlotID: 0, OperState: APRadioStateUp}
 
+	// Every verdict leaf is set on every case. An omitted one is withheld rather than
+	// published as a failure, so leaving three nil would leave this unable to tell a
+	// descriptor pointed at the wrong leaf from one whose leaf the fixture forgot.
+	verdicts := func(passing string) *rrm.RadioData {
+		return &rrm.RadioData{
+			CoverageProfilePassed:     ptr(passing == "coverage"),
+			LoadProfPassed:            ptr(passing == "load"),
+			InterferenceProfilePassed: ptr(passing == "interference"),
+			NoiseProfilePassed:        ptr(passing == "noise"),
+		}
+	}
+
 	tests := []struct {
 		profile string
 		data    *rrm.RadioData
 	}{
-		{"coverage", &rrm.RadioData{CoverageProfilePassed: true}},
-		{"load", &rrm.RadioData{LoadProfPassed: true}},
-		{"interference", &rrm.RadioData{InterferenceProfilePassed: true}},
-		{"noise", &rrm.RadioData{NoiseProfilePassed: true}},
+		{"coverage", verdicts("coverage")},
+		{"load", verdicts("load")},
+		{"interference", verdicts("interference")},
+		{"noise", verdicts("noise")},
 	}
 
 	for _, tt := range tests {
@@ -2585,7 +2599,7 @@ func TestAPCollector_RRMVerdictsAbsentWithoutTheContainer(t *testing.T) {
 		{"record with radio-data but no dca-stats", map[string]*rrm.RadioSlot{
 			fixtureAPMAC + ":0": {
 				WtpMAC: fixtureAPMAC, RadioSlotID: 0,
-				RadioData: &rrm.RadioData{CoverageProfilePassed: true},
+				RadioData: &rrm.RadioData{CoverageProfilePassed: ptr(true)},
 			},
 		}},
 	}

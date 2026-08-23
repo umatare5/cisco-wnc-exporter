@@ -106,8 +106,8 @@ func newMockDataSource() *mockDataSource {
 					WtpMAC: "aa:bb:cc:11:22:80",
 					ApJoinInfo: ap.ApJoinInfo{
 						ApName:          "TEST-AP01",
-						IsJoined:        true,
-						NumJoinReqRecvd: 5,
+						IsJoined:        ptr(true),
+						NumJoinReqRecvd: ptr(5),
 					},
 				},
 				// The list keeps a record for an AP that has left CAPWAP, so it is wider
@@ -116,7 +116,7 @@ func newMockDataSource() *mockDataSource {
 					WtpMAC: "aa:bb:cc:11:22:a0",
 					ApJoinInfo: ap.ApJoinInfo{
 						ApName:   "TEST-AP03",
-						IsJoined: false,
+						IsJoined: ptr(false),
 					},
 				},
 			},
@@ -570,7 +570,9 @@ func TestAPSource_GetAPJoinStats(t *testing.T) {
 				if data[0].WtpMAC == "" {
 					t.Error("GetAPJoinStats() first item has empty WtpMAC")
 				}
-				if data[len(data)-1].ApJoinInfo.IsJoined {
+				// The leaf has to be present and false. A nil one would pass a check
+				// written as "not joined" while telling us nothing about the filter.
+				if joined := data[len(data)-1].ApJoinInfo.IsJoined; joined == nil || *joined {
 					t.Error("GetAPJoinStats() dropped the record of an AP that is not joined")
 				}
 			}

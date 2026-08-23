@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"path"
 	"strings"
+
+	wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
 )
 
 // The RESTCONF paths of the containers the SDK has no route for. The SDK keeps its
@@ -28,11 +29,11 @@ const (
 // own typed accessors.
 const restconfDataPath = "/restconf/data/"
 
-// rawGetter is the seam the SDK client already satisfies. Declaring the method here
-// rather than naming the SDK type keeps these reads independent of a type the SDK
-// exports from an internal package, and it is what a test substitutes.
+// rawGetter is the seam the SDK client already satisfies, and it is what a test
+// substitutes. The option parameter is part of the method set even though these reads
+// pass none, so omitting it here would leave the SDK client failing to satisfy this.
 type rawGetter interface {
-	Do(ctx context.Context, method, path string) ([]byte, error)
+	GetData(ctx context.Context, path string, opts ...wnc.GetOption) ([]byte, error)
 }
 
 // rawValue reads one RESTCONF container or leaf the SDK cannot reach and returns its
@@ -48,7 +49,7 @@ type rawGetter interface {
 func rawValue[V any](
 	ctx context.Context, getter rawGetter, requestPath string,
 ) (value V, present bool, err error) {
-	body, err := getter.Do(ctx, http.MethodGet, restconfDataPath+requestPath)
+	body, err := getter.GetData(ctx, restconfDataPath+requestPath)
 	if err != nil {
 		return value, false, err
 	}
