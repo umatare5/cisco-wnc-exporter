@@ -4,6 +4,21 @@ Notable changes to the metric surface, one section per release. Release dates, d
 
 This project is pre-1.0, so a minor release may rename or remove a metric. Read the section for the version you are upgrading to before you upgrade.
 
+## v0.12.0
+
+> [!IMPORTANT]
+> **BREAKING CHANGE** — a leaf the controller omits is now withheld instead of published as `0` or `false`, so twenty-eight families can be absent where they were previously always present. **No name, type or label changes.** Whether anything disappears depends on the controller: one that honours the request for the values in force publishes the same series as before, and one that answers `400` to it — the case `wnc_refresh_defaults_fallback_total` counts — loses the series whose leaf it omits. Read [Absence](docs/README.md#a-leaf-the-controller-omits-is-withheld-not-published-as-zero) before upgrading if any rule of yours compares one of these to `0`.
+
+### Fixed
+
+An omitted leaf is not a reading. The controller omits a leaf whose value equals its schema default, and on IOS-XE 17.12 a plain read of `wlan-cfg-entries` omitted `wpa2-enabled` and `wlan-11k-neigh-list` from exactly the WLANs where they were **on** — so the previous decode published the inverse of the setting rather than merely under-reporting it. Thirty-nine call sites now withhold instead, and the twenty-eight families they feed are nine WLAN config families, the RRM profile verdict, the AP configuration state, the two transmit power levels, the join state, and the fourteen CAPWAP and DTLS counters.
+
+- **On the estate this was measured against, nothing disappears.** Every leaf behind the affected families was present on every record under `?with-defaults=report-all` — `wlan-cfg-entries` and `wlan-policies` 3/3, `radio-slot` 7/7, `capwap-data` 3/3, `radio-oper-data` 9/9, and `ap-join-stats` 49 leaves across 3 records with no omission. The withholding is what happens on the other path.
+- **The other path is the plain-read fallback.** Where the controller refuses the request for the values in force, `wpa2-enabled`, `wlan-11k-neigh-list`, `central-authentication`, `central-assoc-enable` and `session-timeout` were the five leaves measured omitted, and those five series now go absent rather than reporting a value the controller never sent. A rule reading them as `0` stops matching, which is the point.
+- **Absence is per leaf, not per container.** A `wlan-switching-policy` was measured carrying two of its four `central-*` leaves with the other two omitted, so one series going absent is not a claim about its three siblings, and three siblings publishing is not evidence that the fourth was measured.
+- **Ten HELP strings said the opposite and are corrected.** Each of them stated a `0=disabled or not reported` conflation that the withholding makes false. Six superficially similar strings are unchanged on purpose — `wnc_wlan_auth_psk_enabled`, `wnc_wlan_auth_dot1x_sha256_enabled`, `wnc_wlan_wpa3_enabled`, `wnc_wlan_load_balance_enabled`, `wnc_wlan_client_steering_enabled` and `wnc_wlan_policy_enabled` read a leaf whose absence is still not preserved, so on those six an omitted leaf really does read as `0`.
+- **This does not reach every fabricated zero.** Several WLAN booleans, `wnc_wlan_policy_enabled` among them, still decode by value, and those families keep reading an omitted leaf as `0`. Their HELP says so.
+
 ## v0.11.0
 
 > [!IMPORTANT]

@@ -67,7 +67,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 	if metrics.General {
 		collector.enabledDesc = prometheus.NewDesc(
 			"wnc_wlan_enabled",
-			"WLAN status (0=disabled or not reported, 1=enabled)",
+			"WLAN status (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 	}
@@ -101,7 +101,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.authDot1xDesc = prometheus.NewDesc(
 			"wnc_wlan_auth_dot1x_enabled",
-			"802.1x authentication enabled (0=disabled or not reported, 1=enabled)",
+			"802.1x authentication enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.authDot1xSha256Desc = prometheus.NewDesc(
@@ -111,7 +111,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.wpa2EnabledDesc = prometheus.NewDesc(
 			"wnc_wlan_wpa2_enabled",
-			"WPA2 support enabled (0=disabled or not reported, 1=enabled)",
+			"WPA2 support enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.wpa3EnabledDesc = prometheus.NewDesc(
@@ -121,7 +121,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.sessionTimeoutDesc = prometheus.NewDesc(
 			"wnc_wlan_session_timeout_seconds",
-			"Session timeout duration in seconds, 0 when the controller omits the leaf",
+			"Session timeout duration in seconds. Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.loadBalanceDesc = prometheus.NewDesc(
@@ -131,7 +131,7 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.wlan11kNeighDesc = prometheus.NewDesc(
 			"wnc_wlan_11k_neighbor_list_enabled",
-			"802.11k neighbor list enabled (0=disabled or not reported, 1=enabled)",
+			"802.11k neighbor list enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.clientSteeringDesc = prometheus.NewDesc(
@@ -141,22 +141,22 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.centralSwitchingDesc = prometheus.NewDesc(
 			"wnc_wlan_central_switching_enabled",
-			"Central switching enabled (0=disabled or not reported, 1=enabled)",
+			"Central switching enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.centralAuthenticationDesc = prometheus.NewDesc(
 			"wnc_wlan_central_authentication_enabled",
-			"Central authentication enabled (0=disabled or not reported, 1=enabled)",
+			"Central authentication enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.centralDHCPDesc = prometheus.NewDesc(
 			"wnc_wlan_central_dhcp_enabled",
-			"Central DHCP enabled (0=disabled or not reported, 1=enabled)",
+			"Central DHCP enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.centralAssocEnableDesc = prometheus.NewDesc(
 			"wnc_wlan_central_association_enabled",
-			"Central association enabled (0=disabled or not reported, 1=enabled)",
+			"Central association enabled (0=disabled, 1=enabled). Absent when the controller omits the leaf",
 			labels, nil,
 		)
 		collector.policyEnabledDesc = prometheus.NewDesc(
@@ -331,9 +331,7 @@ func (c *WLANCollector) collectGeneralMetrics(
 
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
-	metrics := []Float64Metric{
-		{c.enabledDesc, float64(determineWLANEnabledStatus(entry))},
-	}
+	metrics := appendFlag(nil, c.enabledDesc, determineWLANEnabledStatus(entry))
 
 	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(
@@ -458,39 +456,38 @@ func (c *WLANCollector) collectConfigMetrics(
 	labels := []string{strconv.Itoa(entry.WlanID)}
 
 	// The read asks for the values in force, so an entry leaf is omitted here only
-	// when the controller rejected that request or ignored it. The value-typed
-	// decode then turns the omitted leaf into zero, which nothing distinguishes
-	// from a configured false.
+	// when the controller rejected that request or ignored it. These five still
+	// decode by value, so an omitted one reads as a configured false.
 	metrics := []Float64Metric{
 		{c.authPskDesc, boolToFloat64(entry.AuthKeyMgmtPsk)},
-		{c.authDot1xDesc, boolToFloat64(entry.AuthKeyMgmtDot1x)},
 		{c.authDot1xSha256Desc, boolToFloat64(entry.AuthKeyMgmtDot1xSha256)},
-		{c.wpa2EnabledDesc, boolToFloat64(entry.WPA2Enabled)},
 		{c.wpa3EnabledDesc, boolToFloat64(entry.WPA3Enabled)},
 		{c.loadBalanceDesc, boolToFloat64(entry.LoadBalance)},
-		{c.wlan11kNeighDesc, boolToFloat64(entry.Wlan11kNeighList)},
 		{c.clientSteeringDesc, boolToFloat64(entry.ClientSteering)},
 	}
+
+	// These three are the leaves a plain read omits from exactly the WLANs where the
+	// setting is on, which a value-typed decode published as its inverse.
+	metrics = appendFlag(metrics, c.authDot1xDesc, entry.AuthKeyMgmtDot1x)
+	metrics = appendFlag(metrics, c.wpa2EnabledDesc, entry.WPA2Enabled)
+	metrics = appendFlag(metrics, c.wlan11kNeighDesc, entry.Wlan11kNeighList)
 
 	// The policy-derived series need a resolved policy profile and the container
 	// each leaf lives in. A WLAN not bound to a policy tag has no policy, an absent
 	// container is not a disabled feature, and reporting zero would assert that
 	// central switching is deliberately disabled and that no session timeout is set.
 	if profile, ok := policyMap[entry.ProfileName]; ok {
-		if profile.WlanTimeout != nil {
-			metrics = append(metrics,
-				Float64Metric{c.sessionTimeoutDesc, float64(determineSessionTimeout(profile))},
-			)
-		}
+		metrics = appendNumber(metrics, c.sessionTimeoutDesc, determineSessionTimeout(profile))
 
-		if profile.WlanSwitchingPolicy != nil {
-			metrics = append(metrics,
-				Float64Metric{c.centralSwitchingDesc, determineCentralSwitchingValue(profile)},
-				Float64Metric{c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile)},
-				Float64Metric{c.centralDHCPDesc, determineCentralDHCPValue(profile)},
-				Float64Metric{c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile)},
-			)
-		}
+		// The controller omits these four per leaf rather than per container, so an
+		// omitted one must not cost the other three their series. Each accessor owns
+		// the container guard, so there is none here to drift from them.
+		metrics = appendFlag(metrics, c.centralSwitchingDesc, determineCentralSwitchingValue(profile))
+		metrics = appendFlag(metrics,
+			c.centralAuthenticationDesc, determineCentralAuthenticationValue(profile))
+		metrics = appendFlag(metrics, c.centralDHCPDesc, determineCentralDHCPValue(profile))
+		metrics = appendFlag(metrics,
+			c.centralAssocEnableDesc, determineCentralAssocEnableValue(profile))
 
 		// Status sits on the profile itself, so no container guards it.
 		metrics = append(metrics,
@@ -647,12 +644,13 @@ func buildWLANToPolicyMap(
 	return wlanToPolicyMap
 }
 
-// determineWLANEnabledStatus extracts WLAN enabled status.
-func determineWLANEnabledStatus(wlanEntry wlan.WlanCfgEntry) int {
-	if wlanEntry.APFVapIDData != nil && wlanEntry.APFVapIDData.WlanStatus {
-		return 1
+// determineWLANEnabledStatus returns the WLAN's administrative state, and nil when the
+// controller sent neither the container nor the leaf.
+func determineWLANEnabledStatus(wlanEntry wlan.WlanCfgEntry) *bool {
+	if wlanEntry.APFVapIDData == nil {
+		return nil
 	}
-	return 0
+	return wlanEntry.APFVapIDData.WlanStatus
 }
 
 // determineWLANName extracts WLAN name.
@@ -663,40 +661,42 @@ func determineWLANName(wlanEntry wlan.WlanCfgEntry) string {
 	return wlanEntry.ProfileName
 }
 
-// determineSessionTimeout extracts session timeout from policy.
-func determineSessionTimeout(policy *wlan.WlanPolicy) int {
-	if policy != nil && policy.WlanTimeout != nil {
-		return policy.WlanTimeout.SessionTimeout
+// determineSessionTimeout returns the session timeout the policy sets, and nil when the
+// controller sent neither the container nor the leaf. Zero is a valid timeout, so it
+// cannot stand in for absence.
+func determineSessionTimeout(policy *wlan.WlanPolicy) *int {
+	if policy == nil || policy.WlanTimeout == nil {
+		return nil
 	}
-	return 0
+	return policy.WlanTimeout.SessionTimeout
 }
 
-func determineCentralSwitchingValue(policy *wlan.WlanPolicy) float64 {
-	if policy != nil && policy.WlanSwitchingPolicy != nil {
-		return boolToFloat64(policy.WlanSwitchingPolicy.CentralSwitching)
+func determineCentralSwitchingValue(policy *wlan.WlanPolicy) *bool {
+	if policy == nil || policy.WlanSwitchingPolicy == nil {
+		return nil
 	}
-	return 0
+	return policy.WlanSwitchingPolicy.CentralSwitching
 }
 
-func determineCentralAuthenticationValue(policy *wlan.WlanPolicy) float64 {
-	if policy != nil && policy.WlanSwitchingPolicy != nil {
-		return boolToFloat64(policy.WlanSwitchingPolicy.CentralAuthentication)
+func determineCentralAuthenticationValue(policy *wlan.WlanPolicy) *bool {
+	if policy == nil || policy.WlanSwitchingPolicy == nil {
+		return nil
 	}
-	return 0
+	return policy.WlanSwitchingPolicy.CentralAuthentication
 }
 
-func determineCentralDHCPValue(policy *wlan.WlanPolicy) float64 {
-	if policy != nil && policy.WlanSwitchingPolicy != nil {
-		return boolToFloat64(policy.WlanSwitchingPolicy.CentralDHCP)
+func determineCentralDHCPValue(policy *wlan.WlanPolicy) *bool {
+	if policy == nil || policy.WlanSwitchingPolicy == nil {
+		return nil
 	}
-	return 0
+	return policy.WlanSwitchingPolicy.CentralDHCP
 }
 
-func determineCentralAssocEnableValue(policy *wlan.WlanPolicy) float64 {
-	if policy != nil && policy.WlanSwitchingPolicy != nil {
-		return boolToFloat64(policy.WlanSwitchingPolicy.CentralAssocEnable)
+func determineCentralAssocEnableValue(policy *wlan.WlanPolicy) *bool {
+	if policy == nil || policy.WlanSwitchingPolicy == nil {
+		return nil
 	}
-	return 0
+	return policy.WlanSwitchingPolicy.CentralAssocEnable
 }
 
 func (c *WLANCollector) isAnyMetricFlagEnabled() bool {

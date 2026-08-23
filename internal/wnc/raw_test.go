@@ -4,20 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"testing"
+
+	wnc "github.com/umatare5/cisco-ios-xe-wireless-go"
 )
 
 // stubGetter answers one raw read with a canned body or error.
 type stubGetter struct {
-	body   string
-	err    error
-	method string
-	path   string
+	body string
+	err  error
+	path string
 }
 
-func (s *stubGetter) Do(_ context.Context, method, path string) ([]byte, error) {
-	s.method = method
+func (s *stubGetter) GetData(_ context.Context, path string, _ ...wnc.GetOption) ([]byte, error) {
 	s.path = path
 	if s.err != nil {
 		return nil, s.err
@@ -95,9 +94,10 @@ func TestRawValue_RejectsAWrongEnvelopeKey(t *testing.T) {
 	}
 }
 
-// TestRawValue_ReadsWithGETOnly pins the method and the path. This read builds its own
-// URL rather than using an SDK route constant, so nothing else asserts either.
-func TestRawValue_ReadsWithGETOnly(t *testing.T) {
+// TestRawValue_ReadsThePathItsRouteNames pins the URL this read builds. The method is no
+// longer a parameter, so the path is the whole of what is under this file's control, and it
+// uses no SDK route constant, so nothing else asserts it.
+func TestRawValue_ReadsThePathItsRouteNames(t *testing.T) {
 	t.Parallel()
 
 	getter := &stubGetter{body: `{"Cisco-IOS-XE-device-hardware-oper:boot-time":"2026-01-01T00:00:00+00:00"}`}
@@ -105,9 +105,6 @@ func TestRawValue_ReadsWithGETOnly(t *testing.T) {
 		t.Fatalf("rawValue() error = %v, want nil", err)
 	}
 
-	if getter.method != http.MethodGet {
-		t.Errorf("rawValue() used %s, want %s", getter.method, http.MethodGet)
-	}
 	if want := restconfDataPath + routeControllerBootTime; getter.path != want {
 		t.Errorf("rawValue() read %q, want %q", getter.path, want)
 	}

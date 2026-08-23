@@ -233,8 +233,8 @@ func NewAPCollector(
 		)
 		collector.rrmProfilePassedDesc = prometheus.NewDesc(
 			"wnc_ap_rrm_profile_passed",
-			"Whether the radio passes this RRM profile (1=passed, 0=failed or the "+
-				"verdict was not reported)",
+			"Whether the radio passes this RRM profile (1=passed, 0=failed). Absent "+
+				"when the controller reports no verdict for it",
 			[]string{labelMAC, labelRadio, labelProfile},
 			nil,
 		)
@@ -676,9 +676,9 @@ func (c *APCollector) collectSystemMetrics(
 	emitEnumReading(ch, c.operStateDesc, apOperationStates,
 		capwapMap[wtpMAC].ApState.ApOperationState, wtpMAC)
 
-	metrics := []Float64Metric{
-		{c.configStateDesc, boolToFloat64(capwapMap[wtpMAC].TagInfo.IsApMisconfigured)},
-	}
+	// Zero is the valid verdict here, so publishing it for an omitted leaf would assert a
+	// configuration the controller never confirmed.
+	metrics := appendFlag(nil, c.configStateDesc, capwapMap[wtpMAC].TagInfo.IsApMisconfigured)
 
 	timeInfo := capwapMap[wtpMAC].ApTimeInfo
 	if uptime, ok := determineUptimeFromTimestamp(timeInfo.JoinTime); ok {
@@ -764,11 +764,12 @@ func (c *APCollector) collectRadioMetrics(
 	// fixed index reports another band's power table, and only tx-power-level-1 may
 	// be read from that table: the entries past num-supp-power-levels are undefined
 	// and are not required to be ordered.
+	// Each level is withheld on its own: the current power is a reading in its own right
+	// whether or not the table also carries the maximum.
 	if bandInfo, ok := currentBandInfo(radio); ok {
-		metrics = append(metrics,
-			Float64Metric{c.txPowerDesc, float64(bandInfo.PhyTxPwrLvlCfg.CfgData.CurrTxPowerInDbm)},
-			Float64Metric{c.txPowerMaxDesc, float64(bandInfo.PhyTxPwrLvlCfg.CfgData.TxPowerLevel1)},
-		)
+		cfgData := bandInfo.PhyTxPwrLvlCfg.CfgData
+		metrics = appendNumber(metrics, c.txPowerDesc, cfgData.CurrTxPowerInDbm)
+		metrics = appendNumber(metrics, c.txPowerMaxDesc, cfgData.TxPowerLevel1)
 	}
 
 	if radio.PhyHtCfg != nil {
@@ -802,14 +803,20 @@ func (c *APCollector) collectRadioMetrics(
 	}
 
 	// The verdicts carry a third label, so they are emitted here rather than through
-	// the two-label slice above. A radio the slot list has no record for, and one whose
-	// record carries no radio-data container, report no verdict rather than a failure.
+	// the two-label slice above. A radio the slot list has no record for, one whose
+	// record carries no radio-data container, and one profile whose verdict leaf is
+	// omitted all report no verdict rather than a failure.
 	if slot, found := radioSlotMap[radioID]; found && slot.RadioData != nil {
 		for _, profile := range rrmProfiles {
+			verdict := profile.passed(slot.RadioData)
+			if verdict == nil {
+				continue
+			}
+
 			ch <- prometheus.MustNewConstMetric(
 				c.rrmProfilePassedDesc,
 				prometheus.GaugeValue,
-				boolToFloat64(profile.passed(slot.RadioData)),
+				boolToFloat64(*verdict),
 				radio.WtpMAC, strconv.Itoa(radio.RadioSlotID), profile.name,
 			)
 		}
@@ -859,12 +866,12 @@ func hasChannelEnergy(energy int) bool {
 // values are named here and are this exporter's own.
 var rrmProfiles = []struct {
 	name   string
-	passed func(*rrm.RadioData) bool
+	passed func(*rrm.RadioData) *bool
 }{
-	{"coverage", func(d *rrm.RadioData) bool { return d.CoverageProfilePassed }},
-	{"load", func(d *rrm.RadioData) bool { return d.LoadProfPassed }},
-	{"interference", func(d *rrm.RadioData) bool { return d.InterferenceProfilePassed }},
-	{"noise", func(d *rrm.RadioData) bool { return d.NoiseProfilePassed }},
+	{"coverage", func(d *rrm.RadioData) *bool { return d.CoverageProfilePassed }},
+	{"load", func(d *rrm.RadioData) *bool { return d.LoadProfPassed }},
+	{"interference", func(d *rrm.RadioData) *bool { return d.InterferenceProfilePassed }},
+	{"noise", func(d *rrm.RadioData) *bool { return d.NoiseProfilePassed }},
 }
 
 // radioJoins holds the four reads of the radio module. A map with no entry for a radio

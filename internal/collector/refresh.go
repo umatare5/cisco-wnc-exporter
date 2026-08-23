@@ -63,7 +63,8 @@ func NewRefreshCollector(stats wnc.StatsProvider) *RefreshCollector {
 			"wnc_refresh_defaults_fallback_total",
 			"WLAN configuration fetches that fell back to a plain read since "+
 				"process start. The controller rejected the request for the values "+
-				"in force, so a config leaf it omits reads as 0 or is not reported",
+				"in force, so a config leaf it omits is withheld from its series, or "+
+				"reads as 0 where the absence is not preserved",
 			nil, nil,
 		),
 	}
