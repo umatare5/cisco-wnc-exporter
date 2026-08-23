@@ -30,7 +30,7 @@ This cross-compiles a Linux binary into `./tmp/image`, then builds from that dir
 
 To release a new version, follow these steps:
 
-1. Rename the `## Unreleased` heading in `CHANGELOG.md` to `## vX.Y.Z`, matching the `VERSION` file exactly.
+1. Rename the `## Unreleased` heading in `CHANGELOG.md` to `## [vX.Y.Z]`, matching the `VERSION` file exactly, and add that version's release link at the foot of the file.
 2. Update the version in the `VERSION` file.
 3. Update the `VERSION:` line in the `--help` transcript in `docs/configuration.md`.
 4. Submit a pull request with all three files.
