@@ -31,7 +31,7 @@ func newMockWLANDataSource() *mockWLANDataSource {
 					WlanID:           1,
 					AuthKeyMgmtPsk:   true,
 					AuthKeyMgmtDot1x: false,
-					PSK:              "XNU]F]gFOUKOSYA]FKWIJd\\JG]LBKIfUWY_BFANFBC",
+					PSK:              "fixture]dummy]preshared]secret\\ABC]123",
 					PSKType:          "aes",
 					FTMode:           "dot11r-disabled",
 					APFVapIDData: &wlan.APFVapIDData{
