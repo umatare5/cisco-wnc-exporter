@@ -80,15 +80,12 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		)
 		collector.onboardingDesc = prometheus.NewDesc(
 			"wnc_wlan_onboarding_clients",
-			"Number of clients on this WLAN currently held in one onboarding phase, "+
-				"short of the run state wnc_wlan_clients counts",
+			"Clients currently held in this onboarding phase, short of the run state. Absent if unreported",
 			[]string{labelID, labelPhase}, nil,
 		)
 		collector.dataUsageDesc = prometheus.NewDesc(
 			"wnc_wlan_data_usage_bytes_total",
-			"Bytes transferred on this WLAN in both directions, as the controller totals "+
-				"them. It keeps the bytes of clients that have since disconnected, so it is "+
-				"not the sum of the per-client byte counters",
+			"Bytes in both directions, keeping those of clients since disconnected. Absent if unreported",
 			labels, nil,
 		)
 	}
@@ -169,27 +166,19 @@ func NewWLANCollector(src wnc.WLANSource, clientSrc wnc.ClientSource, metrics WL
 		// the controller assigns it rather than collapsed to a boolean.
 		collector.pmfStateDesc = prometheus.NewDesc(
 			"wnc_wlan_pmf_state",
-			"Protected management frames setting, as the value the controller's own "+
-				"enumeration assigns its spelling (0=apf-vap-pmf-disabled, "+
-				"1=apf-vap-pmf-optional, 2=apf-vap-pmf-required). It covers 2.4GHz and 5GHz "+
-				"— a 6GHz BSS requires PMF whatever this reports",
+			"Protected management frames setting. 1 still admits an unprotected association, 2 requires PMF",
 			labels, nil,
 		)
 		collector.ftStateDesc = prometheus.NewDesc(
 			"wnc_wlan_ft_state",
-			"802.11r fast transition mode, as the value the controller's own enumeration "+
-				"assigns its spelling (0=dot11r-disabled, 1=dot11r-enabled, "+
-				"2=dot11r-adaptive-enabled). Match by equality: 2 is a third mode for clients "+
-				"that cannot use the FT AKM, not a stronger form of 1",
+			"802.11r fast transition mode. 2 is a third mode for clients that cannot use the FT AKM, not above 1",
 			labels, nil,
 		)
 		// The six policy series above name neither the tag nor the profile they read, so
 		// this is what makes a WLAN bound through several tags observable.
 		collector.policyBindingDesc = prometheus.NewDesc(
 			"wnc_wlan_policy_binding",
-			"Policy tag binding for this WLAN, always 1. One series per binding the "+
-				"exporter can resolve, so more than one policy_profile for an id means the "+
-				"six policy series report only one of the bound profiles",
+			"Policy tag binding for this WLAN, always 1. One series per binding the exporter resolves",
 			[]string{labelID, labelPolicyProfile, labelPolicyTag}, nil,
 		)
 	}
