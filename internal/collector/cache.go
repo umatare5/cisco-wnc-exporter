@@ -15,10 +15,14 @@ const (
 	MetricChannelBuffer = 100
 )
 
-// MetricsCache provides caching for specific metrics to reduce cardinality explosion from frequent label changes.
+// MetricsCache holds one collected _info slice for the TTL, so the label sets served stay
+// fixed until it expires. It reduces no cardinality: every label value a series has held
+// remains its own series.
 type MetricsCache = cache.Cache[[]prometheus.Metric]
 
-// InfoCacheCollector wraps collectors to cache only info metrics for improved performance.
+// InfoCacheCollector serves the _info metrics of the collector it wraps from a TTL cache.
+// The base collector still runs on every scrape and no controller request is saved, so the
+// only effect is holding the served _info label sets fixed for the TTL.
 type InfoCacheCollector struct {
 	base      prometheus.Collector
 	infoCache *MetricsCache
@@ -40,16 +44,15 @@ func (c *InfoCacheCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect implements prometheus.Collector interface with info-only metrics caching.
-// Info metrics are cached, all other metrics are served in real-time.
+// Info metrics are served from the cache while it is fresh, and every other metric is
+// passed through on each scrape.
 func (c *InfoCacheCollector) Collect(ch chan<- prometheus.Metric) {
-	// Collect all metrics from base collector first
 	baseCh := make(chan prometheus.Metric, MetricChannelBuffer)
 	go func() {
 		defer close(baseCh)
 		c.base.Collect(baseCh)
 	}()
 
-	// Separate info and non-info metrics
 	var nonInfoMetrics []prometheus.Metric
 	var infoMetrics []prometheus.Metric
 
@@ -61,12 +64,10 @@ func (c *InfoCacheCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	// Serve non-info metrics immediately (real-time)
 	for _, metric := range nonInfoMetrics {
 		ch <- metric
 	}
 
-	// Cache and serve info metrics
 	if len(infoMetrics) > 0 {
 		cachedInfoMetrics, err := c.infoCache.Get(func() ([]prometheus.Metric, error) {
 			return infoMetrics, nil

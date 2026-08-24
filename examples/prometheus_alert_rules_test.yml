@@ -189,9 +189,8 @@ tests:
         alertname: WNCControllerBootTimeMissing
         exp_alerts: []
 
-  # The read succeeded and the gauge is still absent, because the leaf did not parse or
-  # sat at the epoch. items alone cannot see that, which is why the rule carries the
-  # second clause.
+  # The read succeeded and the gauge is still absent, because the instant sat at the
+  # epoch. items alone cannot see that, which is why the rule carries the second clause.
   - interval: 1m
     input_series:
       - series: 'wnc_refresh_items{job="cisco_wnc",instance="localhost:10039",data="controller_boot_time"}'

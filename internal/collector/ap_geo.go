@@ -18,8 +18,9 @@ const (
 	latitudeBound  = 90
 )
 
-// apGeoDescs holds the descriptors of the coordinate module. A nil value means the module is
-// disabled, which is what keeps both series out of a default scrape.
+// apGeoDescs holds the descriptors of the coordinate module. It is nil when the geolocation
+// module is off, and the metrics.Geolocation guards in the AP collector's Describe and Collect
+// are what keep both series out of a scrape and the nil out of a dereference.
 type apGeoDescs struct {
 	longitude *prometheus.Desc
 	latitude  *prometheus.Desc

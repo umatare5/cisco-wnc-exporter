@@ -127,18 +127,19 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter has no controller boot time to anchor counters to"
           description: >-
-            Every counter the controller collector publishes is cumulative since
-            the controller booted, and this gauge is the only epoch a rule can
-            anchor to, so an and on() against it returns an empty result rather
-            than firing while it is absent. items reads 0 when the read
+            Every counter the controller collector publishes is cumulative with
+            no epoch leaf of its own, and this gauge is the only reset anchor a
+            rule can use, so an and on() against it returns an empty result
+            rather than firing while it is absent. items reads 0 when the read
             succeeded and the controller carried no such leaf; a failed read
             raises wnc_refresh_errors_total instead and removes this series,
             which is why the rule cannot be written with absent(). The second
-            clause covers the other two ways the gauge is withheld, where the
-            read succeeded and items reads 1: the leaf did not parse, or it sat
-            at the epoch. Both clauses are anchored on an items series that
-            exists only while --collector.controller.general is enabled, so this
-            stays silent where it is off.
+            clause covers the one other way the gauge is withheld, where the
+            read succeeded and items reads 1: the instant sat at the epoch. A
+            malformed instant fails the read instead, so items goes absent and
+            WNCDataTypeFailing catches it. Both clauses are anchored on an items
+            series that exists only while --collector.controller.general is
+            enabled, so this stays silent where it is off.
 
       - alert: WNCBandAirQualityDipping
         expr: >-
