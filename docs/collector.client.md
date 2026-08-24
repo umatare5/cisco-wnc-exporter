@@ -4,38 +4,88 @@ Client collector focuses on user experience quality and connection performance.
 
 ## Metrics
 
-| Module  | Metric                                | Type    | Description                          |
-| :------ | :------------------------------------ | :------ | :----------------------------------- |
-| general | `wnc_client_state`                    | Gauge   | Connection state (11=run state)      |
-| general | `wnc_client_roam_type`                | Gauge   | Roam type **(\*4)**                  |
-| general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency             |
-| general | `wnc_client_power_save_state`         | Gauge   | Power save state **(\*1)**           |
-| general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                  |
-| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)    |
-| radio   | `wnc_client_mcs_index`                | Gauge   | MCS index **(\*2)**                  |
-| radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count                |
-| radio   | `wnc_client_speed_mbps`               | Gauge   | Negotiated PHY rate, not throughput  |
-| radio   | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)                |
-| radio   | `wnc_client_snr_decibels`             | Gauge   | Signal-to-noise ratio (dB)           |
-| traffic | `wnc_client_rx_bytes_total`           | Counter | Received bytes                       |
-| traffic | `wnc_client_tx_bytes_total`           | Counter | Transmitted bytes                    |
-| traffic | `wnc_client_rx_packets_total`         | Counter | Received packets                     |
-| traffic | `wnc_client_tx_packets_total`         | Counter | Transmitted packets                  |
-| errors  | `wnc_client_tx_retries_total`         | Counter | TX retries count **(\*3)**           |
-| errors  | `wnc_client_data_retries_total`       | Counter | Data retries by mobile station       |
-| errors  | `wnc_client_excessive_retries_total`  | Counter | Excessive retries count **(\*3)**    |
-| errors  | `wnc_client_rts_retries_total`        | Counter | RTS retries count **(\*3)**          |
-| errors  | `wnc_client_duplicate_received_total` | Counter | Duplicate packets received **(\*3)** |
-| errors  | `wnc_client_tx_drops_total`           | Counter | TX drops count                       |
-| errors  | `wnc_client_decryption_failed_total`  | Counter | Decryption failures                  |
-| errors  | `wnc_client_mic_mismatch_total`       | Counter | MIC mismatch errors **(\*3)**        |
-| errors  | `wnc_client_mic_missing_total`        | Counter | MIC missing errors **(\*3)**         |
-| errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors **(\*3)**              |
-| errors  | `wnc_client_rx_group_total`           | Counter | RX group counter                     |
+| Module  | Metric                                | Type    | Description                         |
+| :------ | :------------------------------------ | :------ | :---------------------------------- |
+| general | `wnc_client_state`                    | Gauge   | Connection state (11=run state)     |
+| general | `wnc_client_roam_type`                | Gauge   | Roam type                           |
+| general | `wnc_client_state_transition_seconds` | Gauge   | State transition latency            |
+| general | `wnc_client_power_save_state`         | Gauge   | Power save state                    |
+| general | `wnc_client_uptime_seconds`           | Gauge   | Connection duration                 |
+| radio   | `wnc_client_protocol`                 | Gauge   | 802.11 protocol (0=unknown, 1..7)   |
+| radio   | `wnc_client_mcs_index`                | Gauge   | MCS index                           |
+| radio   | `wnc_client_spatial_streams`          | Gauge   | Spatial streams count               |
+| radio   | `wnc_client_speed_mbps`               | Gauge   | Negotiated PHY rate, not throughput |
+| radio   | `wnc_client_rssi_dbm`                 | Gauge   | Signal strength (dBm)               |
+| radio   | `wnc_client_snr_decibels`             | Gauge   | Signal-to-noise ratio (dB)          |
+| traffic | `wnc_client_rx_bytes_total`           | Counter | Received bytes                      |
+| traffic | `wnc_client_tx_bytes_total`           | Counter | Transmitted bytes                   |
+| traffic | `wnc_client_rx_packets_total`         | Counter | Received packets                    |
+| traffic | `wnc_client_tx_packets_total`         | Counter | Transmitted packets                 |
+| errors  | `wnc_client_tx_retries_total`         | Counter | TX retries count                    |
+| errors  | `wnc_client_data_retries_total`       | Counter | Data retries by mobile station      |
+| errors  | `wnc_client_excessive_retries_total`  | Counter | Excessive retries count             |
+| errors  | `wnc_client_rts_retries_total`        | Counter | RTS retries count                   |
+| errors  | `wnc_client_duplicate_received_total` | Counter | Duplicate packets received          |
+| errors  | `wnc_client_tx_drops_total`           | Counter | TX drops count                      |
+| errors  | `wnc_client_decryption_failed_total`  | Counter | Decryption failures                 |
+| errors  | `wnc_client_mic_mismatch_total`       | Counter | MIC mismatch errors                 |
+| errors  | `wnc_client_mic_missing_total`        | Counter | MIC missing errors                  |
+| errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors                       |
+| errors  | `wnc_client_rx_group_total`           | Counter | RX group counter                    |
 
-## Labels
+## Specifications
 
-`info` module provides `wnc_client_info` contains following labels to join with other metrics:
+Each entry carries what the series' HELP text and the shared [Absence](README.md#absence) rules do not.
+
+**`wnc_client_state`**
+
+- Every other series in this collector needs the client in `client-status-run`, so a client whose onboarding is slow, stuck or failed carries this one alone.
+
+**`wnc_client_roam_type`**
+
+- Read from the first entry of the mobility history, the record `wnc_client_state_transition_seconds` also reads, so it adds no request and a failed fetch or a history with no entry takes both series away at once.
+- No series in this collector counts roams — the controller keeps its roam counters for itself rather than per client, and the [Controller](collector.controller.md) page publishes the three it maintains.
+
+**`wnc_client_state_transition_seconds`**
+
+- Belongs to the association the client currently holds, read from that same first entry, so it does not move until the client associates again.
+- Withheld in the two shapes the controller uses to say it measured no transition — a mobility history with no entry, and a first entry whose latency reads zero, which would report an instant transition rather than none.
+
+**`wnc_client_power_save_state`**
+
+- Zero was observed, and one non-zero reading of at most 1, with no documented domain behind either — read any other value as a state this exporter has not seen rather than as an error.
+
+**`wnc_client_mcs_index`**
+
+- Parsed out of the rate string the controller spells as `m<index>` followed by the stream count, so `-1` covers a legacy rate carrying no index, an empty string and a spelling the parser does not recognise alike.
+- Not bounded at 11, and readings above it were observed, so pair it with `wnc_client_protocol` and `wnc_client_spatial_streams` — the index alone fixes neither the protocol's rate table nor whether the stream count is already inside it.
+
+**`wnc_client_speed_mbps`**
+
+- Holds the rate the client negotiated for the link, so an idle client keeps it — throughput takes `rate()` over the byte counters in the `traffic` module.
+
+**`wnc_client_tx_retries_total` and `wnc_client_data_retries_total`**
+
+- A retry rate over either also needs `wnc_client_tx_packets_total` from the `traffic` module, so recomputing one takes both `--collector.client.errors` and `--collector.client.traffic`, and both default off.
+
+**The eight `errors` counters below**
+
+- Read zero on every client of the access points this exporter was measured against, and the access point model and the release decide whether each is maintained, so take the list as an observation rather than as a property of the platform.
+
+  | Metric                                | Leaf                   |
+  | :------------------------------------ | :--------------------- |
+  | `wnc_client_duplicate_received_total` | `duplicate-rcv`        |
+  | `wnc_client_excessive_retries_total`  | `tx-excessive-retries` |
+  | `wnc_client_mic_mismatch_total`       | `mic-mismatch`         |
+  | `wnc_client_mic_missing_total`        | `mic-missing`          |
+  | `wnc_client_policy_errors_total`      | `policy-errs`          |
+  | `wnc_client_rts_retries_total`        | `rts-retries`          |
+  | `wnc_client_rx_group_total`           | `rx-group-counter`     |
+  | `wnc_client_tx_retries_total`         | `tx-retries`           |
+
+## Info Labels
+
+The `info` module publishes `wnc_client_info` with the following labels to join with other metrics:
 
 | Labels        | Description                 | Example Value                 | Default | Required |
 | :------------ | :-------------------------- | :---------------------------- | :-----: | :------: |
@@ -56,84 +106,20 @@ Use this info metric to add contextual labels to other metrics in PromQL queries
 wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
 ```
 
-The example joins `ap` and `wlan`, which are not in the default label set, so `--collector.client.info-labels` has to name them for those labels to carry a value. The product carries the left side's value, so it reports the connection state number rather than a `1` — [Enumeration values](enums.md) is the mapping.
+The example above names `ap` and `wlan`, which the default label set omits, so `--collector.client.info-labels` has to carry both for those labels to hold a value.
 
-`wnc_client_info` exists only for clients that reached `client-status-run`, so this join silently drops a client held short of it. Keep an alert on stuck clients join-free, as shown in [States](README.md#states).
-
-**Joining to a WLAN series takes `label_replace`.** `wlan_id` carries the identifier `wnc_wlan_info` carries as `id`, and the two names do not match, so `on(wlan_id)` and `on(id)` both return an empty vector rather than an error. Rename one side: `wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")`. It reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}` once the info cache has refreshed since the last association change, and diverges until then. It is empty rather than `0` for a client whose identifier the controller omitted — no WLAN carries identifier `0`.
-
-**`device_type` moves the series identity, and the info cache holds the old one.** It is the controller's own classification rather than something the client states, so it changes when the controller reclassifies — and a reclassification leaves two `wnc_client_info` series for one `mac` until the older one goes stale, which fails a `group_left` over them with a duplicate-series error. This is the hazard the `ap` label already carries, and asking for both puts two churning labels on one series.
-
-## Notes
-
-`wnc_client_speed_mbps` is the rate the client negotiated for the link, reported alongside the MCS index and the stream count it is derived from. It does not measure how much the client is sending or receiving, so it stays at its negotiated value on an idle client — for throughput use `rate()` over the byte counters in the `traffic` module.
-
-`wnc_client_state_transition_seconds` reports the run latency the controller recorded for the association this client currently holds, so it does not move until the client associates again. It is withheld in the two shapes the controller uses to say it measured no transition, because a zero would report an instant one. It is published only for a client in the run state, so a transition that is slow, stuck or failed has no series here — use `wnc_client_state` for those, as shown in [States](README.md#a-state-is-a-number-not-a-label).
-
-`wnc_client_uptime_seconds` is withheld for a client whose record carries no association time, and for the epoch the controller writes where an event has not happened — the same rule the AP uptime and the AP timestamp series follow. Measuring from either would report a session centuries long, so absence is the ordinary reading for a record the controller has not filled in rather than a fault.
-
-No series here counts roams. The controller maintains a roam count for itself rather than per client, and the exporter publishes it on the [Controller](collector.controller.md) page. `wnc_client_roam_type` names the type of the association the client currently holds and is not a count.
-
-Recomputing a retry rate needs both `--collector.client.errors` and `--collector.client.traffic`. `wnc_client_data_retries_total` and `wnc_client_tx_retries_total` come from the errors module while `wnc_client_tx_packets_total` comes from the traffic module. Both flags default off.
-
-<details><summary><b>*1</b> Power save state value domain</summary><br/>
-
-The exporter decodes this leaf as an integer and publishes it unchanged, so a fractional reading would fail the fetch that carries it rather than arrive rounded. Zero was observed, and so was a non-zero reading of at most 1 whose exact value the measurement did not record. The full domain is not documented, so treat any other value as a state this exporter has not seen rather than as an error.
-
-</details>
-
-<details><summary><b>*2</b> MCS index range, and what -1 means</summary><br/>
-
-The index is parsed out of the rate string the controller reports for the client, which spells it as `m<index>` followed by the stream count. The value is not bounded at 11:
-
-- 802.11n encodes the stream count in the index itself, so a two-stream client reports 8 through 15, and observed values already exceed 11.
-- On every later protocol the stream count sits in a separate leaf, so the same index means a different rate — read this metric together with `wnc_client_protocol` and `wnc_client_spatial_streams`.
-
-`-1` is reported whenever no index can be parsed. That covers a legacy client whose rate carries none, and equally a rate string that is empty or spelled in a form the parser does not recognise. The two are not distinguished.
-
-</details>
-
-<details><summary><b>*3</b> Client error metrics observed to stay at zero on the access points this exporter was measured against</summary><br/>
-
-The client error metrics below were observed at zero on every client of the access points this exporter was measured against. Whether a counter is maintained depends on the access point model and the release, so read the list as an observation rather than as a property of the platform. That applies while the fetch succeeds: a data type whose fetch failed makes its series absent rather than zero.
-
-- `wnc_client_duplicate_received_total`
-- `wnc_client_excessive_retries_total`
-- `wnc_client_mic_mismatch_total`
-- `wnc_client_mic_missing_total`
-- `wnc_client_policy_errors_total`
-- `wnc_client_rts_retries_total`
-- `wnc_client_rx_group_total`
-- `wnc_client_tx_retries_total`
-
-This was verified through direct RESTCONF API access to the live WNC environment:
-
-```bash
-❯ curl -sS -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
-           -H "Accept: application/yang-data+json" \
-           "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-client-oper:client-oper-data/traffic-stats" \
-           | jq '.["Cisco-IOS-XE-wireless-client-oper:traffic-stats"][0]' | \
-           jq '{duplicate_rcv, tx_excessive_retries, mic_mismatch, mic_missing, policy_errs, rts_retries, rx_group_counter, tx_retries}'
-{
-  "duplicate_rcv": "0",
-  "tx_excessive_retries": "0",
-  "mic_mismatch": "0",
-  "mic_missing": "0",
-  "policy_errs": "0",
-  "rts_retries": "0",
-  "rx_group_counter": "0",
-  "tx_retries": "0"
-}
-```
-
-</details>
-
-<details><summary><b>*4</b> The roam type belongs to the current association, and it is not a count</summary><br/>
-
-`wnc_client_roam_type` reports how the client reached the association it currently holds, as the number the controller's own enumeration assigns the spelling it sent — [Enumeration values](enums.md) is the mapping. It is read from the first entry of the mobility history, the record `wnc_client_state_transition_seconds` also reads, so it adds no request and both are absent while that fetch fails.
-
-It is a property of that association rather than a count, so it does not move until the client associates again and a client that has roamed many times reports one value. A spelling this release does not number is withheld rather than published, so a controller that adds a roam type takes that client's series away instead of reporting the wrong roam.
-
-Two shapes withhold it: a mobility history with no entry, and an entry whose roam type the controller left empty, because an empty spelling numbers nothing. It is published for a client in the run state only, like the rest of this module, so a client held short of that state has no series here — `wnc_client_state` covers those.
-
-</details>
+> [!NOTE]
+>
+> ### About the Labels
+>
+> **`wlan_id`:** Reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}`, and it is empty rather than `0` where the controller omitted the identifier.
+>
+> **`device_type`:** The controller's own classification rather than something the client states, so a reclassification leaves two `wnc_client_info` series for one `mac` and a `group_left` over them fails with a duplicate-series error.
+>
+> **`band`:** Reads the PHY generation the client associated on rather than the band its AP radio reports, and `unknown` covers a generation naming no band, a wired client for instance, as well as a spelling this exporter does not map.
+>
+> **`ap`:** Carries that same hazard whenever a client roams rather than when the controller reclassifies it, so naming both labels puts two that churn on one series.
+>
+> ```bash
+> wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")
+> ```

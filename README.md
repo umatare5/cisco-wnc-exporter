@@ -24,7 +24,7 @@
 
 ## Overview
 
-This exporter allows a prometheus instance to scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
+This exporter allows a Prometheus instance to scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
 - 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
 - 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
@@ -72,17 +72,19 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 
 Each collector is enabled per module:
 
-- `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.geolocation`, `.spectrum`, `.info`
-- `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`
-- `--collector.wlan.general`, `.traffic`, `.config`, `.info`
-- `--collector.controller.general`
+| Module       | Flags                                                                                                    |
+| :----------- | :------------------------------------------------------------------------------------------------------- |
+| `ap`         | `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.geolocation`, `.spectrum`, `.info` |
+| `client`     | `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`                                   |
+| `wlan`       | `--collector.wlan.general`, `.traffic`, `.config`, `.info`                                               |
+| `controller` | `--collector.controller.general`                                                                         |
 
 > [!CAUTION]
-> The `--wnc.tls-skip-verify` flag disables TLS certificate verification. This should only be used in development environments or when connecting to controllers with self-signed certificates. **Never use this option in production environments** as it compromises security.
+> `--wnc.tls-skip-verify` disables TLS certificate verification. **Never use it in production.**
 
 ## Configuration
 
-This exporter supports following environment variables:
+This exporter reads two environment variables:
 
 | Environment Variable | Description                                      |
 | :------------------- | :----------------------------------------------- |
@@ -98,9 +100,7 @@ This exporter collects wireless network metrics from Cisco C9800 WNC using four 
 | **[AP](docs/collector.ap.md)**                 | RF foundation and radio performance                |
 | **[Client](docs/collector.client.md)**         | User experience quality and connection performance |
 | **[WLAN](docs/collector.wlan.md)**             | Logical SSID performance and parameter checks      |
-| **[Controller](docs/collector.controller.md)** | The controller itself, with no per-device label    |
-
-Each page lists every metric its collector publishes, the labels its `_info` metric carries where it has one, and the counters the controller may report as a constant zero. The `Module` column on those pages names the flag suffix that enables a metric, as in `--collector.ap.radio`.
+| **[Controller](docs/collector.controller.md)** | The controller itself metrics such as boot time    |
 
 The series a dashboard usually starts from:
 
@@ -121,18 +121,14 @@ The series a dashboard usually starts from:
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
-See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset, state and label semantics every collector shares
+See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset and state semantics every collector shares.
 
 > [!Important]
 >
-> All collectors are **disabled by default** to reduce load on both Prometheus and the Cisco C9800 WNC, and an exporter with no collector enabled never contacts the controller at all.
+> All collectors are **disabled by default** to reduce load on both Prometheus and the controller, and an exporter with no collector enabled never contacts the controller at all.
 >
-> - Every enabled collector is served from one shared refresh, and a refresh runs no more often than `--wnc.cache-ttl`, so the controller sees one pass of requests per interval however many collectors are enabled and however often Prometheus scrapes.
-> - That pass reads only the `data` types the enabled modules need. Because a Cisco C9800 WNC typically manages hundreds or even thousands of APs and clients, selective monitoring is essential to maintain performance and stability.
-
-> [!Note]
->
-> The exporter also exposes the [Exporter Health Metrics](#exporter-health-metrics) series, which describe the exporter itself rather than the wireless network.
+> - Every enabled collector is served from one refresh, which runs at most once per `--wnc.cache-ttl`, so the controller sees one pass of requests per interval.
+> - That refresh reads only the `data` types the enabled modules need, so a client-only deployment never fetches `ap_capwap_data`.
 
 ### Exporter Health Metrics
 
@@ -157,23 +153,19 @@ These series describe the exporter itself rather than the wireless network. They
 
 ## Use Cases
 
-There are multiple ways to run the exporter, including direct binary execution and Docker containerization.
-
 ### Exporter Configuration
 
 The exporter serves three endpoints:
 
-- `/` - Landing page. Visit http://localhost:10039/ to verify the exporter is running
-- `/metrics` - Metrics endpoint, moved by `--web.telemetry-path`. Pointing it at `/` replaces the landing page
-- `/healthz` - Liveness probe. Returns a static 200 and deliberately ignores WNC reachability
+- `/` — landing page, which confirms the exporter is running when reached at <http://localhost:10039/>
+- `/metrics` — metrics endpoint, which `--web.telemetry-path` moves to any path, including `/`, where it replaces the landing page
+- `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
 
 > [!Note]
 >
-> `/healthz` stays liveness-only on purpose. Reflecting the WNC state there would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it — exactly when they are needed.
+> Reflecting the WNC state in `/healthz` would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it.
 
 #### Basic Usage - No Collectors
-
-The exporter starts without any collectors enabled by default:
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
@@ -183,8 +175,6 @@ time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on p
 ```
 
 #### Essential Usage
-
-Enable essential collectors for basic monitoring:
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
@@ -199,8 +189,6 @@ For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc
 
 ### Prometheus Configuration
 
-This section describes how to configure Prometheus to scrape metrics from the cisco-wnc-exporter.
-
 #### Job Configuration Example
 
 Add the job config to your Prometheus YAML file using [examples/prometheus.yml](./examples/prometheus.yml) as a reference.
@@ -213,8 +201,8 @@ Add the job config to your Prometheus YAML file using [examples/prometheus.yml](
 > P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
 > ```
 >
-> - `R`: The refresh duration, which `wnc_refresh_duration_seconds` reports.
-> - `P`: 120 seconds for `R` of 5 to 65 seconds at a 60s `scrape_interval`.
+> - `R` — the refresh duration, which `wnc_refresh_duration_seconds` reports.
+> - `P` — 120s for `R` over 5s up to 65s, with default `--wnc.cache-ttl` 55s and `scrape_interval` 60s.
 
 #### Alerting Rules Configuration Example
 
