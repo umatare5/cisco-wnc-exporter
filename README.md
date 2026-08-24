@@ -184,7 +184,7 @@ The exporter starts without any collectors enabled by default:
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
-$ WNC_ACCESS_TOKEN="foobarbaz"
+$ WNC_ACCESS_TOKEN="$(echo -n 'admin:your-password' | base64)"
 $ ./cisco-wnc-exporter
 time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10039."
 ```
@@ -195,7 +195,7 @@ Enable essential collectors for basic monitoring:
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
-$ WNC_ACCESS_TOKEN="foobarbaz"
+$ WNC_ACCESS_TOKEN="$(echo -n 'admin:your-password' | base64)"
 $ ./cisco-wnc-exporter \
     --collector.ap.general --collector.client.general --collector.wlan.general
 ```
