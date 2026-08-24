@@ -4,6 +4,21 @@ Notable changes to the metric surface, one section per release — a short pream
 
 A minor release may rename or remove a metric, because the controller owns the schema every series reads. Every collector module flag is off by default, so a release that adds one adds no series until you set it. A rename carries the type, the labels and the value of the old name unless the entry says otherwise.
 
+## [v0.13.1]
+
+This release rewrites every HELP string longer than 100 characters and every alert description longer than 240, both budgets taken from the reference exporters. No metric name, type, label or value changes.
+
+### AP Metrics
+
+#### Changed
+
+- `wnc_ap_config_state` — the HELP now names the absence its `appendFlag` guard already produced.
+- `wnc_ap_channel_number` and `wnc_ap_channel_width_mhz` — the HELP now names the absence v0.13.0 introduced.
+
+### Flags
+
+None.
+
 ## [v0.13.0]
 
 This release stops fabricating a channel `0` for a radio whose leaf the controller omits, and stops fetching the CAPWAP inventory for modules that never read it.

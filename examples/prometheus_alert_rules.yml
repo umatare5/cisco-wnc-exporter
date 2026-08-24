@@ -12,14 +12,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter is getting none of the WNC data it asked for"
           description: >-
-            Every data type the enabled collectors read failed, which covers an
-            unreachable controller and a reachable one that refuses those
-            models. With more than one collector enabled, one can fail entirely
-            while wnc_up stays 1, which is what WNCDataTypeFailing covers, so
-            this is not a completeness signal. Scrapes keep returning 200 from
-            the cached snapshot, so the target up stays 1 and cannot detect
-            this. Also fires briefly after a restart, before the first refresh
-            completes.
+            Every data type the enabled collectors read failed: an unreachable
+            controller, or a reachable one refusing those models. Scrapes
+            still return 200, carrying no WNC data, so the target's own up
+            stays 1 and cannot detect this.
 
       - alert: WNCDataStale
         expr: time() - wnc_refresh_success_timestamp_seconds > 300
@@ -29,11 +25,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter is serving a stale snapshot"
           description: >-
-            Pick the threshold above P + scrape_interval * ceil(R /
-            scrape_interval), which is the largest freshness a healthy exporter
-            reports, and below 3 * P + scrape_interval, which is when the
-            snapshot stops being served. With the shipped defaults and a 60
-            second scrape_interval that range is 180 to 420 seconds.
+            The refresh behind the served snapshot is older than the
+            threshold, so its series are frozen at their last reading or
+            withheld entirely. A partly failed refresh still publishes and
+            advances this timestamp, so silence is not completeness.
 
       - alert: WNCDataTypeFailing
         expr: increase(wnc_refresh_errors_total[15m]) > 0
@@ -43,12 +38,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter cannot fetch {{ $labels.data }}"
           description: >-
-            A data type late in the fetch order with
-            wnc_refresh_duration_seconds near twice --wnc.cache-ttl was cut by
-            the refresh deadline rather than by the controller. Exclude a data
-            type your controller legitimately leaves empty with a data!=
-            matcher. Keep for shorter than the range minus scrape_interval, or
-            an isolated failure never fires.
+            This data type's fetch failed, so the series read from it are
+            withheld rather than published as zero. wnc_up stays 1 while any
+            other type still succeeds, so WNCRefreshFailing staying silent is
+            no evidence the rest of the data arrived.
 
       - alert: WNCAPInventoryEmpty
         expr: >-
@@ -61,15 +54,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter reached the WNC but sees no APs"
           description: >-
-            Every AP series except the join module is labeled from the
-            AP inventory, so an empty inventory silently empties the AP
-            and radio series while wnc_up stays 1. The join module reads
-            a statistics list that keeps a record for an AP the
-            inventory has dropped, so its series survive this and
-            WNCAPNotJoining stays useful, which the wnc_ap_joined entry
-            on the AP page covers. The and clause keeps the rule silent
-            where no AP collector is enabled and the inventory is never
-            fetched.
+            The AP inventory fetch returned no AP, so every series keyed from
+            it is gone while wnc_up stays 1. A failed inventory fetch drops
+            the items series and fires this as well, with the radio series
+            unaffected, so check WNCDataTypeFailing first.
 
       - alert: WNCWLANPolicyBindingAmbiguous
         expr: >-
@@ -82,17 +70,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter cannot say which policy profile WLAN {{ $labels.id }} reports"
           description: >-
-            The six wnc_wlan config series read from the policy profile
-            carry no label for the tag or the profile. Where a WLAN
-            resolves to more than one profile they report only one of
-            them and nothing says which. The wnc_wlan_policy_binding
-            entry on the WLAN page covers that state, and why the inner
-            count collapses the tags naming one profile. Binding one
-            WLAN to a different profile per site is a legitimate design
-            with nothing to fix. Read the profiles from
-            wnc_wlan_policy_binding, treat the six config series for
-            that id as unusable, and silence this alert for that id.
-            Needs --collector.wlan.config.
+            Binding a WLAN to a different policy profile per site is
+            legitimate and needs no fix. Either way the six wnc_wlan series
+            read from the policy profile are unusable here, so take the
+            profiles from wnc_wlan_policy_binding and silence this id.
 
       - alert: WNCAPNotJoining
         expr: >-
@@ -104,18 +85,10 @@ groups:
         annotations:
           summary: "AP {{ $labels.mac }} reaches the WNC but holds no CAPWAP session"
           description: >-
-            The join statistics keep a record for an AP that has left
-            CAPWAP, and its discovery counters keep advancing while it
-            retries, so this separates an AP the controller can hear
-            from one it cannot. Look the AP name up with
-            wnc_ap_join_info{mac="..."} rather than joining it into the
-            expr, which would make the alert vanish whenever that series
-            is absent. An AP that holds this controller as its
-            secondary, or that discovers by broadcast, DHCP option 43 or
-            DNS, sends discovery here at every boot, which is why for is
-            longer than the rate range. The
-            wnc_ap_discovery_requests_total entry on the AP page says to
-            exclude such an AP by mac. Needs --collector.ap.join.
+            This AP keeps sending CAPWAP discovery and holds no session here,
+            so no join completes. An AP whose secondary this controller is, or
+            that discovers by broadcast, DHCP option 43 or DNS, fires here
+            while joining elsewhere; exclude it by mac.
 
       - alert: WNCControllerBootTimeMissing
         expr: >-
@@ -130,19 +103,10 @@ groups:
         annotations:
           summary: "cisco-wnc-exporter has no controller boot time to anchor counters to"
           description: >-
-            This gauge is the only reset anchor the controller counters
-            have, so an and on() against it returns an empty result
-            rather than firing while it is absent. items at 0 is a read
-            that succeeded with the controller carrying no such leaf,
-            and items at 1 with the gauge still absent is the instant
-            sitting at the epoch, which the second clause covers. A read
-            that failed raises wnc_refresh_errors_total and removes the
-            items series instead, so WNCDataTypeFailing catches that
-            case. The wnc_controller_boot_time_seconds entry on the
-            Controller page has both withholding rules. Both clauses are
-            anchored on an items series that exists only while
-            --collector.controller.general is enabled, so this stays
-            silent where it is off.
+            Nothing dates the controller's last reboot while this fires, so a
+            rise on the four controller counters cannot be gated on its age. A
+            read that failed silences both clauses and raises
+            wnc_refresh_errors_total, so silence here is not proof.
 
       - alert: WNCBandAirQualityDipping
         expr: >-
@@ -154,29 +118,10 @@ groups:
         annotations:
           summary: "The worst channel of band {{ $labels.band }} dips below its own average air quality"
           description: >-
-            The worst channel of this band dipped well below its own
-            average, which reads as a dirty burst under a clean average.
-            Read wnc_rrm_worst_channel_number for which channel it is. A
-            deeper dip on another channel is invisible here, and an AP
-            that stops reporting raises the band reading with the air
-            unchanged. This rule fails quiet rather than loud. The
-            per-radio wnc_ap_air_quality_index_avg and
-            wnc_ap_air_quality_index_min follow the channel each radio
-            operates on. The controller recomputes the row once per air
-            quality reporting period and holds it in between, so the
-            detection delay is at least one period plus for. A held
-            reading cannot be told from a stale snapshot, so
-            WNCDataStale is the pair for this one. Keep for well inside
-            the period the controller's CleanAir configuration reports.
-            30 is a placeholder rather than a measured normal. Set the
-            threshold from
-            max_over_time((wnc_rrm_worst_channel_air_quality_index_avg -
-            wnc_rrm_worst_channel_air_quality_index_min)[7d:5m]) on your
-            own estate. Do not borrow the controller's air quality alarm
-            threshold, which is a floor on the index itself rather than
-            on this difference. The four wnc_rrm_worst_channel_* series
-            entry on the AP page covers the row they read. Needs
-            --collector.ap.spectrum.
+            Air quality on this band's worst channel dipped well below its own
+            average, a burst the average hides. Read
+            wnc_rrm_worst_channel_number, then wnc_ap_air_quality_index_min
+            per radio; absence there is a missing CleanAir row, not clean air.
 
       - alert: WNCClientSessionFlapping
         expr: >-
@@ -187,19 +132,11 @@ groups:
         annotations:
           summary: "Client {{ $labels.mac }} cannot hold an association"
           description: >-
-            The uptime gauge rises with the session and drops when the
-            association restarts. A roam, a re-association to the same BSS and a
-            disconnect-reconnect all rewrite the one association-time leaf it is
-            measured from, so read this as session churn rather than as roaming.
-            Read wnc_controller_client_deletes_total for the reason the sessions
-            end. A client the controller drops on an idle timer cycles for as
-            long as it is on the network, with nothing wrong, and the second
-            clause excludes that class because a session the idle timeout ended
-            lasted at least that long. Set 300 to the idle timeout your policy
-            profiles carry. No for is needed, because the range is the
-            persistence window. An AP that loses CAPWAP restarts every client on
-            it and raises one alert per client, so group by alertname and read
-            WNCAPNotJoining for the AP side. Needs --collector.client.general.
+            This client keeps losing and rebuilding its association. A roam
+            restarts the association-time leaf too, so a client that roams
+            often fires here with nothing wrong.
+            wnc_controller_client_deletes_total gives the reasons,
+            controller-wide.
 
       - alert: WNCRadioChannelChurning
         expr: increase(wnc_ap_channel_changes_total[1h]) >= 4
@@ -208,22 +145,11 @@ groups:
         annotations:
           summary: "Radio {{ $labels.radio }} on AP {{ $labels.mac }} is moved to another channel repeatedly"
           description: >-
-            The hourly increase of wnc_ap_channel_changes_total reached
-            four on this radio, so the controller keeps moving it rather
-            than holding an assignment. The channel-assignment interval
-            the controller declares bounds how often a radio can be
-            moved, but not how many moves an hour holds, so take the
-            threshold from your own baseline of this counter. Keep the
-            range well above that interval, or a healthy radio and a
-            churning one both read zero. Write a retuned threshold as >=
-            N rather than > N-1, which prometheus_alert_rules_test.yml
-            pins with a radio that had already moved before the range
-            opened. The counter can fall when its AP boots or re-joins,
-            and increase() absorbs that, so no association-uptime guard
-            is needed and adding one would hide real churn for an hour
-            after every re-association. The wnc_ap_channel_changes_total
-            entry on the AP page covers what it is read from. Needs
-            --collector.ap.radio.
+            This radio's channel keeps being reassigned rather than holding an
+            assignment. What the counter counts is not established, so a
+            radar-driven move may be in it;
+            wnc_ap_last_radar_timestamp_seconds needs --collector.ap.errors to
+            answer that.
 
       - alert: WNCWLANOnboardingStalled
         expr: wnc_wlan_onboarding_clients > 0
@@ -233,18 +159,10 @@ groups:
         annotations:
           summary: "WLAN {{ $labels.id }} holds a client in the {{ $labels.phase }} phase"
           description: >-
-            The four phase counts are current counts and not rates, so a
-            client that onboards normally is caught only by coincidence
-            while one that is held stays counted. This is the
-            min_over_time shape the wnc_wlan_onboarding_clients entry on
-            the WLAN page teaches, with its five minutes lengthened to
-            the fifteen this rule's for holds. The count is per WLAN and
-            phase rather than per client, so a queue of successive slow
-            clients holds it above zero with nothing stuck, and the
-            client is named by wnc_client_state instead. The series is
-            withheld while the statistics read fails and absence resets
-            for, so pair this with WNCDataTypeFailing rather than
-            reading the gap as recovery. Needs --collector.wlan.traffic.
+            Onboarding is not completing in this phase on this WLAN. The count
+            is per WLAN and phase rather than per client, so a queue of
+            successive slow clients holds it above zero with nothing stuck.
+            Name the client with wnc_client_state.
 
       - alert: WNCRadioRRMProfilesFailing
         expr: >-
@@ -256,16 +174,7 @@ groups:
         annotations:
           summary: "Radio {{ $labels.radio }} on AP {{ $labels.mac }} fails two RRM profiles at once"
           description: >-
-            A single failed verdict is ordinary, so a rule on one
-            profile fires from the first scrape on a healthy estate. Two
-            at once, held for half an hour, is the shape that is not.
-            The load verdict is left out because the controller judges
-            it against a client-count threshold configured on it rather
-            than against measured RF. A radio carrying a crowd fails it
-            with nothing wrong in the air. Read capacity from
-            wnc_ap_clients and wnc_ap_channel_utilization_ratio instead.
-            The alert names the radio once rather than once per profile,
-            so read which profiles failed with
-            wnc_ap_rrm_profile_passed{mac="...", radio="..."} == 0. The
-            wnc_ap_rrm_profile_passed entry on the AP page carries the
-            stuck-verdict recipe as well. Needs --collector.ap.radio.
+            Two RRM verdicts other than load are failing together on this
+            radio. Read wnc_ap_rrm_profile_passed for this mac and radio to
+            see which two; interference and noise both fail in ordinary
+            conditions, coverage has never been observed to.
