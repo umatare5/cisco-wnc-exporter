@@ -157,7 +157,7 @@ These series describe the exporter itself rather than the wireless network. They
 The exporter serves three endpoints:
 
 - `/` — landing page, which confirms the exporter is running when reached at <http://localhost:10039/>
-- `/metrics` — metrics endpoint, which `--web.telemetry-path` moves to any path, including `/`, where it replaces the landing page
+- `/metrics` — metrics endpoint, configurable via `--web.telemetry-path`
 - `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
 
 > [!Note]
