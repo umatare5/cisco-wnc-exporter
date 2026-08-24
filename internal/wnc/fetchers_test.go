@@ -213,9 +213,8 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			"AP radio reads client data for the per-radio client count",
 			config.Collectors{AP: config.APCollectorModules{Radio: true}},
 			[]string{
-				dataAPCAPWAPData, dataAPRadioOperData, dataAPNameMACMap,
-				dataRRMMeasurement, dataClientCommonOperData, dataRRMRadioSlot,
-				dataRRMMainData,
+				dataAPRadioOperData, dataAPNameMACMap, dataRRMMeasurement,
+				dataClientCommonOperData, dataRRMRadioSlot, dataRRMMainData,
 			},
 		},
 		{
@@ -223,7 +222,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			// radio through the radio list, which this module has to pay for as well.
 			"AP spectrum reads the radio list its band and channel come from",
 			config.Collectors{AP: config.APCollectorModules{Spectrum: true}},
-			[]string{dataAPCAPWAPData, dataAPRadioOperData, dataRRMSpectrumAqWorst, dataRRMSpectrumAqTable},
+			[]string{dataAPRadioOperData, dataRRMSpectrumAqWorst, dataRRMSpectrumAqTable},
 		},
 		{
 			// The coordinate list carries its own ap-mac, so the module needs neither the
@@ -233,7 +232,7 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			[]string{dataAPGeoLocData},
 		},
 		{
-			"AP info reads only the two the AP collector fetches unconditionally",
+			"AP info reads the AP inventory and the radio list",
 			config.Collectors{AP: config.APCollectorModules{Info: true}},
 			[]string{dataAPCAPWAPData, dataAPRadioOperData},
 		},
@@ -241,8 +240,8 @@ func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
 			"AP errors reads the reset stats and both RRM error routes",
 			config.Collectors{AP: config.APCollectorModules{Errors: true}},
 			[]string{
-				dataAPCAPWAPData, dataAPRadioOperData, dataAPRadioOperStats,
-				dataAPRadioResetStats, dataRRMCoverage, dataRRMAPDot11RadarData,
+				dataAPRadioOperData, dataAPRadioOperStats, dataAPRadioResetStats,
+				dataRRMCoverage, dataRRMAPDot11RadarData,
 			},
 		},
 		{
