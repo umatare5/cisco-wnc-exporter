@@ -15,7 +15,7 @@ AP collector focuses on RF foundation and radio performance.
 | general     | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1)                 |
 | general     | `wnc_ap_memory_utilization_ratio`                 | Gauge   | Memory utilization ratio (0-1)              |
 | radio       | `wnc_ap_channel_number`                           | Gauge   | Channel number, absent if unreported        |
-| radio       | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth (MHz)                     |
+| radio       | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth, absent if unreported     |
 | radio       | `wnc_ap_tx_power_dbm`                             | Gauge   | Current transmit power (dBm)                |
 | radio       | `wnc_ap_tx_power_max_dbm`                         | Gauge   | Maximum TX power capability (dBm)           |
 | radio       | `wnc_ap_noise_floor_dbm`                          | Gauge   | Noise on the operating channel (dBm)        |

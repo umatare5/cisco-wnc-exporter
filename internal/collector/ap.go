@@ -146,7 +146,7 @@ func NewAPCollector(
 		)
 		collector.configStateDesc = prometheus.NewDesc(
 			"wnc_ap_config_state",
-			"Configuration state (0=valid, 1=invalid) from IsApMisconfigured",
+			"Tag configuration state (0=valid, 1=invalid), absent if unreported",
 			baseAPLabels,
 			nil,
 		)
@@ -167,13 +167,13 @@ func NewAPCollector(
 	if metrics.Radio {
 		collector.channelDesc = prometheus.NewDesc(
 			"wnc_ap_channel_number",
-			"Operating channel number",
+			"Operating channel number, absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.channelWidthDesc = prometheus.NewDesc(
 			"wnc_ap_channel_width_mhz",
-			"Channel bandwidth (MHz)",
+			"Channel bandwidth (MHz), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
