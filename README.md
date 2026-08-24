@@ -136,7 +136,7 @@ These series describe the exporter itself rather than the wireless network. They
 | Metric                                  | Type    | Description                                            |
 | :-------------------------------------- | :------ | :----------------------------------------------------- |
 | `wnc_build_info`                        | Gauge   | Exporter version in the `version` label, always 1      |
-| `wnc_up`                                | Gauge   | Whether the last **completed** refresh reached the WNC |
+| `wnc_up`                                | Gauge   | Whether last **completed** refresh reached WNC         |
 | `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**               |
 | `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot   |
 | `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up          |
