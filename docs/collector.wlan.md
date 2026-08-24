@@ -8,8 +8,8 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | :------ | :---------------------------------------- | :------ | :----------------------------------- |
 | general | `wnc_wlan_enabled`                        | Gauge   | WLAN status                          |
 | traffic | `wnc_wlan_clients`                        | Gauge   | Run-state clients count (calculated) |
-| traffic | `wnc_wlan_data_usage_bytes_total`         | Counter | Bytes in both directions **(\*1)**   |
-| traffic | `wnc_wlan_onboarding_clients`             | Gauge   | Clients held in a phase **(\*2)**    |
+| traffic | `wnc_wlan_data_usage_bytes_total`         | Counter | Bytes in both directions             |
+| traffic | `wnc_wlan_onboarding_clients`             | Gauge   | Clients held in a phase              |
 | config  | `wnc_wlan_auth_psk_enabled`               | Gauge   | PSK authentication enabled           |
 | config  | `wnc_wlan_auth_dot1x_enabled`             | Gauge   | 802.1x authentication enabled        |
 | config  | `wnc_wlan_auth_dot1x_sha256_enabled`      | Gauge   | 802.1x SHA256 auth enabled           |
@@ -24,83 +24,69 @@ WLAN collector focuses on logical SSID performance and parameter checks.
 | config  | `wnc_wlan_central_dhcp_enabled`           | Gauge   | Central DHCP enabled                 |
 | config  | `wnc_wlan_central_association_enabled`    | Gauge   | Central association enabled          |
 | config  | `wnc_wlan_policy_enabled`                 | Gauge   | Bound policy profile is active       |
-| config  | `wnc_wlan_pmf_state`                      | Gauge   | PMF setting **(\*3)**                |
+| config  | `wnc_wlan_pmf_state`                      | Gauge   | PMF setting                          |
 | config  | `wnc_wlan_ft_state`                       | Gauge   | 802.11r fast transition setting      |
-| config  | `wnc_wlan_policy_binding`                 | Gauge   | Policy tag binding **(\*4)**         |
+| config  | `wnc_wlan_policy_binding`                 | Gauge   | Policy tag binding                   |
 
-## Notes
+## Specifications
 
-`wnc_wlan_clients` counts only the clients the controller reports in the run state, so it does not count a client held short of it. During an onboarding failure the count therefore **falls** while clients pile up in an earlier phase, which is the opposite of what a rule written against a client-count rise expects. `wnc_wlan_onboarding_clients` counts those clients per phase, and `wnc_client_state` names them individually.
+Each entry carries what the series' HELP text and the shared [Absence](README.md#absence) rules do not.
 
-Every WLAN module reads `wlan-cfg-entries`, and `config` also reads `wlan-policies` and `policy-list-entries`. The exporter asks the controller for the values in force on the first two, because a plain read omits every leaf whose value equals its default, whether the profile set that value or never touched it — observed on IOS-XE 17.12. The same criterion reaches a whole container, so a container missing from a plain read can mean every leaf in it is at its default rather than that the feature is off. A controller that answers `400` is read plainly instead, and `wnc_refresh_defaults_fallback_total` rises for as long as that lasts. The `traffic` module also reads the client list, and `wnc_wlan_clients` is withheld for every WLAN when that fetch fails.
+**`wnc_wlan_enabled`**
 
-`wnc_wlan_pmf_state` and `wnc_wlan_ft_state` publish the number the controller's own enumeration assigns the spelling it sent, `0` to `2` on both — [Enumeration values](enums.md) is the mapping and [States](README.md#a-state-is-a-number-not-a-label) is the query shape. Match both by equality rather than by threshold: `wnc_wlan_pmf_state` at `>= 1` still admits an unprotected association, and `wnc_wlan_ft_state` `2`, `dot11r-adaptive-enabled`, is a compatibility mode for clients that cannot use the fast-transition AKM rather than a stronger form of its `1`. Neither is published for a WLAN whose response omits the leaf, because the leaf decodes to an empty string and an empty spelling numbers nothing.
+- Reads `wlan-status` from the optional `apf-vap-id-data` container, so a WLAN whose entry carries neither the container nor the leaf reports nothing rather than `0`.
 
-`wnc_wlan_policy_enabled` reads the `status` leaf of the policy profile the WLAN resolves to through a policy tag, and `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*_enabled` series read leaves of that same profile, so all six report a property of the policy profile per WLAN rather than of the WLAN profile. None of these six is published for a WLAN that resolves to no policy profile, or for any WLAN at all when either the `wlan-policies` or the `policy-list-entries` fetch fails. A `0` on `wnc_wlan_policy_enabled` can coexist with `wnc_wlan_enabled` reading `1`, because that series reads the WLAN profile's own administrative state and not the profile bound to it. What a shut policy profile does to a client — refuse new associations, drop existing ones, or stop the SSID being advertised — is not established here, so treat the series as change detection rather than an outage signal. Where one policy profile is bound to several WLANs, each WLAN reports it separately. Where one WLAN is bound through more than one policy tag, the six report the last binding the exporter can resolve, and a binding naming a policy profile absent from `wlan-policies` is skipped rather than reported, so it cannot displace an earlier one. No label on these series names the tag or the profile, so a `0` can mean the profile on one tag's binding is shut while the others are active, and a `1` can hide a shut binding.
+**`wnc_wlan_clients`**
 
-<details><summary><b>*1</b> What the byte counter totals, and what it is not</summary><br/>
+- Counts only the run state, so during an onboarding failure it **falls** while clients pile up in an earlier phase — the opposite of what a rule written against a client-count rise expects.
+- Reports `0` for a WLAN with no run-state client and goes absent only when the client-list fetch fails, unlike the two series below, which are keyed to a per-WLAN statistics record.
 
-The controller keeps one byte total per WLAN, and this series publishes it unchanged. **The unit is bytes**, established by comparing the delta of this leaf against the summed delta of the per-client receive and transmit byte counters over intervals where the WLAN's client set did not change: the two matched exactly, on every WLAN, in three independent runs. A single interval on a busy WLAN deviates by a sampling skew that cancels over the pool, so compare pooled deltas rather than one interval if you repeat the measurement.
+**`wnc_wlan_data_usage_bytes_total`**
 
-It counts **both directions together**, and it is a controller-side accumulator rather than a re-sum of the clients present now: it keeps the bytes of clients that have since disconnected. So it is **not** the sum of the per-client counters, and a WLAN with no clients at all can carry a large and unmoving value. For a rate use `rate()` over it directly; to attribute traffic to a client, use the per-client counters instead.
+- An administrative shutdown of the WLAN returned it to zero and re-enabling started the count again, so `increase()` and `rate()` across that shutdown lose everything counted before it. Whether any other event zeroes it was not measured.
+- A record whose leaf is missing or unparsable is skipped rather than read as zero, because a zero on a counter cannot be told from a reset.
 
-**An administrative shutdown of the WLAN returned this counter to zero, and re-enabling the WLAN started the count again from zero.** Three things follow: `increase()` and `rate()` over a range spanning the shutdown lose everything counted before it, the value is not a lifetime total for the WLAN, and the bytes counted before the shutdown cannot be recovered from the controller afterwards. Whether any event other than that shutdown zeroes it was not measured.
+**`wnc_wlan_onboarding_clients`**
 
-The leaf is a string on the wire. A record whose leaf is missing or unparsable is skipped rather than read as zero, because a counter that drops to zero is read as a reset and extrapolated from. The series is likewise absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails.
+- The four `phase` values — `l2auth`, `mobility`, `iplearn` and `webauth_pending` — are this exporter's own names for four separate leaves, not spellings the controller assigns.
+- Whether the counts partition a WLAN's clients was not measured, so do not add them to `wnc_wlan_clients`, which counts the run state alone.
+- They detect a stall rather than a failure rate: normal onboarding occupies a phase for milliseconds and a failure that ended in a disconnect leaves them at zero, so `wnc_controller_client_deletes_total` is what reports whether onboarding is failing.
 
-</details>
+**`wnc_wlan_auth_dot1x_enabled`, `wnc_wlan_wpa2_enabled`, `wnc_wlan_11k_neighbor_list_enabled`**
 
-<details><summary><b>*2</b> What the phase counts detect, and what they do not</summary><br/>
+- Measured on IOS-XE 17.12 to be omitted from exactly the WLANs where the setting is **on**, which is why all three withhold the series rather than read an omitted leaf as `false`.
 
-The controller keeps one count per phase rather than one enumerated leaf, so the four `phase` values — `l2auth`, `mobility`, `iplearn` and `webauth_pending` — are this exporter's own names for those four leaves.
+**`wnc_refresh_defaults_fallback_total`**
 
-**They are current counts, not cumulative ones.** The fifth count in the same record, the clients in the run state, equalled the per-WLAN client records exactly on every WLAN and in total, which is what types all five as gauges. Whether the five counts partition a WLAN's clients was not measured, so do not add them to `wnc_wlan_clients`, which counts the run state only.
+- Rises only where the controller answers `400` to the request for the values in force. A controller that accepts that request and ignores it answers `200`, so a flat counter is no proof that no `0` on this page stands for a leaf never sent.
 
-**What they detect is a stall, not a failure rate.** A client that onboards normally occupies a phase for milliseconds, so a scrape lands on it only by coincidence: all four leaves read zero in every one of ninety consecutive reads taken ten seconds apart. A client held in a phase, by contrast, stays there and is what the series is for. Alert on a count that persists rather than on any non-zero reading:
+**`wnc_wlan_policy_enabled`, `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*_enabled`**
 
-```bash
-min_over_time(wnc_wlan_onboarding_clients[5m]) > 0
-```
+- All six report a property of the policy profile the WLAN resolves to through a policy tag rather than of the WLAN profile itself.
+- None of them, and no `wnc_wlan_policy_binding`, is published for a WLAN that resolves to no policy profile or for any WLAN while either the `wlan-policies` or the `policy-list-entries` fetch fails — the remaining `config` series are unaffected.
 
-**A failure that has already completed is counted elsewhere.** These gauges hold a client only while it is stuck, so an onboarding failure that ended in a disconnect leaves them at zero; `wnc_controller_client_deletes_total{reason}` on the [Controller](collector.controller.md) page keeps the cumulative count per reason, and the reasons that name a DHCP, four-way-handshake, EAP or IP-learn timeout carried substantial totals on the controller measured here while every one of these gauges read zero. Read the counter for whether onboarding is failing and these gauges for which WLAN is holding a client now.
+**`wnc_wlan_policy_enabled`**
 
-The four series are absent for a WLAN the controller lists no statistics record for, and for every WLAN while the `wlan_client_stats` fetch fails. A record present with a phase leaf omitted cannot be told from a zero, so the error runs one way only — a stall can be under-reported and never invented.
+- What a shut policy profile does to a client — refuse new associations, drop existing ones, or stop advertising the SSID — is not established, so read it as change detection rather than as an outage signal.
 
-</details>
+**`wnc_wlan_pmf_state`**
 
-<details><summary><b>*3</b> What the PMF setting covers</summary><br/>
+- Match it by equality: at `>= 1` it still admits an unprotected association, because the middle value is `apf-vap-pmf-optional` — [Enumeration values](enums.md) maps both this and `wnc_wlan_ft_state`.
+- A rule paging on anything other than `2` raises a false alarm on a WLAN advertised on 6 GHz, and the error runs one way only — under-reporting 6 GHz protection and never over-reporting it.
 
-The leaf reports the setting that applies to the WLAN's 2.4 GHz and 5 GHz BSSes. A 6 GHz BSS requires PMF whichever value this series reports, and the controller reports that requirement separately in a form no leaf carries. So a rule that pages on anything other than `2`, the required setting, raises a false alarm on a WLAN advertised on 6 GHz. The error runs one way only — the series can under-report 6 GHz protection and never over-report it.
+**`wnc_wlan_policy_binding`**
 
-The setting has three values rather than two, and the middle one admits an unprotected association, which is why the controller's own value is published rather than a boolean.
+- Published only where both ends resolve, so a tag naming a WLAN the controller does not define and a binding whose profile is absent from `wlan-policies` are both skipped: it is not a complete inventory of the controller's tags.
+- Where it shows more than one profile for an `id`, a `0` on `wnc_wlan_policy_enabled` can mean one binding's profile is shut while the others are active, and a `1` can hide a shut one.
+- Alert on the count of **distinct profiles** rather than of series, because one WLAN bound to one profile through several tags is not ambiguous and the inner `count` is what excludes it:
 
-</details>
+> ```bash
+> count by (id) (count by (id, policy_profile) (wnc_wlan_policy_binding)) > 1
+> ```
 
-<details><summary><b>*4</b> Reading which policy profile the six config series report</summary><br/>
+## Info Labels
 
-`wnc_wlan_policy_binding` publishes one series per binding, carrying the `id` of the WLAN, the `policy_profile` it is bound to and the `policy_tag` carrying the binding, always with the value `1`. The six policy-derived series above name none of those, so where a WLAN is bound through more than one tag they report one of the profiles and nothing says which — this series is what makes that state visible.
-
-Alert on it with the count of **distinct profiles**, not of series:
-
-```bash
-count by (id) (count by (id, policy_profile) (wnc_wlan_policy_binding)) > 1
-```
-
-Binding one WLAN to one profile through several tags is not ambiguous, and the inner `count` is what excludes it; counting series instead fires on it.
-
-A binding is published only when the exporter can resolve both ends. A tag naming a WLAN the controller does not define carries no `id` to key a series by, and a binding whose policy profile is absent from `wlan-policies` is skipped by the six series as well, so publishing either would show a binding they are not reporting. Both cases are real: a controller can carry a policy tag that names WLANs which no longer exist.
-
-It comes from the same two reads as the six series and adds no request of its own, so it is absent exactly when they are.
-
-</details>
-
-`wnc_wlan_enabled` reads `wlan-status` from the optional `apf-vap-id-data` container on the WLAN entry, while `wnc_wlan_session_timeout_seconds` reads `session-timeout` from `wlan-timeout` and the four `wnc_wlan_central_*_enabled` series read their `central-*` leaf from `wlan-switching-policy`, two optional containers on the policy profile. None of the six named here is published when the container it reads is absent, and a container the controller does send may still omit individual leaves, in which case only the series reading an omitted leaf goes absent. Five of the six carry absence that far — `wnc_wlan_session_timeout_seconds` and the four `wnc_wlan_central_*_enabled` — so a sibling leaf being present is no evidence that theirs was sent. `wnc_wlan_policy_enabled` is the exception: its leaf decodes by value, so an omitted one reads as `0`. While the fallback counter is rising, or on a controller that accepts the request and ignores it, a profile that left every leaf in `wlan-switching-policy` at its default carries no such container, so the four `wnc_wlan_central_*_enabled` series go absent.
-
-The remaining `config` boolean series read a leaf that no container guards, and they divide on what an omitted one does. `wnc_wlan_auth_dot1x_enabled`, `wnc_wlan_wpa2_enabled` and `wnc_wlan_11k_neighbor_list_enabled` go absent, which is what makes the three measured on IOS-XE 17.12 to be omitted from exactly the WLANs where the setting is on safe to read. On `wnc_wlan_auth_psk_enabled`, `wnc_wlan_auth_dot1x_sha256_enabled`, `wnc_wlan_wpa3_enabled`, `wnc_wlan_load_balance_enabled` and `wnc_wlan_client_steering_enabled` an omitted leaf and a configured `false` decode alike, so while the fallback counter is rising, or on a controller that accepts the request and ignores it, a `0` on those five can mean a leaf the controller did not send rather than a feature that is off.
-
-## Labels
-
-`info` module provides `wnc_wlan_info` contains following labels to join with other metrics:
+The `info` module publishes `wnc_wlan_info` with the following labels to join with other metrics:
 
 | Labels | Description     | Example Value  | Default | Required |
 | :----- | :-------------- | :------------- | :-----: | :------: |

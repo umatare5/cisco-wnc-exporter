@@ -64,8 +64,10 @@ const (
 const refreshDeadlineFactor = 2
 
 // maxConsecutiveRefreshFailures is how many refreshes may fail in a row before
-// data series are withheld. Serving a frozen snapshot indefinitely defeats
-// Prometheus staleness marking and makes rate() report a false zero.
+// data series are withheld. A frozen snapshot answers as a reading, so every
+// gauge holds its last value and rate() over identical samples returns a
+// confident zero; withholding takes the series away instead. A range selector
+// bridges the resulting gap rather than being blocked by it.
 const maxConsecutiveRefreshFailures = 3
 
 // WNCDataCache contains operational data from WNC.

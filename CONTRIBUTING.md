@@ -30,7 +30,7 @@ This cross-compiles a Linux binary into `./tmp/image`, then builds from that dir
 
 To release a new version, follow these steps:
 
-1. Rename the `## Unreleased` heading in `CHANGELOG.md` to `## vX.Y.Z`, matching the `VERSION` file exactly.
+1. Add the `## [vX.Y.Z]` section to `CHANGELOG.md` above the previous release, matching the version in the `VERSION` file, and add that version's release link at the foot of the file.
 2. Update the version in the `VERSION` file.
 3. Update the `VERSION:` line in the `--help` transcript in `docs/configuration.md`.
 4. Submit a pull request with all three files.
@@ -42,6 +42,6 @@ Merging that pull request is the whole release. A push to `main` touching `VERSI
 1. Fork ([https://github.com/umatare5/cisco-wnc-exporter/fork](https://github.com/umatare5/cisco-wnc-exporter/fork))
 2. Create a feature branch
 3. Commit your changes
-4. Record any change to the metric surface under `## Unreleased` in `CHANGELOG.md`
+4. Record any change to the metric surface under a `## [vX.Y.Z]` section for the coming version in `CHANGELOG.md`, adding the section if it is not there yet
 5. Rebase your local changes against the `main` branch
 6. Create a new Pull Request
