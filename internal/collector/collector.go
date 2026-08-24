@@ -3,6 +3,7 @@ package collector
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -28,6 +29,22 @@ type Float64Metric struct {
 type StringMetric struct {
 	Desc  *prometheus.Desc
 	Value string
+}
+
+// epochYear is the year of the sentinel the controller writes into a timestamp leaf
+// for an event that has not happened. It sends 1970-01-01T00:00:00+00:00, which
+// parses to a real instant, so IsZero does not recognize it.
+const epochYear = 1970
+
+// emitTimestamp publishes the instant as a Unix timestamp gauge, and publishes
+// nothing for the epoch sentinel. A zero there would read as an event in 1970, and
+// time() minus the series as five decades.
+func emitTimestamp(ch chan<- prometheus.Metric, desc *prometheus.Desc, at time.Time, labels ...string) {
+	if at.Year() <= epochYear {
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, float64(at.Unix()), labels...)
 }
 
 // NewCollector creates a new collector manager.
