@@ -1908,3 +1908,20 @@ func TestWLANCollector_OnboardingPhasesMatchLeaves(t *testing.T) {
 		}
 	}
 }
+
+// wantLeaf fails unless got carries exactly what want does, absence included. Comparing the
+// two pointers directly would compare addresses, and absence is the case these accessors exist
+// to report.
+func wantLeaf[T comparable](t *testing.T, name string, got, want *T) {
+	t.Helper()
+
+	switch {
+	case got == nil && want == nil:
+	case got == nil:
+		t.Errorf("%s() = nil, want %v", name, *want)
+	case want == nil:
+		t.Errorf("%s() = %v, want nil", name, *got)
+	case *got != *want:
+		t.Errorf("%s() = %v, want %v", name, *got, *want)
+	}
+}
