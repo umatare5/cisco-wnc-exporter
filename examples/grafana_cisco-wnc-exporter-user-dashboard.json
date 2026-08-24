@@ -81,6 +81,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The hostname and operating band of the Access Point currently serving the client.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -101,7 +102,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 5,
         "x": 0,
         "y": 1
       },
@@ -113,9 +114,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -126,14 +125,14 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "wnc_client_info{mac=\"$mac\"}",
-          "instant": true,
-          "legendFormat": "{{ap}} ({{band}}GHz)",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "wnc_client_info{mac=\"$mac\"}",
+          "instant": true,
+          "legendFormat": "{{ap}} ({{band}}GHz)",
+          "refId": "A"
         }
       ],
       "title": "Connected AP Name",
@@ -144,6 +143,237 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The WLAN/SSID name the client is currently associated with.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#1a52a5",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "id": 209,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "wnc_client_info{mac=\"$mac\"}",
+          "instant": true,
+          "legendFormat": "{{wlan}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Connected SSID",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Quality Score (AQI) indicates the overall RF health (100 is best). Interfering Devices shows the count of non-Wi-Fi interference sources (e.g., microwaves, Bluetooth). Background Noise indicates the noise floor level in dBm.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Quality Score"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: Pt"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Interfering Devices"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: Devices"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 3
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Background Noise"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dBm"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": -85
+                    },
+                    {
+                      "color": "red",
+                      "value": -75
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 7,
+        "x": 10,
+        "y": 1
+      },
+      "id": 208,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(round(avg_over_time(wnc_ap_air_quality_index_min[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) or on(mac, radio) (100 * (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\")))",
+          "instant": true,
+          "legendFormat": "Quality Score",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(round(max_over_time(wnc_ap_interferers[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) or on(mac, radio) (0 * (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\")))",
+          "instant": true,
+          "legendFormat": "Interfering Devices",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "round(avg_over_time(wnc_ap_noise_floor_dbm[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
+          "instant": true,
+          "legendFormat": "Background Noise",
+          "refId": "C"
+        }
+      ],
+      "title": "Wi-Fi Quality & Interference on Same AP & Band",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Total Congestion shows the overall channel utilization percentage. Noise Congestion shows the percentage of the channel blocked by non-Wi-Fi noise.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -171,12 +401,41 @@
           },
           "unit": "percentunit"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Noise Congestion"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.1
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.2
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 4,
-        "w": 5,
-        "x": 4,
+        "w": 7,
+        "x": 17,
         "y": 1
       },
       "id": 202,
@@ -184,104 +443,41 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "auto",
+        "orientation": "horizontal",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value",
+        "textMode": "auto",
         "wideLayout": true
       },
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "wnc_ap_channel_utilization_ratio * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
-          "instant": true,
-          "legendFormat": "Usage",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "Radio Wave Utilization",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "orange",
-                "value": 40
-              },
-              {
-                "color": "red",
-                "value": 60
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 9,
-        "y": 1
-      },
-      "id": 203,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "value",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "expr": "(wnc_ap_clients * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) - 1",
+          "expr": "avg_over_time(wnc_ap_channel_utilization_ratio[$rollup_interval]) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
           "instant": true,
-          "legendFormat": "Devices",
-          "refId": "A",
+          "legendFormat": "Total Congestion",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "avg_over_time(wnc_ap_noise_utilization_ratio[$rollup_interval]) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
+          "instant": true,
+          "legendFormat": "Noise Congestion",
+          "refId": "B"
         }
       ],
-      "title": "Other Devices Connected",
+      "title": "Wi-Fi Congestion Level on Same AP & Band",
       "type": "stat"
     },
     {
@@ -289,6 +485,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The negotiated 802.11 Wi-Fi generation/protocol (e.g., Wi-Fi 6, Wi-Fi 5).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -349,10 +546,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 14,
-        "y": 1
+        "h": 3,
+        "w": 5,
+        "x": 0,
+        "y": 5
       },
       "id": 204,
       "options": {
@@ -362,9 +559,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -375,13 +570,13 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "wnc_client_protocol{mac=\"$mac\"} * on(mac) group_left(band) max by (mac, band) (wnc_client_info)",
-          "legendFormat": "Protocol",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "wnc_client_protocol{mac=\"$mac\"} * on(mac) group_left(band) max by (mac, band) (wnc_client_info)",
+          "legendFormat": "Protocol",
+          "refId": "A"
         }
       ],
       "title": "Protocol",
@@ -392,6 +587,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Modulation and Coding Scheme (MCS) index representing the current PHY data rate configuration.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -424,30 +620,14 @@
                 "value": " "
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "SS"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "suffix: Streams"
-              },
-              {
-                "id": "displayName",
-                "value": " "
-              }
-            ]
           }
         ]
       },
       "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 18,
-        "y": 1
+        "h": 3,
+        "w": 5,
+        "x": 5,
+        "y": 5
       },
       "id": 205,
       "options": {
@@ -457,9 +637,7 @@
         "orientation": "horizontal",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -470,25 +648,16 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "wnc_client_mcs_index{mac=\"$mac\"}",
           "legendFormat": "MCS",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        },
-        {
-          "expr": "wnc_client_spatial_streams{mac=\"$mac\"}",
-          "legendFormat": "SS",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         }
       ],
-      "title": "Spatial Attributes",
+      "title": "MCS",
       "type": "stat"
     },
     {
@@ -496,51 +665,42 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The number of other Wi-Fi clients currently connected to the same AP and Radio.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "mappings"
+            "mode": "thresholds"
           },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "gray",
-                  "index": 1,
-                  "text": "OFF"
-                },
-                "1": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "ON"
-                }
-              },
-              "type": "value"
-            }
-          ],
+          "decimals": 0,
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": 0
               },
               {
-                "color": "green",
-                "value": 1
+                "color": "orange",
+                "value": 40
+              },
+              {
+                "color": "red",
+                "value": 60
               }
             ]
-          }
+          },
+          "unit": "suffix: Devices"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 21,
-        "y": 1
+        "h": 3,
+        "w": 7,
+        "x": 17,
+        "y": 5
       },
-      "id": 206,
+      "id": 203,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -548,9 +708,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -561,16 +719,17 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "wnc_client_power_save_state{mac=\"$mac\"} * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "Power Save",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "(wnc_ap_clients * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) - 1",
+          "instant": true,
+          "legendFormat": "Devices",
+          "refId": "A"
         }
       ],
-      "title": "Power Save",
+      "title": "Other Devices on Same AP & Band",
       "type": "stat"
     },
     {
@@ -579,7 +738,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 8
       },
       "id": 100,
       "panels": [],
@@ -629,7 +788,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 9
       },
       "id": 101,
       "options": {
@@ -656,16 +815,18 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "wnc_client_state{mac=\"$mac\"} * on(mac) group_left(name, ap, wlan) max by (mac, name, ap, wlan) (wnc_client_info)",
-          "legendFormat": "{{ap}} [{{wlan}}]",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "editorMode": "code",
+          "expr": "wnc_client_state{mac=\"$mac\"} * on(mac) group_left(name, ap, wlan, band) max by (mac, name, ap, wlan, band) (wnc_client_info)",
+          "legendFormat": "  {{ap}} ({{band}}GHz) [{{wlan}}]",
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Roaming History (AP & WLAN)",
+      "title": "Roaming History (AP, WLAN & Radio)",
       "type": "state-timeline"
     },
     {
@@ -684,7 +845,7 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisWidth": 165,
+            "axisWidth": 150,
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "points",
@@ -731,7 +892,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 14
       },
       "id": 102,
       "options": {
@@ -740,10 +901,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -758,16 +916,587 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "(wnc_client_state_transition_seconds{mac=\"$mac\"} != wnc_client_state_transition_seconds{mac=\"$mac\"} offset $rollup_interval) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "Transition Latency",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "(wnc_client_state_transition_seconds{mac=\"$mac\"} != wnc_client_state_transition_seconds{mac=\"$mac\"} offset $rollup_interval) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Transition Latency",
+          "refId": "A"
         }
       ],
       "title": "Transition Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Quality Score (AQI) indicates the overall RF health of the connected AP and band (100 is best).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "suffix: Pt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 19
+      },
+      "id": 103,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(round(avg_over_time(wnc_ap_air_quality_index_min[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) or on(mac, radio) (100 * (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\")))",
+          "legendFormat": "{{name}} ({{band}}GHz)",
+          "refId": "A"
+        }
+      ],
+      "title": "Wi-Fi Quality Score on Same AP & Band",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Count of non-Wi-Fi interference sources (e.g., microwaves, Bluetooth) detected on the current operating channel.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "suffix: Devices"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 19
+      },
+      "id": 106,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(round(max_over_time(wnc_ap_interferers[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) or on(mac, radio) (0 * (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\")))",
+          "legendFormat": "{{name}} ({{band}}GHz)",
+          "refId": "A"
+        }
+      ],
+      "title": "Interfering Devices on Same AP & Band",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The noise floor level in dBm on the current operating channel. A lower value (more negative) is better.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": -85
+              },
+              {
+                "color": "red",
+                "value": -75
+              }
+            ]
+          },
+          "unit": "dBm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 19
+      },
+      "id": 107,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "round(avg_over_time(wnc_ap_noise_floor_dbm[$rollup_interval])) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
+          "legendFormat": "{{name}} ({{band}}GHz)",
+          "refId": "A"
+        }
+      ],
+      "title": "Background Noise on Same AP & Band",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Total Congestion shows the overall channel utilization percentage. Noise Congestion shows the percentage of the channel blocked by non-Wi-Fi noise.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^Noise.*/"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.1
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.2
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 104,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "avg_over_time(wnc_ap_channel_utilization_ratio[$rollup_interval]) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
+          "legendFormat": "Total [{{name}} ({{band}}GHz)]",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "avg_over_time(wnc_ap_noise_utilization_ratio[$rollup_interval]) * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))",
+          "legendFormat": "Noise [{{name}} ({{band}}GHz)]",
+          "refId": "B"
+        }
+      ],
+      "title": "Wi-Fi Congestion Level on Same AP & Band",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The number of other Wi-Fi clients currently connected to the same AP and Radio.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "suffix: Devices"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 105,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(wnc_ap_clients * on(mac, radio) group_left(name, band) (max by(mac, radio, name, band) (wnc_ap_info) and on(name, band) label_replace(max by(ap, band) (wnc_client_info{mac=\"$mac\"}), \"name\", \"$1\", \"ap\", \"(.*)\"))) - 1",
+          "legendFormat": "{{name}} ({{band}}GHz)",
+          "refId": "A"
+        }
+      ],
+      "title": "Other Devices on Same AP & Band",
       "type": "timeseries"
     },
     {
@@ -776,7 +1505,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 33
       },
       "id": 300,
       "panels": [],
@@ -845,7 +1574,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 17
+        "y": 34
       },
       "id": 301,
       "options": {
@@ -854,10 +1583,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -872,13 +1598,13 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "avg_over_time(wnc_client_speed_mbps{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "Speed",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "avg_over_time(wnc_client_speed_mbps{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Speed",
+          "refId": "A"
         }
       ],
       "title": "Client Speed (Throughput)",
@@ -1009,7 +1735,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 17
+        "y": 34
       },
       "id": 302,
       "options": {
@@ -1018,10 +1744,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1036,52 +1759,34 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "round(avg_over_time(wnc_client_rssi_dbm{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "RSSI",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "round(avg_over_time(wnc_client_snr_decibels{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "SNR",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "round(avg_over_time(wnc_client_snr_decibels{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "SNR",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(round(avg_over_time(wnc_client_rssi_dbm{mac=\"$mac\"}[$rollup_interval])) - round(avg_over_time(wnc_client_snr_decibels{mac=\"$mac\"}[$rollup_interval]))) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Noise",
+          "refId": "C"
         }
       ],
       "title": "Signal Strength & Noise Floor",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Noise",
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "RSSI"
-                }
-              },
-              "operator": "-",
-              "right": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "SNR"
-                }
-              }
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1146,7 +1851,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 17
+        "y": 34
       },
       "id": 303,
       "options": {
@@ -1155,10 +1860,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1173,13 +1875,13 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "max_over_time(wnc_client_uptime_seconds{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "Uptime",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "round(max_over_time(wnc_client_uptime_seconds{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Uptime",
+          "refId": "A"
         }
       ],
       "title": "Client Uptime",
@@ -1229,6 +1931,7 @@
               "mode": "off"
             }
           },
+          "decimals": 0,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1247,7 +1950,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 41
       },
       "id": 304,
       "options": {
@@ -1256,10 +1959,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1274,22 +1974,22 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "rate(wnc_client_rx_bytes_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "RX Bytes",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "rate(wnc_client_tx_bytes_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "TX Bytes",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "rate(wnc_client_tx_bytes_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "TX Bytes",
+          "refId": "B"
         }
       ],
       "title": "Client Traffic (Bytes/s)",
@@ -1358,7 +2058,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 41
       },
       "id": 305,
       "options": {
@@ -1367,10 +2067,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1385,22 +2082,22 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "rate(wnc_client_rx_packets_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "RX Packets",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "rate(wnc_client_tx_packets_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "TX Packets",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "rate(wnc_client_tx_packets_total{mac=\"$mac\"}[$rollup_interval]) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "TX Packets",
+          "refId": "B"
         }
       ],
       "title": "Client Traffic (Packets/s)",
@@ -1412,11 +2109,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 48
       },
       "id": 400,
       "panels": [],
-      "title": "Retries & Drops (Count)",
+      "title": "Retries & Drops Frames",
       "type": "row"
     },
     {
@@ -1474,7 +2171,7 @@
               }
             ]
           },
-          "unit": "Frames"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1482,7 +2179,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 32
+        "y": 49
       },
       "id": 401,
       "options": {
@@ -1491,10 +2188,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1509,40 +2203,40 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "round(increase(wnc_client_tx_retries_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "TX Retries",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "round(increase(wnc_client_data_retries_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "Data Retries",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "round(increase(wnc_client_excessive_retries_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
           "legendFormat": "Excessive Retries",
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "C"
         },
         {
-          "expr": "round(increase(wnc_client_rts_retries_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "RTS Retries",
-          "refId": "D",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "round(increase(wnc_client_rts_retries_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "RTS Retries",
+          "refId": "D"
         }
       ],
       "title": "Client Transmission Retries",
@@ -1603,7 +2297,7 @@
               }
             ]
           },
-          "unit": "Frames"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1611,7 +2305,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 32
+        "y": 49
       },
       "id": 402,
       "options": {
@@ -1620,10 +2314,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1638,13 +2329,13 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "round(increase(wnc_client_tx_drops_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "TX Drops",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "round(increase(wnc_client_tx_drops_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "TX Drops",
+          "refId": "A"
         }
       ],
       "title": "TX Drops",
@@ -1705,7 +2396,7 @@
               }
             ]
           },
-          "unit": "Frames"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1713,7 +2404,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 32
+        "y": 49
       },
       "id": 403,
       "options": {
@@ -1722,10 +2413,7 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "overflow": "ellipsis",
           "placement": "bottom",
@@ -1740,181 +2428,171 @@
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "expr": "round(increase(wnc_client_duplicate_received_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-          "legendFormat": "Duplicates Received",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "round(increase(wnc_client_duplicate_received_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Duplicates Received",
+          "refId": "A"
         }
       ],
       "title": "Duplicates Received",
       "type": "timeseries"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 56
       },
       "id": 500,
-      "panels": [
+      "panels": [],
+      "title": "Security & System Errors",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Frames",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "id": 501,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": ["lastNotNull", "max"],
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Frames",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 0,
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
+          "expr": "round(increase(wnc_client_decryption_failed_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Decryption Failed",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
           },
-          "gridPos": {
-            "h": 7,
-            "w": 24,
-            "x": 0,
-            "y": 44
+          "expr": "round(increase(wnc_client_mic_mismatch_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "MIC Mismatch",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
           },
-          "id": 501,
-          "options": {
-            "annotations": {
-              "clustering": -1,
-              "multiLane": false
-            },
-            "legend": {
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "overflow": "ellipsis",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
+          "expr": "round(increase(wnc_client_mic_missing_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "MIC Missing",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
           },
-          "pluginVersion": "12.4.2",
-          "targets": [
-            {
-              "expr": "round(increase(wnc_client_decryption_failed_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-              "legendFormat": "Decryption Failed",
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              }
-            },
-            {
-              "expr": "round(increase(wnc_client_mic_mismatch_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-              "legendFormat": "MIC Mismatch",
-              "refId": "B",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              }
-            },
-            {
-              "expr": "round(increase(wnc_client_mic_missing_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-              "legendFormat": "MIC Missing",
-              "refId": "C",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              }
-            },
-            {
-              "expr": "round(increase(wnc_client_policy_errors_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-              "legendFormat": "Policy Errors",
-              "refId": "D",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              }
-            },
-            {
-              "expr": "round(increase(wnc_client_rx_group_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
-              "legendFormat": "RX Group Counter",
-              "refId": "E",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              }
-            }
-          ],
-          "title": "Client Security & System Errors",
-          "type": "timeseries"
+          "expr": "round(increase(wnc_client_policy_errors_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "Policy Errors",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "round(increase(wnc_client_rx_group_total{mac=\"$mac\"}[$rollup_interval])) * on(mac) group_left(name) max by (mac, name) (wnc_client_info)",
+          "legendFormat": "RX Group Counter",
+          "refId": "E"
         }
       ],
-      "title": "Security & System Errors",
-      "type": "row"
+      "title": "Client Security & System Errors",
+      "type": "timeseries"
     }
   ],
   "preload": false,
   "refresh": "",
   "schemaVersion": 42,
-  "tags": [
-    "cisco",
-    "c9800",
-    "wnc-exporter",
-    "user",
-    "client-details"
-  ],
+  "tags": ["cisco", "c9800", "wnc-exporter", "user", "client-details"],
   "templating": {
     "list": [
       {
@@ -2043,8 +2721,6 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Example - Cisco WNC User Dashboard",
-  "uid": "ad92jg4",
-  "version": 16,
+  "title": "Cisco WNC Exporter User Dashboard",
   "weekStart": ""
 }

@@ -133,15 +133,15 @@ See [docs/README.md](docs/README.md) for the refresh, caching, counter-reset and
 
 These series describe the exporter itself rather than the wireless network. They have no module and no collector flag. Without the refresh series a failed refresh produces a successful scrape carrying no series, which no alert can detect.
 
-| Metric                                  | Type    | Description                                            |
-| :-------------------------------------- | :------ | :----------------------------------------------------- |
-| `wnc_build_info`                        | Gauge   | Exporter version in the `version` label, always 1      |
-| `wnc_up`                                | Gauge   | Whether last **completed** refresh reached WNC         |
-| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**               |
-| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot   |
-| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up          |
-| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type        |
-| `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read     |
+| Metric                                  | Type    | Description                                          |
+| :-------------------------------------- | :------ | :--------------------------------------------------- |
+| `wnc_build_info`                        | Gauge   | Exporter version in the `version` label, always 1    |
+| `wnc_up`                                | Gauge   | Whether last **completed** refresh reached WNC       |
+| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**             |
+| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot |
+| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up        |
+| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type      |
+| `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read   |
 
 > [!Important]
 >
@@ -209,29 +209,29 @@ Add the alerting rules to your Prometheus YAML file using [examples/prometheus_a
 
 ### Grafana Admin-level Dashboard Example
 
-Import [examples/grafana_cisco-wnc-admin-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-admin-dashboard.json) to add the example Grafana Dashboard for administrators.
+Import [examples/grafana_cisco-wnc-exporter-admin-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-admin-dashboard.json) to add admin dashboard.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard.png">
-  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-admin-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
+  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
 </picture>
 
 > [!Tip]
-> See [cisco-wnc-admin-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-admin-dashboard_full.png) for the full capture image of the example.
+> See [cisco-wnc-exporter-admin-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture image of the example.
 
 ### Grafana User-level Dashboard Example
 
-Import [examples/grafana_cisco-wnc-user-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-user-dashboard.json) to add the example Grafana Dashboard for users.
+Import [examples/grafana_cisco-wnc-exporter-user-dashboard.json](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-user-dashboard.json) to add user dashboard.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard.png">
-  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-user-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
+  <img src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
 </picture>
 
 > [!Tip]
-> See [cisco-wnc-user-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-user-dashboard_full.png) for the full capture image of the example.
+> See [cisco-wnc-exporter-user-dashboard_full.png](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture image of the example.
 
 ## Contributing
 
