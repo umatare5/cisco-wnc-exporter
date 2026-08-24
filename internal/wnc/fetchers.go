@@ -11,7 +11,7 @@ import (
 
 // dataTypeNames lists every data type a refresh attempts, in fetch order.
 // A refresh truncated by its deadline drops the tail, so ap_capwap_data comes
-// first: the AP inventory is what every other AP series is labeled from.
+// first: it is the AP inventory the info labels and the AP-level series read.
 var dataTypeNames = []string{
 	dataAPCAPWAPData,
 	dataAPOperData,
@@ -81,9 +81,10 @@ func requiredDataTypes(modules config.Collectors) []string {
 }
 
 // isDataTypeRequired mirrors the source calls each Collect method makes under its
-// module guards, so it has to be updated alongside them. Three data types are read
-// before any guard, and one is read by three modules across two collectors, so the
-// relation is a union over the enabled modules rather than a per-module list.
+// module guards, so it has to be updated alongside them. Three data types — the radio
+// list, the WLAN config entries and the client list — are read before any module guard,
+// and the client list is read by three collectors, so the relation is a union over the
+// enabled modules rather than a per-module list.
 //
 // An unlisted data type is fetched. Paying for a request is recoverable, while
 // withholding one relies on the caller marking it absent.
@@ -96,7 +97,11 @@ func isDataTypeRequired(name string, modules config.Collectors) bool {
 		modules.WLAN.Config, modules.WLAN.Info)
 
 	switch name {
-	case dataAPCAPWAPData, dataAPRadioOperData:
+	case dataAPCAPWAPData:
+		// Only the general and info modules read the AP inventory; every other
+		// radio-keyed module is keyed by the radio list alone.
+		return anyOf(modules.AP.General, modules.AP.Info)
+	case dataAPRadioOperData:
 		return anyAP
 	case dataAPOperData:
 		return modules.AP.General

@@ -565,19 +565,21 @@ func (c *APCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	// Every module below reads the AP inventory or the radio list. The join and
-	// coordinate modules read neither, so a deployment enabling only those must not go on
-	// to ask for data types no enabled module declared.
+	// Every module below reads the radio list, and the general and info modules read the
+	// AP inventory as well. The join and coordinate modules read neither, so a deployment
+	// enabling only those must not go on to ask for data types no enabled module declared.
 	if !c.isAnyRadioKeyedFlagEnabled() {
 		return
 	}
 
 	var capwapMap map[string]ap.CAPWAPData
-	capwapData, err := c.src.GetCAPWAPData(ctx)
-	if err != nil {
-		slog.Debug("Failed to get CAPWAP data", "error", err)
+	if IsEnabled(c.metrics.General, c.metrics.Info) {
+		capwapData, err := c.src.GetCAPWAPData(ctx)
+		if err != nil {
+			slog.Debug("Failed to get CAPWAP data", "error", err)
+		}
+		capwapMap = buildCAPWAPMap(capwapData)
 	}
-	capwapMap = buildCAPWAPMap(capwapData)
 
 	var radioDataMap map[string]*ap.RadioOperData
 	radioDataSlice, err := c.src.GetRadioData(ctx)
@@ -793,11 +795,18 @@ func (c *APCollector) collectRadioMetrics(
 		metrics = appendNumber(metrics, c.txPowerMaxDesc, cfgData.TxPowerLevel1)
 	}
 
+	// The controller omits curr-freq on a radio in monitor mode, measured on 17.12, and the
+	// SDK types both leaves as plain integers, so an omitted one decodes to a zero that is
+	// neither a channel on any band nor a width a radio can use. The schema the controller
+	// serves declares the same absence for sniffer mode, which is unmeasured. Each leaf is
+	// withheld on its own zero: the measured radio kept its width while its channel was gone.
 	if radio.PhyHtCfg != nil {
-		metrics = append(metrics,
-			Float64Metric{c.channelDesc, float64(radio.PhyHtCfg.CfgData.CurrFreq)},
-			Float64Metric{c.channelWidthDesc, float64(radio.PhyHtCfg.CfgData.ChanWidth)},
-		)
+		if channel := radio.PhyHtCfg.CfgData.CurrFreq; channel != 0 {
+			metrics = append(metrics, Float64Metric{c.channelDesc, float64(channel)})
+		}
+		if width := radio.PhyHtCfg.CfgData.ChanWidth; width != 0 {
+			metrics = append(metrics, Float64Metric{c.channelWidthDesc, float64(width)})
+		}
 	}
 
 	if rrmData, ok := rrmMeasurementsMap[radioID]; ok {

@@ -14,7 +14,7 @@ AP collector focuses on RF foundation and radio performance.
 | general     | `wnc_ap_association_uptime_seconds`               | Gauge   | Age of the current association **(\*14)**                   |
 | general     | `wnc_ap_cpu_utilization_ratio`                    | Gauge   | CPU utilization ratio (0-1) **(\*1)**                       |
 | general     | `wnc_ap_memory_utilization_ratio`                 | Gauge   | Memory utilization ratio (0-1) **(\*1)**                    |
-| radio       | `wnc_ap_channel_number`                           | Gauge   | Operating channel number **(\*2)**                          |
+| radio       | `wnc_ap_channel_number`                           | Gauge   | Operating channel number, absent if unreported **(\*2)**    |
 | radio       | `wnc_ap_channel_width_mhz`                        | Gauge   | Channel bandwidth (MHz)                                     |
 | radio       | `wnc_ap_tx_power_dbm`                             | Gauge   | Current transmit power (dBm)                                |
 | radio       | `wnc_ap_tx_power_max_dbm`                         | Gauge   | Maximum TX power capability (dBm)                           |
@@ -155,7 +155,7 @@ wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
 
 The `radio` label is not a substitute. A dual band radio keeps its slot while it moves between bands.
 
-`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode.
+`wnc_ap_noise_floor_dbm` is the noise the controller measured on that same channel. The controller reports noise per channel across the whole band, so it is selected by matching the radio's operating channel — the series is absent when no entry matches it, which is the case for a radio in monitor or sniffer mode. `wnc_ap_channel_number` is absent on such a radio too, because the controller omits the channel leaf there rather than reporting a channel the radio does not serve.
 
 </details>
 

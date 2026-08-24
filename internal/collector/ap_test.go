@@ -1563,7 +1563,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 		RadioSlotID: 0,
 		RadioType:   "radio-80211a",
 		OperState:   APRadioStateUp,
-		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
+		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel, ChanWidth: 40}},
 	}
 
 	collector := &APCollector{
