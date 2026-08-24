@@ -77,7 +77,7 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 **`wnc_wlan_policy_binding`**
 
 - Published only where both ends resolve, so a tag naming a WLAN the controller does not define and a binding whose profile is absent from `wlan-policies` are both skipped: it is not a complete inventory of the controller's tags.
-- Where it shows more than one profile for an `id`, a `0` on `wnc_wlan_policy_enabled` can mean one binding's profile is shut while the others are active, and a `1` can hide a shut one.
+- Where it shows more than one profile for an `id`, the six policy series report only one of them, so a `0` on `wnc_wlan_policy_enabled` can mean one binding's profile is shut while the others are active, and a `1` can hide a shut one.
 - Alert on the count of **distinct profiles** rather than of series, because one WLAN bound to one profile through several tags is not ambiguous and the inner `count` is what excludes it:
 
 > ```bash

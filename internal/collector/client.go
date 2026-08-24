@@ -71,26 +71,17 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.General {
 		collector.stateDesc = prometheus.NewDesc(
 			"wnc_client_state",
-			"Client connection state, as the value the controller's own enumeration assigns "+
-				"its spelling. 11 is client-status-run, the state a client holds while it "+
-				"passes traffic. The numbering follows the onboarding sequence, so a value "+
-				"below 11 has not reached it and a value above 11 is a deletion",
+			"Client connection state, 11 is client-status-run; absent if unreported",
 			labels, nil,
 		)
 		collector.roamTypeDesc = prometheus.NewDesc(
 			"wnc_client_roam_type",
-			"How the client reached the association it currently holds, as the value the "+
-				"controller's own enumeration assigns its spelling (0=dot11-roam-type-none, "+
-				"1=dot11-roam-type-slow-11i, 2=dot11-roam-type-fast-okc, 3=dot11-roam-type-cckm, "+
-				"4=dot11-roam-type-fast-11r). It is a property of that association rather than "+
-				"a count, so it does not move until the client associates again",
+			"How the client reached its current association; absent if unreported",
 			labels, nil,
 		)
 		collector.associationUptimeDesc = prometheus.NewDesc(
 			"wnc_client_uptime_seconds",
-			"Client association uptime in seconds. Withheld rather than measured from a "+
-				"zero timestamp when the controller reports no association time, so a "+
-				"session-age check has no reading instead of a false one",
+			"Client association uptime; absent if unreported",
 			labels, nil,
 		)
 		collector.stateTransitionSecondsDesc = prometheus.NewDesc(
@@ -108,8 +99,7 @@ func NewClientCollector(src wnc.ClientSource, metrics ClientMetrics) *ClientColl
 	if metrics.Radio {
 		collector.protocolDesc = prometheus.NewDesc(
 			"wnc_client_protocol",
-			"Client wireless protocol (0=unknown, 1=802.11a, 2=802.11b, 3=802.11g, "+
-				"4=802.11n, 5=802.11ac, 6=802.11ax, 7=802.11be)",
+			"Client 802.11 protocol: 0=unknown, 1=a, 2=b, 3=g, 4=n, 5=ac, 6=ax, 7=be; absent if unreported",
 			labels, nil,
 		)
 		collector.mcsIndexDesc = prometheus.NewDesc(

@@ -51,40 +51,27 @@ func NewControllerCollector(src wnc.ControllerSource, metrics ControllerMetrics)
 	if metrics.General {
 		collector.bootTimeDesc = prometheus.NewDesc(
 			"wnc_controller_boot_time_seconds",
-			"Unix time the controller last booted. Withheld rather than reported as 0 when "+
-				"the controller does not carry the leaf, so a counter reset check has no epoch "+
-				"instead of a false one. The leaf moves by a second between reads, so compare it "+
-				"against a threshold rather than with changes() or an equality",
+			"Unix time the controller last booted, absent if unreported. It moves by a second between reads",
 			nil, nil,
 		)
 		collector.clientDeletesDesc = prometheus.NewDesc(
 			"wnc_controller_client_deletes_total",
-			"Client deletions the controller counted for this reason, one series per reason "+
-				"leaf it reports, spelled as the controller spells it. The container carries no "+
-				"epoch leaf, so read a rise rather than the value",
+			"Client deletions the controller counted for this reason. A reason leaf reading zero is published too",
 			[]string{labelReason}, nil,
 		)
 		collector.apAuthRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_roams_total",
-			"Roams the controller counted on the FlexConnect local-authentication path, "+
-				"from an instant the container does not report. A WLAN whose roams do "+
-				"not take that path is not counted here at all, so read a flat zero as no roam "+
-				"took this path rather than as nobody roamed. It advances on a roam and not on "+
-				"a fresh association, and the two dot11i counters "+
-				"are not a partition of it",
+			"Roams on the FlexConnect local-auth path, absent if unreported. A zero does not mean nobody roamed",
 			nil, nil,
 		)
 		collector.apAuthFastRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_dot11i_fast_roams_total",
-			"802.11i fast roams on the same path and from the same unreported instant. "+
-				"The two dot11i counters are not a partition of the total, so zero here does "+
-				"not describe how the roams behind the total authenticated",
+			"802.11i fast roams on the FlexConnect local-auth path, absent if unreported",
 			nil, nil,
 		)
 		collector.apAuthSlowRoamsDesc = prometheus.NewDesc(
 			"wnc_controller_client_ap_auth_dot11i_slow_roams_total",
-			"802.11i slow roams on the same path and from the same unreported instant, "+
-				"each one a full authentication rather than a cached key",
+			"802.11i slow roams on the local-auth path, absent if unreported. Each is a full authentication",
 			nil, nil,
 		)
 	}

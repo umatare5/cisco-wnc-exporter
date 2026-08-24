@@ -128,46 +128,37 @@ func NewAPCollector(
 	if metrics.General {
 		collector.radioStateDesc = prometheus.NewDesc(
 			"wnc_ap_radio_state",
-			"Radio state (0=down, 1=up). Absent for a slot whose state the controller "+
-				"does not report, so a slot that is not a radio reads as no series",
+			"Radio state (1=up, 0=any other value), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.adminStateDesc = prometheus.NewDesc(
 			"wnc_ap_admin_state",
-			"Admin state (1=enabled, 0=any other value). Absent for a slot whose state "+
-				"the controller does not report",
+			"Admin state (1=enabled, 0=any other value), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.operStateDesc = prometheus.NewDesc(
 			"wnc_ap_oper_state",
-			"AP operational state, as the value the controller's own enumeration assigns its "+
-				"spelling (1=ap-down, 2=ap-up, 3=unregistered, 4=registered, 5=downloading, "+
-				"6=pre-downloading). The enumeration declares no 0, and a larger value is not a "+
-				"healthier state, so match by equality",
+			"AP operational state (4=registered). The enumeration declares no 0",
 			baseAPLabels,
 			nil,
 		)
 		collector.configStateDesc = prometheus.NewDesc(
 			"wnc_ap_config_state",
-			"Configuration state (0=valid, 1=invalid) from IsApMisconfigured",
+			"Tag configuration state (0=valid, 1=invalid), absent if unreported",
 			baseAPLabels,
 			nil,
 		)
 		collector.uptimeSecondsDesc = prometheus.NewDesc(
 			"wnc_ap_uptime_seconds",
-			"AP uptime in seconds. Withheld rather than reported as 0 when the controller "+
-				"reports no boot time this exporter can use, so a reboot check has no reading "+
-				"instead of a false one",
+			"AP uptime since boot, absent rather than 0 without a usable boot instant",
 			baseAPLabels,
 			nil,
 		)
 		collector.associationUptimeSecondsDesc = prometheus.NewDesc(
 			"wnc_ap_association_uptime_seconds",
-			"Seconds since the CAPWAP association this AP currently holds began. It is "+
-				"withheld rather than reported as 0 where the controller reports no join "+
-				"time this exporter can use",
+			"Age of this AP's current CAPWAP association, absent rather than 0 without a usable join instant",
 			baseAPLabels,
 			nil,
 		)
@@ -176,13 +167,13 @@ func NewAPCollector(
 	if metrics.Radio {
 		collector.channelDesc = prometheus.NewDesc(
 			"wnc_ap_channel_number",
-			"Operating channel number",
+			"Operating channel number, absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.channelWidthDesc = prometheus.NewDesc(
 			"wnc_ap_channel_width_mhz",
-			"Channel bandwidth (MHz)",
+			"Channel bandwidth (MHz), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
@@ -239,23 +230,19 @@ func NewAPCollector(
 		)
 		collector.rrmProfilePassedDesc = prometheus.NewDesc(
 			"wnc_ap_rrm_profile_passed",
-			"Whether the radio passes this RRM profile (1=passed, 0=failed). Absent "+
-				"when the controller reports no verdict for it",
+			"Whether the radio passes this RRM profile (1=passed, 0=failed), absent if unreported",
 			[]string{labelMAC, labelRadio, labelProfile},
 			nil,
 		)
 		collector.channelEnergyDesc = prometheus.NewDesc(
 			"wnc_ap_channel_energy_dbm",
-			"Energy the controller measured on the channel it assigned this radio, from its "+
-				"DCA statistics. It is a step: the reading holds until DCA next runs for "+
-				"that band",
+			"Energy measured on the channel DCA assigned this radio, absent when unmeasured",
 			baseRadioLabels,
 			nil,
 		)
 		collector.channelChangesTotalDesc = prometheus.NewDesc(
 			"wnc_ap_channel_changes_total",
-			"Channel changes on this radio, from the controller's DCA assignment statistics. "+
-				"It resets, so read it with rate() rather than as a lifetime total",
+			"Channel changes from the DCA statistics of this radio, absent if unreported. It resets",
 			baseRadioLabels,
 			nil,
 		)
@@ -265,35 +252,25 @@ func NewAPCollector(
 	if metrics.Spectrum {
 		collector.airQualityDesc = prometheus.NewDesc(
 			"wnc_ap_air_quality_index_avg",
-			"Average CleanAir air quality index of the channel the radio operates on, over "+
-				"the air quality reporting period the controller declares. A higher index is "+
-				"cleaner, and the controller's own alarm threshold is a lower bound on it",
+			"Average CleanAir air quality index on this radio's channel; higher is cleaner, absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.airQualityMinDesc = prometheus.NewDesc(
 			"wnc_ap_air_quality_index_min",
-			"Lowest CleanAir air quality index the controller saw on the channel the radio "+
-				"operates on, over the same reporting period as the average. It never "+
-				"exceeds the average, and a higher index is cleaner",
+			"Lowest CleanAir air quality index on this radio's channel; higher is cleaner, absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.interferersDesc = prometheus.NewDesc(
 			"wnc_ap_interferers",
-			"Interference devices CleanAir attributes to the channel the radio operates on. "+
-				"Zero is a reading rather than a missing one, and the series is absent "+
-				"instead where no reading can be reached",
+			"CleanAir interference devices on this radio's channel; 0 is a real reading, absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.lastAirQualityAtDesc = prometheus.NewDesc(
 			"wnc_ap_last_air_quality_timestamp_seconds",
-			"Instant the controller reports for the CleanAir row this radio's air quality and "+
-				"interferer series read, in Unix seconds. An instant that does not advance means "+
-				"the reading is held from an earlier report, so time() minus it gives the age of "+
-				"that reported instant. It is withheld rather than reported as 0 where the "+
-				"controller carries no instant this exporter can use",
+			"Instant stamped on the CleanAir row this radio's spectrum series read; absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
@@ -453,9 +430,7 @@ func NewAPCollector(
 		)
 		collector.radioResetsTotalDesc = prometheus.NewDesc(
 			"wnc_ap_radio_resets_total",
-			"Radio resets counted per cause and totalled for this radio. The controller "+
-				"deletes cause entries and this total then falls, so read it with rate() "+
-				"rather than as a lifetime total",
+			"Radio resets summed over cause entries, absent if unreported. The total falls when one is dropped",
 			baseRadioLabels,
 			nil,
 		)
@@ -1444,16 +1419,12 @@ func newAPJoinDescs() *apJoinDescs {
 	return &apJoinDescs{
 		joined: prometheus.NewDesc(
 			"wnc_ap_joined",
-			"Whether the AP holds a CAPWAP session with this controller now "+
-				"(0=not joined, 1=joined). The record outlives the session, so the join, "+
-				"configuration and DTLS series freeze while this reports 0, while the "+
-				"discovery series keep advancing for as long as the AP still reaches the controller",
+			"Whether the AP holds a CAPWAP session with this controller now, absent if unreported",
 			apLabels, nil,
 		),
 		name: prometheus.NewDesc(
 			"wnc_ap_join_info",
-			"AP name as its CAPWAP join record reports it, always 1. The record outlives "+
-				"the session, so this names an AP the AP inventory no longer carries",
+			"AP name as its CAPWAP join record reports it, always 1; absent if the record carries no name",
 			nameLabels, nil,
 		),
 
@@ -1531,8 +1502,7 @@ func newAPJoinDescs() *apJoinDescs {
 
 		lastErrorAt: prometheus.NewDesc(
 			"wnc_ap_last_error_timestamp_seconds",
-			"Unix timestamp of the last CAPWAP connection error recorded for this AP, "+
-				"in the phase wnc_ap_last_error_phase reports",
+			"Unix timestamp of this AP's last CAPWAP connection error",
 			apLabels, nil,
 		),
 		lastJoinSuccessAt: prometheus.NewDesc(
@@ -1578,54 +1548,37 @@ func newAPJoinDescs() *apJoinDescs {
 
 		lastDiscoveryFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_discovery_failure_reason",
-			"Reason for this AP's last CAPWAP discovery failure, as the value the controller's "+
-				"own enumeration assigns its spelling. 0 is disc-fail-none, which reports that "+
-				"no discovery has failed",
+			"Reason for this AP's last CAPWAP discovery failure; 0 is disc-fail-none, meaning none has failed",
 			apLabels, nil,
 		),
 		lastJoinFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_join_failure_reason",
-			"Reason for this AP's last CAPWAP join failure, as the value the controller's own "+
-				"enumeration assigns its spelling. 0 is jf-none, which reports that no join "+
-				"has failed",
+			"Reason for this AP's last CAPWAP join failure; 0 is jf-none, meaning no join has failed",
 			apLabels, nil,
 		),
 		lastConfigFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_config_failure_reason",
-			"Reason for this AP's last CAPWAP configuration failure, as the value the "+
-				"controller's own enumeration assigns its spelling. 0 is cf-none, which reports "+
-				"that no configuration has failed",
+			"Reason for this AP's last CAPWAP configuration failure; 0 is cf-none, meaning none has failed",
 			apLabels, nil,
 		),
 		lastErrorPhase: prometheus.NewDesc(
 			"wnc_ap_last_error_phase",
-			"CAPWAP phase of this AP's last connection error, as the value the controller's "+
-				"own enumeration assigns its spelling (0=ap-con-failure-unknown, "+
-				"1=ap-con-failure-discovery, 2=ap-con-failure-dtls, 3=ap-con-failure-join, "+
-				"4=ap-con-failure-config, 5=ap-con-failure-imgdwnld, 6=ap-con-failure-run). "+
-				"0 reports that the phase is unknown rather than that nothing failed. It "+
-				"freezes with the record, and an AP that is not joined reports the same 6 as "+
-				"one that is",
+			"CAPWAP phase of this AP's last connection error; 0 is unknown, and a joined AP reads 6 too",
 			apLabels, nil,
 		),
 		lastDTLSFailureReason: prometheus.NewDesc(
 			"wnc_ap_last_dtls_failure_reason",
-			"Reason for the last DTLS handshake outcome on the channel label, as the value "+
-				"the controller's own enumeration assigns its spelling. 0 is dtls-hs-success, "+
-				"which is also what a channel carrying no session reports",
+			"Outcome of the last DTLS handshake per channel; 0 is dtls-hs-success, also read with no session",
 			channelLabels, nil,
 		),
 		lastRebootReason: prometheus.NewDesc(
 			"wnc_ap_last_reboot_reason",
-			"Reason this AP last rebooted as the AP reported it, as the value the controller's "+
-				"own enumeration assigns its spelling. 0 is ap-reboot-reason-none",
+			"Reason this AP last rebooted, as the AP reported it; 0 is ap-reboot-reason-none",
 			apLabels, nil,
 		),
 		lastDisconnectReason: prometheus.NewDesc(
 			"wnc_ap_last_disconnect_reason",
-			"Reason this AP last left CAPWAP, as the value the controller's own enumeration "+
-				"assigns its spelling. 0 is the enumeration's own unknown member rather than "+
-				"the absence of a disconnect",
+			"Reason this AP last left CAPWAP; 0 is the unknown member, not the absence of a disconnect",
 			apLabels, nil,
 		),
 	}
@@ -1824,27 +1777,22 @@ func newAPBandDescs() *apBandDescs {
 	return &apBandDescs{
 		worstAirQuality: prometheus.NewDesc(
 			"wnc_rrm_worst_channel_air_quality_index_avg",
-			"Average CleanAir air quality index of the channel the controller ranks worst in "+
-				"this band, over the air quality reporting period. Higher is cleaner, and "+
-				"wnc_rrm_worst_channel_number reports which channel it is",
+			"Average CleanAir air quality index of the worst channel; higher is cleaner, absent if unranked",
 			bandLabels, nil,
 		),
 		worstAirQualityMin: prometheus.NewDesc(
 			"wnc_rrm_worst_channel_air_quality_index_min",
-			"Lowest CleanAir air quality index the controller saw on that channel during the "+
-				"same reporting period, which the average does not carry",
+			"Lowest CleanAir air quality index of the worst channel; higher is cleaner, absent if unranked",
 			bandLabels, nil,
 		),
 		worstInterferers: prometheus.NewDesc(
 			"wnc_rrm_worst_channel_interferers",
-			"Interference devices CleanAir counts on the channel the controller ranks worst in "+
-				"this band",
+			"CleanAir interference devices on the worst channel; 0 is a real reading, absent if unranked",
 			bandLabels, nil,
 		),
 		worstChannel: prometheus.NewDesc(
 			"wnc_rrm_worst_channel_number",
-			"Channel the controller ranks worst in this band. It is a reading rather than a "+
-				"label, so a change moves the value instead of starting a new series",
+			"Channel the controller ranks worst in this band, as a value; absent if unranked",
 			bandLabels, nil,
 		),
 	}
@@ -1911,16 +1859,12 @@ func newAPRRMDescs() *apRRMDescs {
 	return &apRRMDescs{
 		lastRFGroupingRunAt: prometheus.NewDesc(
 			"wnc_rrm_last_rf_grouping_run_timestamp_seconds",
-			"Unix timestamp of the last RF grouping run the controller reports for this band. "+
-				"It advances when the algorithm runs rather than when a channel or a transmit "+
-				"power level changes, so it can advance with every reading beside it unchanged",
+			"Instant of the last RF grouping run for this band; absent if unreported",
 			bandLabels, nil,
 		),
 		lastDCARunAt: prometheus.NewDesc(
 			"wnc_rrm_last_dca_run_timestamp_seconds",
-			"Unix timestamp of the last DCA run the controller reports for this band. It "+
-				"advances when the algorithm runs rather than when a radio's channel changes, "+
-				"so wnc_ap_channel_changes_total can stay flat across a run",
+			"Instant of the last DCA run for this band; absent if unreported",
 			bandLabels, nil,
 		),
 	}

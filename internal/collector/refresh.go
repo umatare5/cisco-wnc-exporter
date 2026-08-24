@@ -31,8 +31,7 @@ func NewRefreshCollector(stats wnc.StatsProvider) *RefreshCollector {
 		stats: stats,
 		upDesc: prometheus.NewDesc(
 			"wnc_up",
-			"Whether the last completed WNC data refresh reached the controller. "+
-				"Not a claim about data completeness or about this scrape",
+			"Whether the last completed refresh reached the controller. A partly failed refresh still reads 1",
 			nil, nil,
 		),
 		durationDesc: prometheus.NewDesc(
@@ -42,29 +41,22 @@ func NewRefreshCollector(stats wnc.StatsProvider) *RefreshCollector {
 		),
 		timestampDesc: prometheus.NewDesc(
 			"wnc_refresh_success_timestamp_seconds",
-			"Start time of the refresh that produced the served snapshot. "+
-				"The controller updates the underlying data on its own schedule, "+
-				"so the true datum age is older than this value implies",
+			"Start time of the refresh that produced the served snapshot. Absent until a refresh publishes one",
 			nil, nil,
 		),
 		errorsDesc: prometheus.NewDesc(
 			"wnc_refresh_errors_total",
-			"WNC data fetch failures per data type since process start, "+
-				"including data types skipped because the refresh deadline expired",
+			"WNC data fetch failures per data type since process start. Only requested data types have a series",
 			dataLabels, nil,
 		),
 		itemsDesc: prometheus.NewDesc(
 			"wnc_refresh_items",
-			"Items returned per data type by the last WNC data refresh. "+
-				"Recorded on success only, so an absent series means the fetch failed",
+			"Items returned per data type by the last WNC data refresh. Absent where that fetch failed",
 			dataLabels, nil,
 		),
 		defaultsFallbackDesc: prometheus.NewDesc(
 			"wnc_refresh_defaults_fallback_total",
-			"WLAN configuration fetches that fell back to a plain read since "+
-				"process start. The controller rejected the request for the values "+
-				"in force, so a config leaf it omits is withheld from its series, or "+
-				"reads as 0 where the absence is not preserved",
+			"WLAN config fetches that fell back from the values in force to a plain read since process start",
 			nil, nil,
 		),
 	}

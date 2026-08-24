@@ -39,16 +39,12 @@ func newAPGeoDescs() *apGeoDescs {
 	return &apGeoDescs{
 		longitude: prometheus.NewDesc(
 			"wnc_ap_longitude_degrees",
-			"WGS 84 longitude the controller reports for this AP. It is the position "+
-				"configured on or derived for the AP rather than a measurement, so it "+
-				"changes when someone changes it. Published only with its latitude",
+			"WGS 84 longitude configured or derived for this AP, published only with its latitude",
 			apLabels, nil,
 		),
 		latitude: prometheus.NewDesc(
 			"wnc_ap_latitude_degrees",
-			"WGS 84 latitude the controller reports for this AP. It is the position "+
-				"configured on or derived for the AP rather than a measurement, so it "+
-				"changes when someone changes it. Published only with its longitude",
+			"WGS 84 latitude configured or derived for this AP, published only with its longitude",
 			apLabels, nil,
 		),
 	}
