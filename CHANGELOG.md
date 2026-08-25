@@ -4,6 +4,20 @@ Notable changes to the metric surface, one section per release — a short pream
 
 A minor release may rename or remove a metric, because the controller owns the schema every series reads. Every collector module flag is off by default, so a release that adds one adds no series until you set it. A rename carries the type, the labels and the value of the old name unless the entry says otherwise.
 
+## [v0.13.2]
+
+This release numbers the two `ap-discovery-failure-reason` members IOS-XE 17.15 adds, so the reason series stops going absent where a controller reports one. No metric name, type, label or value changes.
+
+### AP Metrics
+
+#### Changed
+
+- `wnc_ap_last_discovery_failure_reason` — published for the two discovery reasons 17.15 adds, where it was withheld.
+
+### Flags
+
+None.
+
 ## [v0.13.1]
 
 This release rewrites every HELP string longer than 100 characters and every alert description longer than 240, both budgets taken from the reference exporters. No metric name, type, label or value changes.
