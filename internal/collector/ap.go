@@ -771,7 +771,7 @@ func (c *APCollector) collectRadioMetrics(
 		metrics = appendNumber(metrics, c.txPowerMaxDesc, cfgData.TxPowerLevel1)
 	}
 
-	// The controller omits curr-freq on a radio in monitor mode, measured on 17.12, and the
+	// The controller omits curr-freq on a radio in monitor mode, measured on 17.15, and the
 	// SDK types both leaves as plain integers, so an omitted one decodes to a zero that is
 	// neither a channel on any band nor a width a radio can use. The schema the controller
 	// serves declares the same absence for sniffer mode, which is unmeasured. Each leaf is
