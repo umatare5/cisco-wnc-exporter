@@ -291,7 +291,7 @@ The `info` module publishes `wnc_ap_info` with the following labels to join with
 | `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` |   No    |    No    |
 | `model`      | AP model                | `AIR-AP1815I-Q-K9`         |   No    |    No    |
 | `serial`     | AP serial number        | `FGL1234ABCD`              |   No    |    No    |
-| `sw_version` | Software version        | `17.12.5.41`               |   No    |    No    |
+| `sw_version` | Software version        | `17.15.6.12`               |   No    |    No    |
 | `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        |   No    |    No    |
 
 Use this info metric to add contextual labels to other metrics in PromQL queries:

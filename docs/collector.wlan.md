@@ -54,7 +54,7 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_wlan_auth_dot1x_enabled`, `wnc_wlan_wpa2_enabled`, `wnc_wlan_11k_neighbor_list_enabled`**
 
-- Measured on IOS-XE 17.12 to be omitted from exactly the WLANs where the setting is **on**, which is why all three withhold the series rather than read an omitted leaf as `false`.
+- Measured on IOS-XE 17.15 to be omitted from exactly the WLANs where the setting is **on**, which is why all three withhold the series rather than read an omitted leaf as `false`.
 
 **`wnc_refresh_defaults_fallback_total`**
 
