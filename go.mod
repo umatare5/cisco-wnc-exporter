@@ -1,6 +1,6 @@
 module github.com/umatare5/cisco-wnc-exporter
 
-go 1.26
+go 1.27
 
 require (
 	github.com/prometheus/client_golang v1.24.1
