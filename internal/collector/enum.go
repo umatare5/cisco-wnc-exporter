@@ -8,14 +8,14 @@
 // an ordering this exporter invented. They were read from these modules, at the
 // revision the controller reported for each:
 //
-//   - Cisco-IOS-XE-wireless-ap-global-oper 2022-11-01
-//   - Cisco-IOS-XE-wireless-types 2023-08-20
-//   - Cisco-IOS-XE-wireless-access-point-oper 2023-08-01
-//   - Cisco-IOS-XE-wireless-client-types 2023-07-01
-//   - Cisco-IOS-XE-wireless-mobility-types 2022-11-01
-//   - Cisco-IOS-XE-wireless-enum-types 2023-07-20
+//   - Cisco-IOS-XE-wireless-ap-global-oper 2024-07-10
+//   - Cisco-IOS-XE-wireless-types 2024-08-10
+//   - Cisco-IOS-XE-wireless-access-point-oper 2024-07-10
+//   - Cisco-IOS-XE-wireless-client-types 2024-07-10
+//   - Cisco-IOS-XE-wireless-mobility-types 2024-07-01
+//   - Cisco-IOS-XE-wireless-enum-types 2024-07-01
 //
-// The 221 spellings are unique across the twelve tables, which is what makes one
+// The 223 spellings are unique across the twelve tables, which is what makes one
 // shared type safe: a reading resolved against the wrong table finds nothing and is
 // withheld rather than published as another enumeration's number.
 package collector
@@ -49,6 +49,8 @@ var apDiscoveryFailureReasons = enumTable{
 	"disc-fail-resp-send-fail":             14,
 	"disc-fail-req-non-wireless-mgmt-intf": 15,
 	"disc-fail-req-un-reg-license-mgr":     16,
+	"disc-fail-req-migr-off-disabled":      17,
+	"disc-fail-req-migr-off-l2-disabled":   18,
 }
 
 // apJoinFailureReasons holds enm-ap-join-failure-reason of Cisco-IOS-XE-wireless-ap-global-oper.

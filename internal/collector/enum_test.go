@@ -40,7 +40,7 @@ func TestEnumTables_NumberEveryMemberOfTheirEnumerationOnce(t *testing.T) {
 		members int
 		lowest  float64
 	}{
-		{"ap-discovery-failure-reason", 17, 0},
+		{"ap-discovery-failure-reason", 19, 0},
 		{"enm-ap-join-failure-reason", 42, 0},
 		{"enm-ap-config-failure-reason", 14, 0},
 		{"last-failure-phase", 7, 0},
@@ -100,7 +100,7 @@ func TestEnumTables_NumberEveryMemberOfTheirEnumerationOnce(t *testing.T) {
 func TestEnumTables_SpellingsAreUniqueAcrossEnumerations(t *testing.T) {
 	t.Parallel()
 
-	const wantSpellings = 221
+	const wantSpellings = 223
 
 	owner := make(map[string]string, wantSpellings)
 	for typedef, table := range enumTables {
