@@ -1351,7 +1351,7 @@ func TestAPCollector_collectInfoMetrics_LabelValues(t *testing.T) {
 	capwapData.DeviceDetail.StaticInfo.ApModels.Model = "C9115AXI-B"
 	capwapData.DeviceDetail.StaticInfo.BoardData.WtpSerialNum = "FOC12345678"
 	capwapData.DeviceDetail.StaticInfo.BoardData.WtpEnetMAC = "aa:bb:cc:dd:ee:00"
-	capwapData.DeviceDetail.WtpVersion.SwVersion = "17.12.1"
+	capwapData.DeviceDetail.WtpVersion.SwVersion = "17.15.1"
 
 	capwapMap := map[string]ap.CAPWAPData{
 		"aa:bb:cc:dd:ee:ff": capwapData,

@@ -16,12 +16,12 @@ These are the modules that declare the twelve enumerations, at the revision the 
 
 | Module                                    | Revision     |
 | :---------------------------------------- | :----------- |
-| `Cisco-IOS-XE-wireless-ap-global-oper`    | `2022-11-01` |
-| `Cisco-IOS-XE-wireless-types`             | `2023-08-20` |
-| `Cisco-IOS-XE-wireless-access-point-oper` | `2023-08-01` |
-| `Cisco-IOS-XE-wireless-client-types`      | `2023-07-01` |
-| `Cisco-IOS-XE-wireless-mobility-types`    | `2022-11-01` |
-| `Cisco-IOS-XE-wireless-enum-types`        | `2023-07-20` |
+| `Cisco-IOS-XE-wireless-ap-global-oper`    | `2024-07-10` |
+| `Cisco-IOS-XE-wireless-types`             | `2024-08-10` |
+| `Cisco-IOS-XE-wireless-access-point-oper` | `2024-07-10` |
+| `Cisco-IOS-XE-wireless-client-types`      | `2024-07-10` |
+| `Cisco-IOS-XE-wireless-mobility-types`    | `2024-07-01` |
+| `Cisco-IOS-XE-wireless-enum-types`        | `2024-07-01` |
 
 ## AP collector
 
@@ -61,6 +61,8 @@ Reads `last-disc-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-glob
 | 14    | `disc-fail-resp-send-fail`             |
 | 15    | `disc-fail-req-non-wireless-mgmt-intf` |
 | 16    | `disc-fail-req-un-reg-license-mgr`     |
+| 17    | `disc-fail-req-migr-off-disabled`      |
+| 18    | `disc-fail-req-migr-off-l2-disabled`   |
 
 ### `wnc_ap_last_join_failure_reason`
 
