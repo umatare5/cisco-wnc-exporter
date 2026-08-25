@@ -249,7 +249,9 @@ formatters:
         - default
         - prefix(github.com/umatare5)  # Adjust to your module root
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
     goimports:
       local-prefixes:
         - github.com/umatare5
