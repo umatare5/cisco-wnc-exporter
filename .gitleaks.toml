@@ -1,0 +1,12 @@
+# gitleaks configuration file
+# More information: https://github.com/gitleaks/gitleaks#configuration
+
+# Without this the default ruleset is replaced rather than extended, and nothing is detected.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "admin:your-password, the README quick-start example"
+condition = "AND"
+paths = ['''^README\.md$''']
+regexes = ['''^YWRtaW46eW91ci1wYXNzd29yZA==$''']
