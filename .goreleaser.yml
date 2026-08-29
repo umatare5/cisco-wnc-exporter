@@ -8,7 +8,6 @@ dist: tmp/dist
 
 # Build destination
 github_urls:
-  # set to true if you use a self-signed certificate
   skip_tls_verify: false
 
 before:
@@ -17,9 +16,11 @@ before:
     - go mod verify
 
 builds:
-  - main: cmd/main.go
+  - main: ./cmd
     id: cisco-wnc-exporter
     binary: cisco-wnc-exporter
+    flags:
+      - -trimpath
     targets:
       - linux_amd64
       - linux_arm64
@@ -50,72 +51,34 @@ archives:
         formats: ["zip"]
 
 # Docker configuration
-dockers:
-  - image_templates:
-      - "ghcr.io/umatare5/cisco-wnc-exporter:latest-amd64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-amd64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-amd64"
-    # A prerelease must not move latest or the minor tag, and release.prerelease reaches
-    # only the GitHub release
-    skip_push: auto
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.description=Prometheus Exporter for Cisco WNC"
-      - "--label=org.opencontainers.image.url=https://github.com/umatare5/cisco-wnc-exporter"
-      - "--label=org.opencontainers.image.source=https://github.com/umatare5/cisco-wnc-exporter"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.created={{ .Date }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.licenses=MIT"
-    goarch: amd64
+dockers_v2:
+  - images:
+      - ghcr.io/umatare5/cisco-wnc-exporter
+    tags:
+      - latest
+      - "{{ .Tag }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
     ids:
       - cisco-wnc-exporter
+    # A prerelease must not move latest or the version tags. buildx builds and
+    # pushes in one step, so the whole configuration is disabled instead of
+    # skipping the push; snapshot builds stay enabled for local verification.
+    disable: '{{ and (not .IsSnapshot) (ne .Prerelease "") }}'
+    labels:
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.description": "Prometheus Exporter for Cisco WNC"
+      "org.opencontainers.image.url": "https://github.com/umatare5/cisco-wnc-exporter"
+      "org.opencontainers.image.source": "https://github.com/umatare5/cisco-wnc-exporter"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "MIT"
     extra_files:
       - "LICENSE"
       - "NOTICE"
-  - image_templates:
-      - "ghcr.io/umatare5/cisco-wnc-exporter:latest-arm64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-arm64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-arm64"
-    skip_push: auto
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.description=Prometheus Exporter for Cisco WNC"
-      - "--label=org.opencontainers.image.url=https://github.com/umatare5/cisco-wnc-exporter"
-      - "--label=org.opencontainers.image.source=https://github.com/umatare5/cisco-wnc-exporter"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.created={{ .Date }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.licenses=MIT"
-    goarch: arm64
-    ids:
-      - cisco-wnc-exporter
-    extra_files:
-      - "LICENSE"
-      - "NOTICE"
-
-# Docker manifest for multi-platform images
-docker_manifests:
-  # The manifest step is gated separately from the image push, so it needs its own auto
-  - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:latest"
-    skip_push: auto
-    image_templates:
-      - "ghcr.io/umatare5/cisco-wnc-exporter:latest-amd64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:latest-arm64"
-  - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}"
-    skip_push: auto
-    image_templates:
-      - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-amd64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}-arm64"
-  - name_template: "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}"
-    skip_push: auto
-    image_templates:
-      - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/umatare5/cisco-wnc-exporter:v{{ .Major }}.{{ .Minor }}-arm64"
 
 release:
   prerelease: auto
