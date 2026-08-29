@@ -24,6 +24,7 @@ linters:
     # Core correctness & security
     - govet
     - staticcheck
+    - exhaustive
     - errcheck
     - ineffassign
     - unused
