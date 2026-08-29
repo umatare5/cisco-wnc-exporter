@@ -64,7 +64,7 @@ func TestAPRadioBand_IgnoresSlotAndRadioType(t *testing.T) {
 			for slot := range 3 {
 				radio := &ap.RadioOperData{
 					RadioSlotID:       slot,
-					RadioType:         radioType,
+					RadioType:         ap.RadioType(radioType),
 					CurrentActiveBand: "dot11-6-ghz-band",
 				}
 				if got := APRadioBand(radio); got != Band6GHz {
@@ -88,7 +88,7 @@ func TestAPRadioBand_NeverDefaultsTo24GHz(t *testing.T) {
 
 	for _, radioType := range enmRadioTypes {
 		for slot := range 3 {
-			radio := &ap.RadioOperData{RadioSlotID: slot, RadioType: radioType}
+			radio := &ap.RadioOperData{RadioSlotID: slot, RadioType: ap.RadioType(radioType)}
 			if got := APRadioBand(radio); got != BandUnknown {
 				t.Errorf("APRadioBand(slot=%d, radio-type=%s) = %q with no operating band, want %q",
 					slot, radioType, got, BandUnknown)
@@ -161,7 +161,7 @@ func TestClientBand(t *testing.T) {
 		t.Run(tt.phyType, func(t *testing.T) {
 			t.Parallel()
 
-			got := ClientBand(client.CommonOperData{MsRadioType: tt.phyType})
+			got := ClientBand(client.CommonOperData{MsRadioType: client.PHYRadioType(tt.phyType)})
 			if got != tt.want {
 				t.Errorf("ClientBand(%q) = %q, want %q", tt.phyType, got, tt.want)
 			}
@@ -188,7 +188,7 @@ func TestClientBand_RejectsUnmappable(t *testing.T) {
 	for _, value := range unmappable {
 		t.Run(value, func(t *testing.T) {
 			t.Parallel()
-			got := ClientBand(client.CommonOperData{MsRadioType: value})
+			got := ClientBand(client.CommonOperData{MsRadioType: client.PHYRadioType(value)})
 			if got != BandUnknown {
 				t.Errorf("ClientBand(%q) = %q, want %q", value, got, BandUnknown)
 			}
@@ -215,7 +215,7 @@ func TestCurrentBandInfo(t *testing.T) {
 			// typed as a plain integer whose zero value is also a valid band.
 			name: "One record, current-band-id disagrees",
 			radio: &ap.RadioOperData{
-				CurrentBandID: 2,
+				CurrentBandID: ptr(2),
 				RadioBandInfo: []ap.RadioBandInfo{{BandID: 1}},
 			},
 			wantFound: true,
@@ -224,7 +224,7 @@ func TestCurrentBandInfo(t *testing.T) {
 		{
 			name: "Two records, the second is operating",
 			radio: &ap.RadioOperData{
-				CurrentBandID: 2,
+				CurrentBandID: ptr(2),
 				RadioBandInfo: []ap.RadioBandInfo{{BandID: 1}, {BandID: 2}},
 			},
 			wantFound: true,
@@ -233,7 +233,7 @@ func TestCurrentBandInfo(t *testing.T) {
 		{
 			name: "Two records, the first is operating",
 			radio: &ap.RadioOperData{
-				CurrentBandID: 0,
+				CurrentBandID: ptr(0),
 				RadioBandInfo: []ap.RadioBandInfo{{BandID: 0}, {BandID: 1}},
 			},
 			wantFound: true,
@@ -242,10 +242,27 @@ func TestCurrentBandInfo(t *testing.T) {
 		{
 			name: "Two records, neither is operating",
 			radio: &ap.RadioOperData{
-				CurrentBandID: 9,
+				CurrentBandID: ptr(9),
 				RadioBandInfo: []ap.RadioBandInfo{{BandID: 1}, {BandID: 2}},
 			},
 			wantFound: false,
+		},
+		{
+			// band-id 0 is 2.4 GHz, so reading an omitted current-band-id as 0 would
+			// report the 2.4 GHz power table for a radio of unstated band.
+			name: "Two records, current-band-id absent",
+			radio: &ap.RadioOperData{
+				RadioBandInfo: []ap.RadioBandInfo{{BandID: 0}, {BandID: 1}},
+			},
+			wantFound: false,
+		},
+		{
+			name: "One record, current-band-id absent",
+			radio: &ap.RadioOperData{
+				RadioBandInfo: []ap.RadioBandInfo{{BandID: 1}},
+			},
+			wantFound: true,
+			wantBand:  1,
 		},
 	}
 

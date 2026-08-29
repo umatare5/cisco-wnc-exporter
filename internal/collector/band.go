@@ -157,14 +157,19 @@ func currentBandInfo(radio *ap.RadioOperData) (*ap.RadioBandInfo, bool) {
 		return nil, false
 	}
 	if len(radio.RadioBandInfo) == 1 {
-		// One record cannot be ambiguous, so current-band-id is not consulted. That
-		// matters because it is typed as a plain integer whose zero value is also a
-		// valid band, making an absent leaf indistinguishable from the first band.
+		// One record cannot be ambiguous, so current-band-id is not consulted.
 		return &radio.RadioBandInfo[0], true
 	}
 
+	// band-id 0 is 2.4 GHz, measured on 17.12 and 17.15, so an omitted current-band-id
+	// cannot be read as band 0: doing so reports the 2.4 GHz power table for a radio
+	// whose band the controller declined to state.
+	if radio.CurrentBandID == nil {
+		return nil, false
+	}
+
 	for i := range radio.RadioBandInfo {
-		if int(radio.RadioBandInfo[i].BandID) == radio.CurrentBandID {
+		if int(radio.RadioBandInfo[i].BandID) == *radio.CurrentBandID {
 			return &radio.RadioBandInfo[i], true
 		}
 	}

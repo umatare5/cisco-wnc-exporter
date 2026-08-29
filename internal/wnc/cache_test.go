@@ -871,13 +871,14 @@ func newMockWNCServer(cfg mockServerConfig) *httptest.Server {
 func newTestDataSource(t *testing.T, controllerURL string, ttl time.Duration) *dataSource {
 	t.Helper()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    extractHostFromURL(controllerURL),
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
 		TLSSkipVerify: true,
 		CacheTTL:      ttl,
-	}, allModules()).(*dataSource)
+	}, allModules())
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}

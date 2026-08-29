@@ -457,13 +457,13 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 			WtpMAC:            fixtureAPMAC,
 			RadioSlotID:       0,
 			RadioType:         "radio-80211bg",
-			CurrentBandID:     fixtureBandID,
+			CurrentBandID:     ptr(fixtureBandID),
 			CurrentActiveBand: "dot11-2-dot-4-ghz-band",
 			AdminState:        APAdminStateEnabled,
 			OperState:         APRadioStateUp,
 			// The width differs from every transmit power level below so that a
 			// descriptor reading another leaf of this radio reports another number.
-			PhyHtCfg: &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: fixtureChannel, ChanWidth: 40}},
+			PhyHtCfg: &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(fixtureChannel), ChanWidth: ptr(40)}},
 			RadioBandInfo: []ap.RadioBandInfo{{
 				BandID: fixtureBandID,
 				PhyTxPwrLvlCfg: ap.PhyTxPwrLvlCfg{
@@ -1119,7 +1119,7 @@ func TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf(t *testing.T) {
 	}{
 		{
 			"curr-freq",
-			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.CurrFreq = 0 },
+			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.CurrFreq = ptr(0) },
 			// The noise and air quality readings are selected by the operating channel,
 			// so they go absent with it.
 			[]string{
@@ -1134,7 +1134,7 @@ func TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf(t *testing.T) {
 		},
 		{
 			"chan-width",
-			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.ChanWidth = 0 },
+			func(d *wnc.WNCDataCache) { d.RadioOperData[0].PhyHtCfg.CfgData.ChanWidth = ptr(0) },
 			[]string{"wnc_ap_channel_width_mhz"},
 			[]string{
 				"wnc_ap_channel_number", "wnc_ap_noise_floor_dbm",

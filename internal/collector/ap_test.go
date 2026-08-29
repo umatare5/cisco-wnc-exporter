@@ -1565,7 +1565,7 @@ func TestAPCollector_collectRadioMetrics_NilRRMSubContainers(t *testing.T) {
 		RadioSlotID: 0,
 		RadioType:   "radio-80211a",
 		OperState:   APRadioStateUp,
-		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel, ChanWidth: 40}},
+		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(operatingChannel), ChanWidth: ptr(40)}},
 	}
 
 	collector := &APCollector{
@@ -1688,7 +1688,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingBand(t *testing.T) {
 			RadioSlotID:       2,
 			RadioType:         "radio-80211-xor-5-6ghz",
 			OperState:         APRadioStateUp,
-			CurrentBandID:     operatingBandID,
+			CurrentBandID:     ptr(operatingBandID),
 			CurrentActiveBand: "dot11-6-ghz-band",
 			RadioBandInfo: []ap.RadioBandInfo{
 				{
@@ -1733,7 +1733,7 @@ func TestAPCollector_collectRadioMetrics_SelectsOperatingChannel(t *testing.T) {
 		WtpMAC:      "aa:bb:cc:dd:ee:ff",
 		RadioSlotID: 2,
 		OperState:   APRadioStateUp,
-		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: operatingChannel}},
+		PhyHtCfg:    &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(operatingChannel)}},
 	}
 
 	source := radioMetricsOnly{
@@ -2739,7 +2739,7 @@ func TestAirQualityOnCurrentChannel(t *testing.T) {
 		return &ap.RadioOperData{
 			WtpMAC:            fixtureAPMAC,
 			CurrentActiveBand: band,
-			PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: channel}},
+			PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(channel)}},
 		}
 	}
 
@@ -2823,7 +2823,7 @@ func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
 	radio := &ap.RadioOperData{
 		WtpMAC:            fixtureAPMAC,
 		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
-		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6}},
+		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(6)}},
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {
@@ -3210,7 +3210,7 @@ func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
 	radio := &ap.RadioOperData{
 		WtpMAC:            fixtureAPMAC,
 		CurrentActiveBand: "dot11-2-dot-4-ghz-band",
-		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: 6}},
+		PhyHtCfg:          &ap.PhyHtCfg{CfgData: ap.PhyHtCfgData{CurrFreq: ptr(6)}},
 	}
 
 	if got, found := airQualityOnCurrentChannel(table, radio); found {

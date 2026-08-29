@@ -47,26 +47,26 @@ func newMockDataSource() *mockDataSource {
 				{
 					WtpMAC:      "aa:bb:cc:11:22:80",
 					RadioSlotID: 0,
-					SlotID:      0,
+					SlotID:      ptr(0),
 					RadioType:   "radio-80211bg",
 					AdminState:  "enabled",
 					OperState:   "radio-up",
 					PhyHtCfg: &ap.PhyHtCfg{
 						CfgData: ap.PhyHtCfgData{
-							CurrFreq: 6,
+							CurrFreq: ptr(6),
 						},
 					},
 				},
 				{
 					WtpMAC:      "aa:bb:cc:11:22:80",
 					RadioSlotID: 1,
-					SlotID:      1,
+					SlotID:      ptr(1),
 					RadioType:   "radio-80211a",
 					AdminState:  "enabled",
 					OperState:   "radio-up",
 					PhyHtCfg: &ap.PhyHtCfg{
 						CfgData: ap.PhyHtCfgData{
-							CurrFreq: 36,
+							CurrFreq: ptr(36),
 						},
 					},
 				},
