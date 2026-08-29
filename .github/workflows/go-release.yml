@@ -4,10 +4,6 @@ on:
   push:
     branches: ["main"]
     paths: ["VERSION"]
-  # A push that creates the branch carries no path comparison, so the filter
-  # above cannot match the commit that first adds VERSION. The manual trigger
-  # covers that, and any later release the file change did not reach.
-  workflow_dispatch:
 
 permissions:
   contents: write
