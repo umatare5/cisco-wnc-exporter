@@ -55,10 +55,11 @@ func MapWirelessProtocol(phyType, radioType string) WirelessProtocol {
 		return Protocol11B
 	case phyType == "client-dot11a":
 		return Protocol11A
-	case radioType == "dot11-radio-type-a":
-		// dot11-oper-data/radio-type names the band, not the generation. It is only
-		// consulted when the PHY type is absent, and 802.11a is the only generation
-		// the band alone implies.
+	case phyType == "" && radioType == "dot11-radio-type-a":
+		// dot11-oper-data/radio-type names the band, not the generation, so it is
+		// consulted only where the PHY type is absent. Without the empty test this arm
+		// also caught client-unknown-prot, which the schema declares as "the client
+		// protocol is unknown" and which belongs at 0.
 		return Protocol11A
 	default:
 		return ProtocolUnknown
