@@ -45,7 +45,10 @@ func StartAndServe(ctx context.Context, cfg *config.Config, version string) erro
 		"telemetry_path", cfg.Web.TelemetryPath)
 
 	// Create and setup collector manager
-	collectorMgr := collector.NewCollector(cfg)
+	collectorMgr, err := collector.NewCollector(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create the WNC client: %w", err)
+	}
 	collectorMgr.Setup(version)
 
 	// Create and run server lifecycle manager

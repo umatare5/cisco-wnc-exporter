@@ -188,10 +188,15 @@ type dataFetcher struct {
 // NewDataSource creates a new shared data source. It reads only the data types the
 // enabled modules need, so enabling one module does not poll the controller for the
 // data the others would have read.
-func NewDataSource(cfg config.WNC, modules config.Collectors) DataSource {
+func NewDataSource(cfg config.WNC, modules config.Collectors) (DataSource, error) {
+	wncClient, err := createWNCClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	names := requiredDataTypes(modules)
 	s := &dataSource{
-		client:   createWNCClient(cfg),
+		client:   wncClient,
 		cacheTTL: cfg.CacheTTL,
 		names:    names,
 		errors:   make(map[string]int, len(names)),
@@ -205,7 +210,7 @@ func NewDataSource(cfg config.WNC, modules config.Collectors) DataSource {
 	}
 
 	s.refresher = newRefresher(cfg.CacheTTL, s.fetchAllData, s.onRefreshDone)
-	return s
+	return s, nil
 }
 
 // snapshot returns the cached data unless the given data type failed to fetch.

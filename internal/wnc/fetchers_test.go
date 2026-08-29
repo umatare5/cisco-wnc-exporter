@@ -316,7 +316,7 @@ func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
 	server := rec.server()
 	defer server.Close()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    extractHostFromURL(server.URL),
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
@@ -324,7 +324,8 @@ func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
 		CacheTTL:      time.Minute,
 	}, config.Collectors{
 		Client: config.ClientCollectorModules{Traffic: true},
-	}).(*dataSource)
+	})
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}
@@ -390,7 +391,7 @@ func TestFetchers_DownWhenEveryRequiredDataTypeFails(t *testing.T) {
 	server := newMockWNCServer(failing(dataClientCommonOperData, dataClientTrafficStats))
 	defer server.Close()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    extractHostFromURL(server.URL),
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
@@ -398,7 +399,8 @@ func TestFetchers_DownWhenEveryRequiredDataTypeFails(t *testing.T) {
 		CacheTTL:      time.Minute,
 	}, config.Collectors{
 		Client: config.ClientCollectorModules{Traffic: true},
-	}).(*dataSource)
+	})
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}
@@ -423,7 +425,7 @@ func TestFetchers_SkipBeforeTheDeadlineCheck(t *testing.T) {
 	server := newMockWNCServer(mockServerConfig{})
 	defer server.Close()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    extractHostFromURL(server.URL),
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
@@ -431,7 +433,8 @@ func TestFetchers_SkipBeforeTheDeadlineCheck(t *testing.T) {
 		CacheTTL:      time.Minute,
 	}, config.Collectors{
 		WLAN: config.WLANCollectorModules{General: true},
-	}).(*dataSource)
+	})
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}
@@ -462,7 +465,7 @@ func TestFetchers_SkipBeforeTheDeadlineCheck(t *testing.T) {
 func TestDataSource_PanicCountsOnlyTheRequiredDataTypes(t *testing.T) {
 	t.Parallel()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    "wnc1.example.internal",
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
@@ -470,7 +473,8 @@ func TestDataSource_PanicCountsOnlyTheRequiredDataTypes(t *testing.T) {
 		CacheTTL:      55 * time.Second,
 	}, config.Collectors{
 		WLAN: config.WLANCollectorModules{General: true},
-	}).(*dataSource)
+	})
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}
@@ -509,7 +513,7 @@ func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
 	server := newMockWNCServer(mockServerConfig{})
 	defer server.Close()
 
-	ds, ok := NewDataSource(config.WNC{
+	raw, _ := NewDataSource(config.WNC{
 		Controller:    extractHostFromURL(server.URL),
 		AccessToken:   "test-token",
 		Timeout:       5 * time.Second,
@@ -517,7 +521,8 @@ func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
 		CacheTTL:      time.Minute,
 	}, config.Collectors{
 		WLAN: config.WLANCollectorModules{General: true},
-	}).(*dataSource)
+	})
+	ds, ok := raw.(*dataSource)
 	if !ok {
 		t.Fatal("NewDataSource did not return *dataSource")
 	}

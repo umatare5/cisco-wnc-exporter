@@ -343,7 +343,7 @@ func TestConfig_Validate(t *testing.T) {
 		},
 		{
 			// The SDK trims before its own non-empty check, so a whitespace-only
-			// value reaches NewClient as empty and createWNCClient panics on the error.
+			// value reaches NewClient as empty and createWNCClient returns its error.
 			"Whitespace-only controller",
 			func() *Config {
 				cfg := *validConfig
