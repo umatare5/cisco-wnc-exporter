@@ -4,6 +4,33 @@ Notable changes to the metric surface, one section per release — a short pream
 
 A minor release may rename or remove a metric, because the controller owns the schema every series reads. Every collector module flag is off by default, so a release that adds one adds no series until you set it. A rename carries the type, the labels and the value of the old name unless the entry says otherwise.
 
+## [v0.14.0]
+
+This release takes the SDK version that reports an omitted channel, width and band index as an absence rather than as a zero, and stops two readings the exporter had inferred from the wrong leaf.
+
+> [!IMPORTANT]
+>
+> ### BREAKING CHANGE
+>
+> - `wnc_ap_tx_power_dbm` and `wnc_ap_tx_power_max_dbm` — either can now be absent on a multi-band radio whose band index is omitted, so a rule expecting one series per radio sees fewer.
+> - `wnc_client_protocol` — reports `0` where it reported `1` for a client the controller has not classified, so a rule matching `== 1` stops counting it.
+
+### AP Metrics
+
+#### Changed
+
+- `wnc_ap_tx_power_dbm` and `wnc_ap_tx_power_max_dbm` — withheld where the band index is omitted, and the HELP now names that absence.
+
+### Client Metrics
+
+#### Changed
+
+- `wnc_client_protocol` — `0` for an unclassified PHY type on 5 GHz, where the band alone had implied 802.11a.
+
+### Flags
+
+None.
+
 ## [v0.13.3]
 
 This release builds with Go 1.27, whose JSON decoder cuts the time each refresh spends parsing controller responses. No metric, label, flag or HELP string changes.
@@ -479,6 +506,10 @@ Five series report the health of the WNC data refresh itself.
 - `--wnc.cache-ttl` — the minimum interval between refresh completions rather than a snapshot expiry, so the first scrape reports `wnc_up 0` with no data series.
 - `--web.telemetry-path` — now moves the endpoint, values that were accepted and ignored are rejected at start-up, and `/` replaces the landing page.
 
+[v0.14.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.0
+[v0.13.3]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.3
+[v0.13.2]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.2
+[v0.13.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.1
 [v0.13.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.0
 [v0.12.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.12.0
 [v0.11.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.11.0
