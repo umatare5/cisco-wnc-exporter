@@ -18,7 +18,7 @@
 - `internal/config/` — flag/env parsing, defaults (`0.0.0.0:10039`), and validation
 - `internal/server/` — HTTP server (`/metrics`, `/healthz`, `/`), graceful shutdown
 - `internal/collector/` — AP, Client, WLAN collectors; `prometheus.Collector` implementations
-- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK; `refresher.go` holds the stale-while-revalidate snapshot the collectors read
+- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK
 - `internal/cache/` — Generic TTL cache, used only for `*_info` metrics (`--collector.info-cache-ttl`)
 - `internal/log/` — `log/slog` setup; structured logging helpers
 
@@ -29,7 +29,7 @@ Install required tools (one-time):
 - `go install gotest.tools/gotestsum@latest`
 - `golangci-lint` - See <https://golangci-lint.run/docs/welcome/install/local/>
 - `goreleaser` release builds (see [.goreleaser.yml](.goreleaser.yml))
-- `pre-commit install` wires `golangci-lint` with the formatters from [.golangci.yml](.golangci.yml), `markdownlint-cli2` and `gitleaks` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
+- `pre-commit install` wires `golangci-lint`, `markdownlint-cli2` and `gitleaks` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
 
 Make targets ([Makefile](Makefile)):
 
