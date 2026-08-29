@@ -120,18 +120,22 @@ func APRadioBand(radio *ap.RadioOperData) string {
 // Not every spelling below has been seen coming back from a controller; the rest come
 // from the model, which is not always right about them. That is safe here only because
 // a wrong spelling falls through to the unknown band instead of naming another one.
-// The test records which values are confirmed.
+// The test records which values are confirmed. The SDK's constants are named rather
+// than spelled out so that a member it renames breaks the build.
 func ClientBand(data client.CommonOperData) string {
 	switch data.MsRadioType {
-	case "client-dot11b", "client-dot11g",
-		"client-dot11n-24-ghz-prot", "client-dot11ax-24ghz-prot", "client-dot11be-24ghz-prot":
+	case client.PHYRadioTypeDot11b, client.PHYRadioTypeDot11g,
+		client.PHYRadioTypeDot11n24GHz, client.PHYRadioTypeDot11ax24GHz,
+		client.PHYRadioTypeDot11be24GHz:
 		return Band24GHz
-	case "client-dot11a", "client-dot11ac",
-		"client-dot11n-5-ghz-prot", "client-dot11ax-5ghz-prot", "client-dot11be-5ghz-prot":
+	case client.PHYRadioTypeDot11a, client.PHYRadioTypeDot11ac,
+		client.PHYRadioTypeDot11n5GHz, client.PHYRadioTypeDot11ax5GHz,
+		client.PHYRadioTypeDot11be5GHz:
 		return Band5GHz
-	case "client-dot11ax-6ghz-prot", "client-dot11be-6ghz-prot":
+	case client.PHYRadioTypeDot11ax6GHz, client.PHYRadioTypeDot11be6GHz:
 		return Band6GHz
-	case "client-unknown-prot", "client-phy-type-notappl", "client-ethernet", "client-802-3":
+	case client.PHYRadioTypeUnknown, client.PHYRadioTypeNotApplicable,
+		client.PHYRadioTypeEthernet, client.PHYRadioTypeDot3:
 		// Wired or unclassified clients have no band. Listed so that the default
 		// below carries only one meaning.
 		return BandUnknown

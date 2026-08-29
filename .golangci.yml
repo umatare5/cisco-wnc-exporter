@@ -4,7 +4,7 @@ version: "2"
 # 1. Execution settings
 ########################
 run:
-  timeout: 5m                      # Keep the original timeout
+  timeout: 5m
   tests: true                      # Analyze *_test.go files as well
   issues-exit-code: 1              # Fail CI if any issue is found
 
@@ -24,6 +24,7 @@ linters:
     # Core correctness & security
     - govet
     - staticcheck
+    - exhaustive
     - errcheck
     - ineffassign
     - unused
@@ -61,7 +62,7 @@ linters:
     - predeclared            # Avoid shadowing predeclared identifiers
     - godot                  # Enforce periods at the end of doc comments
     - whitespace             # Normalize whitespace
-    - fatcontext             # Avoid capturing/propagating “fat” contexts
+    - fatcontext             # Avoid capturing/propagating "fat" contexts
     - nosprintfhostport      # Safer host:port formatting
     - depguard               # Belt-and-suspenders dependency rules
 
@@ -209,7 +210,6 @@ linters:
           - errcheck     # Allow ignoring errors in tests
           - goconst      # Allow constant duplication in tests
           - gosec        # Allow test helpers to use weak crypto, etc.
-          - govet        # Keep vetting in tests
           - ineffassign  # Allow ineffectual assignments in tests
           - mnd          # Allow magic numbers in tests
           - perfsprint   # Allow fmt.Errorf in tests

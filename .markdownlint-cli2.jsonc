@@ -13,10 +13,8 @@
   },
   "ignores": [
     "vendor/**",
-    ".github/instructions/**",
     ".github/copilot-instructions.md",
     ".claude/CLAUDE.md",
-    ".gemini/GEMINI.md",
   ],
   "globs": ["**/*.md"],
 }

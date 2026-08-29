@@ -459,6 +459,9 @@ func TestNewApp(t *testing.T) {
 			if cmd.Name != tt.expectedName {
 				t.Errorf("cmd.Name = %q, want %q", cmd.Name, tt.expectedName)
 			}
+			if cmd.Usage == "" {
+				t.Error("cmd.Usage is empty")
+			}
 
 			if cmd.Version == "" {
 				t.Error("cmd.Version is empty")

@@ -18,7 +18,7 @@
 - `internal/config/` — flag/env parsing, defaults (`0.0.0.0:10039`), and validation
 - `internal/server/` — HTTP server (`/metrics`, `/healthz`, `/`), graceful shutdown
 - `internal/collector/` — AP, Client, WLAN collectors; `prometheus.Collector` implementations
-- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK; `refresher.go` holds the stale-while-revalidate snapshot the collectors read
+- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK
 - `internal/cache/` — Generic TTL cache, used only for `*_info` metrics (`--collector.info-cache-ttl`)
 - `internal/log/` — `log/slog` setup; structured logging helpers
 
@@ -27,9 +27,9 @@
 Install required tools (one-time):
 
 - `go install gotest.tools/gotestsum@latest`
-- `golangci-lint` - See <https://golangci-lint.run/docs/welcome/install/local//>
+- `golangci-lint` - See <https://golangci-lint.run/docs/welcome/install/local/>
 - `goreleaser` release builds (see [.goreleaser.yml](.goreleaser.yml))
-- `pre-commit install` wires `golangci-lint`, `gofmt`, `markdownlint-cli2`, `gitleaks` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
+- `pre-commit install` wires `golangci-lint`, `markdownlint-cli2` and `gitleaks` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
 
 Make targets ([Makefile](Makefile)):
 
@@ -42,9 +42,8 @@ Make targets ([Makefile](Makefile)):
 
 ## Code Style
 
-- `gofmt` and `golangci-lint` are enforced by the pre-commit hook (see [.pre-commit-config.yaml](.pre-commit-config.yaml)).
-- Follow [.github/instructions/go.instructions.md](.github/instructions/go.instructions.md) for idiomatic Go.
-- Follow [.github/instructions/go-prom-umatare5.instructions.md](.github/instructions/go-prom-umatare5.instructions.md) for the Prometheus Exporter.
+- Linting and formatting are enforced by `golangci-lint` in the pre-commit hook (see [.golangci.yml](.golangci.yml)).
+- Comments record only what the code cannot say, and never address the reader.
 
 ## Testing Instructions
 
@@ -94,11 +93,3 @@ curl -k -X POST \
         -d '{"input": {"ap-name": "TEST-AP01"}}' \
         "https://$WNC_CONTROLLER/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
 ```
-
-## References
-
-- [.github/instructions/go.instructions.md](.github/instructions/go.instructions.md) — Idiomatic Go practices
-- [.github/instructions/go-prom-umatare5.instructions.md](.github/instructions/go-prom-umatare5.instructions.md) — Prometheus Exporter patterns
-- [.github/instructions/markdown.instructions.md](.github/instructions/markdown.instructions.md) - CommonMark (0.31.2)
-- [.github/instructions/markdown-gfm.instructions.md](.github/instructions/markdown-gfm.instructions.md) - GitHub-flavored Markdown
-- [.github/instructions/github-actions-ci-cd-best-practices.instructions.md](.github/instructions/github-actions-ci-cd-best-practices.instructions.md) - GitHub Actions CI/CD best practices

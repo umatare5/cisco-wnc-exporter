@@ -3,32 +3,22 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.12.2
+    rev: v2.13.1
     hooks:
-      - id: golangci-lint
-        name: golangci-lint
-        entry: golangci-lint run --fix
-        types: [go]
-        language: golang
+      - id: golangci-lint-full
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks-system
+        # The upstream hook definition omits this, and gitleaks takes a lone
+        # positional argument as the repository path
         pass_filenames: false
 
   - repo: local
     hooks:
-      - id: gofmt
-        name: gofmt
-        entry: gofmt -l -w
-        language: system
-        types: [go]
-        pass_filenames: true
-
       - id: markdownlint-cli2
         name: markdownlint-cli2
         entry: markdownlint-cli2 --fix
         language: system
         types: [markdown]
-
-      - id: gitleaks
-        name: gitleaks
-        entry: gitleaks protect --staged
-        language: system
-        pass_filenames: false

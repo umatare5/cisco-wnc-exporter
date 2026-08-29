@@ -6,10 +6,11 @@ BUILD_DIR := ./tmp
 BINARY_PATH := $(BUILD_DIR)/$(BINARY_NAME)
 COVERAGE_DIR := ./coverage
 IMAGE_DIR := $(BUILD_DIR)/image
+GOARCH := $(shell go env GOARCH)
 
 # Go build flags
 LDFLAGS := -X github.com/umatare5/cisco-wnc-exporter/internal/cli.version=$(shell cat VERSION)
-BUILD_FLAGS := -ldflags "$(LDFLAGS)"
+BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 
 # Default target
 .DEFAULT_GOAL := help
@@ -26,7 +27,7 @@ help:
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - gotestsum: go install gotest.tools/gotestsum@latest"
-	@echo "  - golangci-lint: https://golangci-lint.run/usage/install/"
+	@echo "  - golangci-lint: https://golangci-lint.run/docs/welcome/install/local/"
 
 build: $(BINARY_PATH)
 
@@ -44,7 +45,7 @@ lint:
 test-unit:
 	@command -v gotestsum >/dev/null 2>&1 || { echo "Error: gotestsum is not installed. Run: go install gotest.tools/gotestsum@latest"; exit 1; }
 	mkdir -p $(COVERAGE_DIR)
-	gotestsum --format testname -- -coverprofile=$(COVERAGE_DIR)/report.out ./...
+	gotestsum --format testname -- -race -coverprofile=$(COVERAGE_DIR)/report.out ./...
 
 # Generate coverage report (HTML)
 test-unit-coverage: test-unit
@@ -62,7 +63,7 @@ clean:
 # cannot work: the binary is not there, and .dockerignore excludes it by name if
 # it is. This target assembles the same context.
 image:
-	mkdir -p $(IMAGE_DIR)
-	CGO_ENABLED=0 GOOS=linux go build $(BUILD_FLAGS) -o $(IMAGE_DIR)/$(BINARY_NAME) ./cmd
+	mkdir -p $(IMAGE_DIR)/linux/$(GOARCH)
+	CGO_ENABLED=0 GOOS=linux go build $(BUILD_FLAGS) -o $(IMAGE_DIR)/linux/$(GOARCH)/$(BINARY_NAME) ./cmd
 	cp LICENSE NOTICE $(IMAGE_DIR)/
-	docker build -f Dockerfile -t $(USER)/$(BINARY_NAME) $(IMAGE_DIR)
+	docker build --platform linux/$(GOARCH) -f Dockerfile -t $(USER)/$(BINARY_NAME) $(IMAGE_DIR)
