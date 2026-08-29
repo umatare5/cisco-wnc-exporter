@@ -172,6 +172,28 @@ func TestMapWirelessProtocol(t *testing.T) {
 	}
 }
 
+// TestMapWirelessProtocol_BandNeverOverridesAPresentPHYType pins the gate on the
+// fallback. Without it the 5 GHz band answered for every PHY type the switch does not
+// name, so a client the controller reports as unclassified read as 802.11a.
+func TestMapWirelessProtocol_BandNeverOverridesAPresentPHYType(t *testing.T) {
+	t.Parallel()
+
+	unnamed := []string{
+		"client-unknown-prot", "client-phy-type-notappl",
+		"client-ethernet", "client-802-3",
+	}
+
+	for _, phyType := range unnamed {
+		t.Run(phyType, func(t *testing.T) {
+			t.Parallel()
+			if got := MapWirelessProtocol(phyType, "dot11-radio-type-a"); got != ProtocolUnknown {
+				t.Errorf("MapWirelessProtocol(%q, \"dot11-radio-type-a\") = %v, want %v",
+					phyType, got, ProtocolUnknown)
+			}
+		})
+	}
+}
+
 // TestMapWirelessProtocol_RadioTypeFallback covers ms-radio-type, which names the
 // band rather than the generation and is only consulted when the PHY type is absent.
 func TestMapWirelessProtocol_RadioTypeFallback(t *testing.T) {

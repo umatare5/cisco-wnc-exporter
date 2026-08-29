@@ -84,7 +84,7 @@ func TestNewCollector(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig()
 
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	if collector == nil {
 		t.Fatal("NewCollector returned nil")
@@ -103,7 +103,7 @@ func TestNewCollector(t *testing.T) {
 func TestCollector_Registry(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	registry := collector.Registry()
 
@@ -118,7 +118,7 @@ func TestCollector_Registry(t *testing.T) {
 func TestCollector_RegisterBuildInfo(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 	version := "1.0.0"
 
 	// Count metrics before registration
@@ -172,7 +172,7 @@ func TestCollector_RegisterBuildInfo(t *testing.T) {
 func TestCollector_RegisterSystemCollectors_Disabled(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig() // Go and Process collectors disabled by default
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// Count metrics before registration
 	metricFamilies, err := collector.registry.Gather()
@@ -202,7 +202,7 @@ func TestCollector_RegisterSystemCollectors_Disabled(t *testing.T) {
 func TestCollector_RegisterSystemCollectors_Enabled(t *testing.T) {
 	t.Parallel()
 	cfg := createSystemCollectorConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// Count metrics before registration
 	metricFamilies, err := collector.registry.Gather()
@@ -232,7 +232,7 @@ func TestCollector_RegisterSystemCollectors_Enabled(t *testing.T) {
 func TestCollector_Setup(t *testing.T) {
 	t.Parallel()
 	cfg := createSystemCollectorConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 	version := "1.0.0"
 
 	// Count metrics before setup
@@ -272,7 +272,7 @@ func TestCollector_Setup(t *testing.T) {
 func TestCollector_RegisterServiceCollectors_AllDisabled(t *testing.T) {
 	t.Parallel()
 	cfg := createDisabledConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// Count metrics before registration
 	metricFamilies, err := collector.registry.Gather()
@@ -305,7 +305,7 @@ func TestCollector_RegisterServiceCollectors_APEnabled(t *testing.T) {
 	// Only enable AP collector
 	cfg.Collectors.Client.General = false
 	cfg.Collectors.WLAN.General = false
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// This test verifies the function runs without panicking
 	// The actual collector registration requires WNC connectivity which we avoid in unit tests
@@ -324,7 +324,7 @@ func TestCollector_RegisterServiceCollectors_ClientEnabled(t *testing.T) {
 	cfg.Collectors.AP.General = false
 	cfg.Collectors.AP.Radio = false
 	cfg.Collectors.WLAN.General = false
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// This test verifies the function runs without panicking
 	collector.RegisterServiceCollectors()
@@ -342,7 +342,7 @@ func TestCollector_RegisterServiceCollectors_WLANEnabled(t *testing.T) {
 	cfg.Collectors.AP.General = false
 	cfg.Collectors.AP.Radio = false
 	cfg.Collectors.Client.General = false
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// This test verifies the function runs without panicking
 	collector.RegisterServiceCollectors()
@@ -380,7 +380,7 @@ func TestCollector_RegisterRefreshCollector(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			collector := NewCollector(tt.cfg)
+			collector, _ := NewCollector(tt.cfg)
 			collector.RegisterServiceCollectors()
 
 			families, err := collector.registry.Gather()
@@ -438,7 +438,7 @@ func TestCollector_StringMetric_Type(t *testing.T) {
 func TestCollector_MultipleSetups(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 	version := "1.0.0"
 
 	// First setup
@@ -478,7 +478,7 @@ func TestCollector_MultipleSetups(t *testing.T) {
 func TestCollector_EmptyVersion(t *testing.T) {
 	t.Parallel()
 	cfg := createTestConfig()
-	collector := NewCollector(cfg)
+	collector, _ := NewCollector(cfg)
 
 	// Test with empty version string
 	collector.RegisterBuildInfo("")
@@ -516,7 +516,7 @@ func TestCollector_ConfigValidation(t *testing.T) {
 		}
 	}()
 
-	collector := NewCollector(nil)
+	collector, _ := NewCollector(nil)
 	if collector != nil && collector.cfg != nil {
 		t.Error("expected nil config to be handled")
 	}
@@ -527,8 +527,8 @@ func TestCollector_RegistryIndependence(t *testing.T) {
 	cfg1 := createTestConfig()
 	cfg2 := createTestConfig()
 
-	collector1 := NewCollector(cfg1)
-	collector2 := NewCollector(cfg2)
+	collector1, _ := NewCollector(cfg1)
+	collector2, _ := NewCollector(cfg2)
 
 	// Each collector should have its own registry
 	if collector1.Registry() == collector2.Registry() {

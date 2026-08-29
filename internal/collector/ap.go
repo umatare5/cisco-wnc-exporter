@@ -180,13 +180,13 @@ func NewAPCollector(
 		)
 		collector.txPowerDesc = prometheus.NewDesc(
 			"wnc_ap_tx_power_dbm",
-			"Current transmit power (dBm)",
+			"Current transmit power (dBm), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
 		collector.txPowerMaxDesc = prometheus.NewDesc(
 			"wnc_ap_tx_power_max_dbm",
-			"Maximum TX power capability (dBm)",
+			"Maximum TX power capability (dBm), absent if unreported",
 			baseRadioLabels,
 			nil,
 		)
@@ -772,16 +772,16 @@ func (c *APCollector) collectRadioMetrics(
 	}
 
 	// The controller omits curr-freq on a radio in monitor mode, measured on 17.15, and the
-	// SDK types both leaves as plain integers, so an omitted one decodes to a zero that is
-	// neither a channel on any band nor a width a radio can use. The schema the controller
-	// serves declares the same absence for sniffer mode, which is unmeasured. Each leaf is
-	// withheld on its own zero: the measured radio kept its width while its channel was gone.
+	// schema it serves declares the same absence for sniffer mode, which is unmeasured. A
+	// zero is rejected alongside the omission because it is neither a channel on any band
+	// nor a width a radio can use. Each leaf is withheld on its own: the measured radio kept
+	// its width while its channel was gone.
 	if radio.PhyHtCfg != nil {
-		if channel := radio.PhyHtCfg.CfgData.CurrFreq; channel != 0 {
-			metrics = append(metrics, Float64Metric{c.channelDesc, float64(channel)})
+		if channel := radio.PhyHtCfg.CfgData.CurrFreq; channel != nil && *channel != 0 {
+			metrics = append(metrics, Float64Metric{c.channelDesc, float64(*channel)})
 		}
-		if width := radio.PhyHtCfg.CfgData.ChanWidth; width != 0 {
-			metrics = append(metrics, Float64Metric{c.channelWidthDesc, float64(width)})
+		if width := radio.PhyHtCfg.CfgData.ChanWidth; width != nil && *width != 0 {
+			metrics = append(metrics, Float64Metric{c.channelWidthDesc, float64(*width)})
 		}
 	}
 
@@ -1297,9 +1297,9 @@ func (c *APCollector) isAnyRadioKeyedFlagEnabled() bool {
 // set, so the reading is reached by matching the band first and the primary channel
 // second. Matching the channel alone would cross bands, because 6 GHz channel numbers
 // restart at 1 and collide with 2.4 GHz. The list is a fixed-size array padded with
-// rows whose channel number is zero, and the primary channel is likewise absent as a
-// zero on a radio in monitor or sniffer mode, so rejecting the zero channel excludes
-// both without a second test.
+// rows whose channel number is zero, and the primary channel is omitted on a radio in
+// monitor or sniffer mode, so rejecting both the omission and a zero channel excludes
+// the padding rows without a second test.
 func airQualityOnCurrentChannel(
 	table []rrm.SpectrumAqTable, radio *ap.RadioOperData,
 ) (*rrm.PerChannelAqList, bool) {
@@ -1308,7 +1308,7 @@ func airQualityOnCurrentChannel(
 	}
 
 	channel := radio.PhyHtCfg.CfgData.CurrFreq
-	if channel == 0 {
+	if channel == nil || *channel == 0 {
 		return nil, false
 	}
 
@@ -1323,7 +1323,7 @@ func airQualityOnCurrentChannel(
 
 		rows := record.PerRadioAqData.PerChannelAqList
 		for j := range rows {
-			if rows[j].ChannelNum == channel {
+			if rows[j].ChannelNum == *channel {
 				return &rows[j], true
 			}
 		}
@@ -1336,21 +1336,21 @@ func airQualityOnCurrentChannel(
 //
 // noise-data is a per-channel list spanning the band's channel set, so a fixed index
 // reports a channel the radio is not on. The list carries no YANG key either, so its
-// order is not specified. The channel to match is the primary one, which is absent on
-// a radio in monitor or sniffer mode; because the SDK types it as a plain integer,
-// zero is treated as absent rather than as a channel.
+// order is not specified. The channel to match is the primary one, which is omitted on
+// a radio in monitor or sniffer mode; a zero is rejected with it, since no band numbers
+// a channel zero.
 func noiseOnCurrentChannel(rrmData *rrm.RRMMeasurement, radio *ap.RadioOperData) (int, bool) {
 	if radio.PhyHtCfg == nil || rrmData.Noise == nil {
 		return 0, false
 	}
 
 	channel := radio.PhyHtCfg.CfgData.CurrFreq
-	if channel == 0 {
+	if channel == nil || *channel == 0 {
 		return 0, false
 	}
 
 	for _, item := range rrmData.Noise.Noise.NoiseData {
-		if item.Chan == channel {
+		if item.Chan == *channel {
 			return item.Noise, true
 		}
 	}

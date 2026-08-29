@@ -423,7 +423,7 @@ func (c *ClientCollector) collectRadioMetrics(
 	if dot11, ok := dot11Map[data.ClientMAC]; ok {
 		metrics = append(metrics, Float64Metric{
 			c.protocolDesc,
-			float64(MapWirelessProtocol(dot11.EwlcMsPhyType, dot11.RadioType)),
+			float64(MapWirelessProtocol(string(dot11.EwlcMsPhyType), string(dot11.RadioType))),
 		})
 	}
 	if traffic, ok := trafficMap[data.ClientMAC]; ok {

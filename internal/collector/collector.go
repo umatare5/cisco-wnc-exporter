@@ -48,14 +48,17 @@ func emitTimestamp(ch chan<- prometheus.Metric, desc *prometheus.Desc, at time.T
 }
 
 // NewCollector creates a new collector manager.
-func NewCollector(cfg *config.Config) *Collector {
-	sharedDataSource := wnc.NewDataSource(cfg.WNC, cfg.Collectors)
+func NewCollector(cfg *config.Config) (*Collector, error) {
+	sharedDataSource, err := wnc.NewDataSource(cfg.WNC, cfg.Collectors)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Collector{
 		registry:         prometheus.NewRegistry(),
 		cfg:              cfg,
 		sharedDataSource: sharedDataSource,
-	}
+	}, nil
 }
 
 // Registry returns the Prometheus registry managed by this collector.
