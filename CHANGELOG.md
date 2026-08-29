@@ -4,6 +4,10 @@ Notable changes to the metric surface, one section per release — a short pream
 
 A minor release may rename or remove a metric, because the controller owns the schema every series reads. Every collector module flag is off by default, so a release that adds one adds no series until you set it. A rename carries the type, the labels and the value of the old name unless the entry says otherwise.
 
+## [v0.14.1]
+
+This release takes the SDK version that renames two write accessors this exporter does not call. No metric, label, flag or HELP string changes.
+
 ## [v0.14.0]
 
 This release takes the SDK version that reports an omitted channel, width and band index as an absence rather than as a zero, and stops two readings the exporter had inferred from the wrong leaf.
@@ -506,6 +510,7 @@ Five series report the health of the WNC data refresh itself.
 - `--wnc.cache-ttl` — the minimum interval between refresh completions rather than a snapshot expiry, so the first scrape reports `wnc_up 0` with no data series.
 - `--web.telemetry-path` — now moves the endpoint, values that were accepted and ignored are rejected at start-up, and `/` replaces the landing page.
 
+[v0.14.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.1
 [v0.14.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.0
 [v0.13.3]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.3
 [v0.13.2]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.2
