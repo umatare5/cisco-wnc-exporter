@@ -29,7 +29,7 @@ Install required tools (one-time):
 - `go install gotest.tools/gotestsum@latest`
 - `golangci-lint` - See <https://golangci-lint.run/docs/welcome/install/local/>
 - `goreleaser` release builds (see [.goreleaser.yml](.goreleaser.yml))
-- `pre-commit install` wires `golangci-lint`, `markdownlint-cli2` and `gitleaks` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
+- `make pre-commit-install` wires `no-commit-to-main`, `golangci-lint`, `actionlint`, `gitleaks` and `markdownlint-cli2` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
 
 Make targets ([Makefile](Makefile)):
 
@@ -39,6 +39,7 @@ Make targets ([Makefile](Makefile)):
 - `make test-unit-coverage` — Generate HTML report at `coverage/report.html`
 - `make clean` — Remove build artifacts and `.bak*` files
 - `make image` — Build Docker image (`$USER/cisco-wnc-exporter`)
+- `make pre-commit-install` / `pre-commit-test` / `pre-commit-uninstall` — Manage the pre-commit hooks
 
 ## Code Style
 

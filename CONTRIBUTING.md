@@ -6,15 +6,20 @@ Thank you for considering a contribution.
 
 The following `make` commands are available for development and testing:
 
-| Command                   | Description                                    |
-| :------------------------ | :--------------------------------------------- |
-| `make help`               | Display available targets and requirements     |
-| `make build`              | Build the binary to `./tmp/cisco-wnc-exporter` |
-| `make lint`               | Run golangci-lint and tidy go.mod              |
-| `make test-unit`          | Run unit tests with coverage using gotestsum   |
-| `make test-unit-coverage` | Generate HTML coverage report                  |
-| `make clean`              | Remove build artifacts and backup files        |
-| `make image`              | Build Docker image                             |
+| Command                     | Description                                    |
+| :-------------------------- | :--------------------------------------------- |
+| `make help`                 | Display available targets and requirements     |
+| `make build`                | Build the binary to `./tmp/cisco-wnc-exporter` |
+| `make lint`                 | Run golangci-lint and tidy go.mod              |
+| `make test-unit`            | Run unit tests with coverage using gotestsum   |
+| `make test-unit-coverage`   | Generate HTML coverage report                  |
+| `make clean`                | Remove build artifacts and backup files        |
+| `make image`                | Build Docker image                             |
+| `make pre-commit-install`   | Install the pre-commit hooks                   |
+| `make pre-commit-test`      | Run every hook across the tree                 |
+| `make pre-commit-uninstall` | Remove the pre-commit hooks                    |
+
+Markdown style is enforced by the `markdownlint-cli2` hook that `make pre-commit-install` wires in, and again in CI. Links are checked in CI only, because that run reaches third-party hosts. Run `lychee .` to reproduce a link failure locally.
 
 ## Build
 
@@ -39,7 +44,7 @@ Merging that pull request is the whole release. A push to `main` touching `VERSI
 
 ## Pull requests
 
-1. Fork ([https://github.com/umatare5/cisco-wnc-exporter/fork](https://github.com/umatare5/cisco-wnc-exporter/fork))
+1. [Fork](https://github.com/umatare5/cisco-wnc-exporter/fork) the repository
 2. Create a feature branch
 3. Commit your changes
 4. Record any change to the metric surface under a `## [vX.Y.Z]` section for the coming version in `CHANGELOG.md`, adding the section if it is not there yet

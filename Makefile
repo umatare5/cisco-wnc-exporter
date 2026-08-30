@@ -1,4 +1,4 @@
-.PHONY: help build lint test-unit test-unit-coverage clean image
+.PHONY: help build lint test-unit test-unit-coverage clean image pre-commit-install pre-commit-test pre-commit-uninstall
 
 # Binary name and paths
 BINARY_NAME := cisco-wnc-exporter
@@ -18,16 +18,21 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # Show available targets
 help:
 	@echo "Available targets:"
-	@echo "  build              - Build the binary"
-	@echo "  lint               - Run linters (golangci-lint)"
-	@echo "  test-unit          - Run unit tests with colored output"
-	@echo "  test-unit-coverage      - Generate HTML coverage report"
-	@echo "  clean              - Remove build artifacts and backup files"
-	@echo "  image              - Build Docker image"
+	@echo "  build                - Build the binary"
+	@echo "  lint                 - Run linters (golangci-lint)"
+	@echo "  test-unit            - Run unit tests with colored output"
+	@echo "  test-unit-coverage   - Generate HTML coverage report"
+	@echo "  clean                - Remove build artifacts and backup files"
+	@echo "  image                - Build Docker image"
+	@echo "  pre-commit-install   - Install the pre-commit hooks"
+	@echo "  pre-commit-test      - Run every hook across the whole tree"
+	@echo "  pre-commit-uninstall - Remove the pre-commit hooks"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - gotestsum: go install gotest.tools/gotestsum@latest"
 	@echo "  - golangci-lint: https://golangci-lint.run/docs/welcome/install/local/"
+	@echo "  - pre-commit: https://pre-commit.com/#install"
+	@echo "  - gitleaks: https://github.com/gitleaks/gitleaks#installing"
 
 build: $(BINARY_PATH)
 
@@ -67,3 +72,17 @@ image:
 	CGO_ENABLED=0 GOOS=linux go build $(BUILD_FLAGS) -o $(IMAGE_DIR)/linux/$(GOARCH)/$(BINARY_NAME) ./cmd
 	cp LICENSE NOTICE $(IMAGE_DIR)/
 	docker build --platform linux/$(GOARCH) -f Dockerfile -t $(USER)/$(BINARY_NAME) $(IMAGE_DIR)
+
+# Pre-commit targets
+# Install the hooks declared in .pre-commit-config.yaml
+pre-commit-install:
+	@command -v pre-commit >/dev/null 2>&1 || { echo "Error: pre-commit is not installed. See: https://pre-commit.com/#install"; exit 1; }
+	@pre-commit install --allow-missing-config
+
+# Run every hook across the whole tree without committing
+pre-commit-test:
+	@pre-commit run --all-files
+
+# Remove the hooks
+pre-commit-uninstall:
+	@pre-commit uninstall

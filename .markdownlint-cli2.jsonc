@@ -1,20 +1,221 @@
 {
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/main/schema/markdownlint-cli2-config-schema.json",
   "config": {
     "default": true,
-    "line_length": false,
-    "no-inline-html": false,
-    "no-trailing-punctuation": false,
-    "no-duplicate-heading": false,
-    "no-bare-urls": false,
-    "header-increment": false,
-    "no-alt-text": false,
-    "no-blanks-blockquote": false,
-    "first-line-heading": false
+    "MD003": { "style": "atx" },
+    "MD004": { "style": "dash" },
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    // Two adjacent GitHub alerts cannot be written without a blank line between them
+    "MD028": false,
+    "MD029": { "style": "ordered" },
+    "MD046": { "style": "fenced" },
+    "MD048": { "style": "backtick" },
+    "MD050": { "style": "asterisk" },
+    "MD054": { "url_inline": false },
+    "MD055": { "style": "leading_and_trailing" },
+    "MD060": { "style": "aligned", "aligned_delimiter": true }
   },
-  "ignores": [
-    "vendor/**",
-    ".github/copilot-instructions.md",
-    ".claude/CLAUDE.md",
+  "overrides": [
+    {
+      "filter": ["AGENTS.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Repository Instructions",
+            "## Tech Stack", "*",
+            "## Repository Structure", "*",
+            "## Setup and Commands", "*",
+            "## Code Style", "*",
+            "## Testing Instructions", "*",
+            "## Commits and PRs", "*",
+            "## Domain Knowledge", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["CHANGELOG.md"],
+      "combine": "merge",
+      "config": {
+        // Release headings accrue and this repository opens each one directly as
+        // `## [vX.Y.Z]`, so only the title is pinned
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Changelog",
+            "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["CONTRIBUTING.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Contributing",
+            "## Commands", "*",
+            "## Build", "*",
+            "## Release", "*",
+            "## Pull requests"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["README.md"],
+      "combine": "merge",
+      "config": {
+        // The logo, badges and title block are HTML; the heading they carry is an <h1>
+        "MD033": {
+          "allowed_elements": ["a", "br", "div", "h1", "img", "p", "picture", "source"]
+        },
+        "MD041": { "allow_preamble": true },
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "## Overview", "*",
+            "## Quick Start", "*",
+            "## Syntax", "*",
+            "## Configuration", "*",
+            "## Metrics", "*",
+            "## Use Cases", "*",
+            "## Contributing", "*",
+            "## Acknowledgement", "*",
+            "## Licence"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["SECURITY.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Security Policy",
+            "## Supported versions", "*",
+            "## Reporting a vulnerability", "*",
+            "## What this exporter holds and exposes", "*",
+            "## Out of scope"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/README.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Documentation",
+            "## Collectors", "*",
+            "## Technical Information", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/collector.ap.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# AP collector",
+            "## Metrics", "*",
+            "## Specifications", "*",
+            "## Info Labels", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/collector.client.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Client collector",
+            "## Metrics", "*",
+            "## Specifications", "*",
+            "## Info Labels", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/collector.wlan.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# WLAN collector",
+            "## Metrics", "*",
+            "## Specifications", "*",
+            "## Info Labels", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/collector.controller.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Controller collector",
+            "## Metrics", "*",
+            "## Specifications", "*",
+            "## Info Metrics", "*"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/configuration.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Configuration",
+            "## Flags", "*",
+            "## Notes"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/enums.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Enumeration values",
+            "## Reading a value", "*",
+            "## Where the numbers come from", "*",
+            "## AP collector", "*",
+            "## Client collector", "*",
+            "## WLAN collector", "*"
+          ]
+        }
+      }
+    }
   ],
   "globs": ["**/*.md"],
+  "gitignore": true,
+  // Both are symlinks to AGENTS.md, which is linted on its own path
+  "ignores": [".claude/CLAUDE.md", ".github/copilot-instructions.md"]
 }
