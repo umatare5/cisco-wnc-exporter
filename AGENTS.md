@@ -1,15 +1,15 @@
 # Repository Instructions
 
 > [!IMPORTANT]
-> Read [README.md](README.md) for project overview and architecture.
+> Read [`README.md`](README.md) for project overview and architecture.
 
 ## Tech Stack
 
-- Go 1.27+ (see [go.mod](go.mod))
+- Go 1.27+ (see [`go.mod`](go.mod))
 - [`prometheus/client_golang`](https://github.com/prometheus/client_golang) v1.23+ — metric registration and HTTP handler
 - [`umatare5/cisco-ios-xe-wireless-go`](https://github.com/umatare5/cisco-ios-xe-wireless-go) v0.11+ — sole RESTCONF SDK for Cisco C9800 WNC
 - [`urfave/cli/v3`](https://github.com/urfave/cli) v3.8+ — CLI flags and application lifecycle
-- [`goreleaser`](https://goreleaser.com/) v2 — cross-platform release builds (see [.goreleaser.yml](.goreleaser.yml))
+- [`goreleaser`](https://goreleaser.com/) v2 — cross-platform release builds (see [`.goreleaser.yml`](.goreleaser.yml))
 
 ## Repository Structure
 
@@ -28,10 +28,10 @@ Install required tools (one-time):
 
 - `go install gotest.tools/gotestsum@latest`
 - `golangci-lint` - See <https://golangci-lint.run/docs/welcome/install/local/>
-- `goreleaser` release builds (see [.goreleaser.yml](.goreleaser.yml))
-- `make pre-commit-install` wires `no-commit-to-main`, `golangci-lint`, `actionlint`, `gitleaks` and `markdownlint-cli2` (see [.pre-commit-config.yaml](.pre-commit-config.yaml))
+- `goreleaser` release builds (see [`.goreleaser.yml`](.goreleaser.yml))
+- `make pre-commit-install` wires `no-commit-to-main`, `golangci-lint`, `actionlint`, `gitleaks` and `markdownlint-cli2` (see [`.pre-commit-config.yaml`](.pre-commit-config.yaml))
 
-Make targets ([Makefile](Makefile)):
+Make targets ([`Makefile`](Makefile)):
 
 - `make build` — Build binary into `tmp/cisco-wnc-exporter`
 - `make lint` — `golangci-lint run` + `go mod tidy`
@@ -43,14 +43,14 @@ Make targets ([Makefile](Makefile)):
 
 ## Code Style
 
-- Linting and formatting are enforced by `golangci-lint` in the pre-commit hook (see [.golangci.yml](.golangci.yml)).
+- Linting and formatting are enforced by `golangci-lint` in the pre-commit hook (see [`.golangci.yml`](.golangci.yml)).
 - Comments record only what the code cannot say, and never address the reader.
 
 ## Testing Instructions
 
 - Run `make test-unit` before committing.
 - Place tests next to code under test (`*_test.go`).
-- Coverage threshold is enforced by [.github/workflows/go-test-coverage.yml](.github/workflows/go-test-coverage.yml).
+- Coverage threshold is enforced by [`.github/workflows/go-test-coverage.yml`](.github/workflows/go-test-coverage.yml).
 
 ## Commits and PRs
 
