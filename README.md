@@ -61,9 +61,9 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 ```
 
 > [!Tip]
-> If you prefer using binaries, download them from the [release page](https://github.com/umatare5/cisco-wnc-exporter/releases).
+> If you prefer using binaries, download them from the [Release](https://github.com/umatare5/cisco-wnc-exporter/releases).
 >
-> Supported Platforms are: `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
+> **Supported Platform:** `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
 
 ## Syntax
 
@@ -89,6 +89,18 @@ This exporter reads two environment variables:
 | :------------------- | :----------------------------------------------- |
 | `WNC_CONTROLLER`     | WNC controller hostname or IP address (required) |
 | `WNC_ACCESS_TOKEN`   | WNC API access token (required)                  |
+
+### Endpoints
+
+The exporter serves three endpoints:
+
+- `/` — landing page, which confirms the exporter is running when reached at <http://localhost:10039/>
+- `/metrics` — metrics endpoint, configurable via `--web.telemetry-path`
+- `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
+
+> [!Note]
+>
+> Reflecting the WNC state in `/healthz` would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it.
 
 ## Metrics
 
@@ -152,19 +164,7 @@ These series describe the exporter itself rather than the wireless network. They
 
 ## Use Cases
 
-### Exporter Configuration
-
-The exporter serves three endpoints:
-
-- `/` — landing page, which confirms the exporter is running when reached at <http://localhost:10039/>
-- `/metrics` — metrics endpoint, configurable via `--web.telemetry-path`
-- `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
-
-> [!Note]
->
-> Reflecting the WNC state in `/healthz` would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it.
-
-#### Basic Usage - No Collectors
+### Basic Usage - No Collectors
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
@@ -173,7 +173,7 @@ $ ./cisco-wnc-exporter
 time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10039."
 ```
 
-#### Essential Usage
+### Essential Usage
 
 ```bash
 $ WNC_CONTROLLER="wnc1.example.internal"
@@ -182,7 +182,7 @@ $ ./cisco-wnc-exporter \
     --collector.ap.general --collector.client.general --collector.wlan.general
 ```
 
-#### Complete Usage
+### Complete Usage
 
 For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) which enables every collector module with maximum info-labels.
 
@@ -207,7 +207,9 @@ Add the job config to your Prometheus YAML file using [`examples/prometheus.yml`
 
 Add the alerting rules to your Prometheus YAML file using [`examples/prometheus_alert_rules.yml`](./examples/prometheus_alert_rules.yml) as a reference.
 
-### Grafana Admin-level Dashboard Example
+### Grafana Dashboard
+
+#### Grafana Admin-level Dashboard Example
 
 Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-admin-dashboard.json) to add admin dashboard.
 
@@ -218,9 +220,9 @@ Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](https://gith
 </picture>
 
 > [!Tip]
-> See [`cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture image of the example.
+> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture image of the example.
 
-### Grafana User-level Dashboard Example
+#### Grafana User-level Dashboard Example
 
 Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-user-dashboard.json) to add user dashboard.
 
@@ -231,7 +233,7 @@ Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://githu
 </picture>
 
 > [!Tip]
-> See [`cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture image of the example.
+> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture image of the example.
 
 ## Contributing
 
