@@ -90,7 +90,7 @@ This exporter reads two environment variables:
 | `WNC_CONTROLLER`     | WNC controller hostname or IP address (required) |
 | `WNC_ACCESS_TOKEN`   | WNC API access token (required)                  |
 
-### Endpoints
+## Endpoints
 
 The exporter serves three endpoints:
 
