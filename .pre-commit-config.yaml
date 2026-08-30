@@ -2,10 +2,25 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
+  - repo: local
+    hooks:
+      - id: no-commit-to-main
+        name: no-commit-to-main
+        entry: scripts/no-commit-to-main.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+        fail_fast: true
+
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.13.1
     hooks:
       - id: golangci-lint-full
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
@@ -15,10 +30,8 @@ repos:
         # positional argument as the repository path
         pass_filenames: false
 
-  - repo: local
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.2
     hooks:
       - id: markdownlint-cli2
-        name: markdownlint-cli2
-        entry: markdownlint-cli2 --fix
-        language: system
-        types: [markdown]
+        args: ["--fix"]
