@@ -155,7 +155,7 @@ This release adds three timestamp families behind existing flags, and turns the 
 >
 > ### BREAKING CHANGE
 >
-> - **Twelve gauges** — drop the `state` label and publish the number the controller's own enumeration assigns that spelling, which [docs/enums.md](docs/enums.md) lists. Every name, type and remaining label is unchanged.
+> - **Twelve gauges** — drop the `state` label and publish the number the controller's own enumeration assigns that spelling, which [`docs/enums.md`](docs/enums.md) lists. Every name, type and remaining label is unchanged.
 > - **A query over those twelve** — a negated `state` matcher now matches everything, and a `sum` over one of them has to become a `count`.
 > - **An unnumbered spelling** — withheld rather than published with a wrong value, so one of the twelve can be absent for a subject it always carried. The spelling reaches only the `--log.level=debug` log.
 
@@ -334,7 +334,7 @@ This release adds an AP `join` module of thirty-two metrics, a controller collec
 
 - `wnc_ap_joined` — whether the AP holds a CAPWAP session with this controller now.
 - `wnc_ap_join_info` — the AP name as its CAPWAP join record reports it, a record that outlives the session.
-- **The thirty other join metrics** — the discovery, join, configuration and DTLS counters, timestamps and reason enumerations, listed in [docs/collector.ap.md](docs/collector.ap.md).
+- **The thirty other join metrics** — the discovery, join, configuration and DTLS counters, timestamps and reason enumerations, listed in [`docs/collector.ap.md`](docs/collector.ap.md).
 
 #### Changed
 
@@ -353,7 +353,7 @@ This release adds an AP `join` module of thirty-two metrics, a controller collec
 
 - `wnc_controller_boot_time_seconds` — the Unix time the controller last booted.
 - `wnc_controller_client_deletes_total` — client deletions counted per reason the controller reports.
-- **The three `wnc_controller_client_ap_auth_*roams_total` counters** — documented in [docs/collector.controller.md](docs/collector.controller.md).
+- **The three `wnc_controller_client_ap_auth_*roams_total` counters** — documented in [`docs/collector.controller.md`](docs/collector.controller.md).
 
 ### Flags
 
