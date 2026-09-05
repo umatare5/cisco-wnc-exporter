@@ -46,7 +46,7 @@ Make targets ([`Makefile`](Makefile)):
 - Linting and formatting are enforced by `golangci-lint` in the pre-commit hook (see [`.golangci.yml`](.golangci.yml)).
 - Comments record only what the code cannot say, and never address the reader.
 
-## Testing Instructions
+## Testing
 
 - Run `make test-unit` before committing.
 - Place tests next to code under test (`*_test.go`).
