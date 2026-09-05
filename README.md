@@ -23,7 +23,7 @@
 
 ## Overview
 
-This exporter allows a Prometheus instance to scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
+This exporter lets Prometheus scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
 - 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
 - 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
@@ -65,7 +65,7 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 >
 > **Supported Platform:** `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
 
-## Syntax
+## Flags
 
 `cisco-wnc-exporter --help` prints every flag, and [`docs/help.md`](docs/help.md) carries the same list.
 
@@ -81,7 +81,7 @@ Each collector is enabled per module:
 > [!CAUTION]
 > `--wnc.tls-skip-verify` disables TLS certificate verification. **Never use it in production.**
 
-## Configuration
+## Environment Variables
 
 This exporter reads two environment variables:
 
