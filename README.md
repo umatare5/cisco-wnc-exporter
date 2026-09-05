@@ -23,7 +23,7 @@
 
 ## Overview
 
-This exporter allows a Prometheus instance to scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
+This exporter lets Prometheus scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
 - 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
 - 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
