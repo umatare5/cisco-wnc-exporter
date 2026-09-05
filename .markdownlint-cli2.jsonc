@@ -81,8 +81,8 @@
           "headings": [
             "## Overview", "*",
             "## Quick Start", "*",
-            "## Syntax", "*",
-            "## Configuration", "*",
+            "## Flags", "*",
+            "## Environment Variables", "*",
             "## Endpoints", "*",
             "## Metrics", "*",
             "## Use Cases", "*",

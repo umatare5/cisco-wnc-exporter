@@ -65,7 +65,7 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 >
 > **Supported Platform:** `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
 
-## Syntax
+## Flags
 
 `cisco-wnc-exporter --help` prints every flag, and [`docs/help.md`](docs/help.md) carries the same list.
 
@@ -81,7 +81,7 @@ Each collector is enabled per module:
 > [!CAUTION]
 > `--wnc.tls-skip-verify` disables TLS certificate verification. **Never use it in production.**
 
-## Configuration
+## Environment Variables
 
 This exporter reads two environment variables:
 
