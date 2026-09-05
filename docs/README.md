@@ -1,6 +1,8 @@
 # Documentation
 
-Reference pages for cisco-wnc-exporter. The [README](../README.md) covers getting a scrape working, and these pages carry the full metric catalogue and the behaviour the collectors share.
+Reference pages for cisco-wnc-exporter.
+
+The [README](../README.md) covers getting a scrape working, and these pages carry the full metric catalogue and the behaviour the collectors share.
 
 ## Collectors
 
