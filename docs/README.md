@@ -15,10 +15,10 @@ The four collectors focus on different aspects of the controller's operation, an
 
 Additional pages supplement the metric catalogue and the README's brief command-line reference.
 
-| Page                              | Focus                                         |
-| :-------------------------------- | :-------------------------------------------- |
-| [Enumeration values](enums.md)    | Numbers the twelve enumerated families report |
-| [Configuration](configuration.md) | Flags, defaults and environment variables     |
+| Page                           | Focus                                         |
+| :----------------------------- | :-------------------------------------------- |
+| [Enumeration values](enums.md) | Numbers the twelve enumerated families report |
+| [Help](help.md)                | Flags, defaults and environment variables     |
 
 ## Technical Information
 
@@ -35,7 +35,8 @@ A C9800 omits a leaf whose value equals its schema default, so absence on the wi
 Every scrape is served from the last completed refresh rather than from the controller, so no scrape waits on one. `--wnc.cache-ttl` sets the minimum idle between refresh completions, not an expiry on the snapshot.
 
 - **Scope** — one refresh reads only the data types the enabled modules need, so a narrower flag set leaves more of the deadline for each of them.
-- **Deadline** — a refresh is bounded at twice the flag value, and a data type it never reached is recorded as a failure like any other, raising `wnc_refresh_errors_total` and withholding that type's series.
+- **Deadline** — a refresh is bounded at twice `--wnc.cache-ttl`, and a data type it never reached is recorded as a failure like any other, raising `wnc_refresh_errors_total` and withholding that type's series.
+- **Timeout** — `--wnc.timeout` bounds a whole request, while the SDK caps response headers and the TLS handshake at five seconds each with no flag, so raising it cannot wait out a slow controller.
 - **Staleness** — after three consecutive failed refreshes the data series are withheld rather than served from a snapshot the exporter can no longer confirm.
 
 ### Info metric caching

@@ -1,10 +1,10 @@
-# Configuration
+# Help
 
-A verbatim `cisco-wnc-exporter --help` transcript: every flag, its default, and the environment variable it reads where one exists.
+The help text of the exporter, transcribed from the binary. It takes no subcommand, so this single transcript carries every flag, its default, and the environment variable it reads where one exists.
 
-## Flags
+## cisco-wnc-exporter
 
-```bash
+```text
 NAME:
    cisco-wnc-exporter - Prometheus exporter for Cisco WNC
 
@@ -71,9 +71,3 @@ GLOBAL OPTIONS:
    --collector.internal.go-runtime  Enable Go runtime metrics collector
    --collector.internal.process     Enable process metrics collector
 ```
-
-## Notes
-
-`--wnc.timeout` bounds a whole RESTCONF request. The SDK bounds the wait for the response headers and the TLS handshake separately, far more tightly than this flag's own default, and this exporter leaves both at those defaults and exposes no flag for either. Raising `--wnc.timeout` therefore does not make the exporter wait longer for a controller that is slow to begin answering.
-
-See [Data refresh and caching](README.md#data-refresh-and-caching) for how a request that times out appears in the refresh metrics.

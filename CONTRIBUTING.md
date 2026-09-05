@@ -37,7 +37,7 @@ To release a new version, follow these steps:
 
 1. Add the `## [vX.Y.Z]` section to `CHANGELOG.md` above the previous release, matching the version in the `VERSION` file, and add that version's release link at the foot of the file.
 2. Update the version in the `VERSION` file.
-3. Update the `VERSION:` line in the `--help` transcript in `docs/configuration.md`.
+3. Update the `VERSION:` line in the `--help` transcript in `docs/help.md`.
 4. Submit a pull request with all three files.
 
 Merging that pull request is the whole release. A push to `main` touching `VERSION` runs the [release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml), which tags the commit and publishes the release in the same run. The workflow has no manual trigger, so there is no step to perform by hand.
