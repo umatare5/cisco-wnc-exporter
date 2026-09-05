@@ -16,7 +16,7 @@ This exporter uses a controller account to read the controller's RESTCONF interf
 
 - **Credential** — one controller account, which makes the exporter exactly as sensitive as that account, so prefer `WNC_ACCESS_TOKEN` to `--wnc.access-token`.
 - **Certificate verification** — `--wnc.tls-skip-verify` skips it for a self-signed certificate and is not for production, as the caution in [`README.md`](README.md) says.
-- **Metrics** — unauthenticated plain HTTP carrying AP and client MAC addresses and the default [`--collector.*.info-labels`](docs/configuration.md) sets, so keep it on a controlled path.
+- **Metrics** — unauthenticated plain HTTP carrying AP and client MAC addresses and the default [`--collector.*.info-labels`](docs/help.md) sets, so keep it on a controlled path.
 - **Logs** — a controller response of 400 or above reaches the log at error level unredacted, and the SDK bounds it to a prefix that carries no credential.
 
 ## Out of scope
