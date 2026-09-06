@@ -133,7 +133,8 @@ The series a dashboard usually starts from:
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
-See [`docs/README.md`](docs/README.md) for the refresh, caching, counter-reset and state semantics every collector shares.
+> [!NOTE]
+> See [`docs/README.md`](docs/README.md) for the refresh, caching and counter-reset semantics.
 
 > [!IMPORTANT]
 >
@@ -159,8 +160,7 @@ These series describe the exporter itself rather than the wireless network. They
 > [!IMPORTANT]
 >
 > `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot.
-
-> [!NOTE]
+>
 > `wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled.
 
 ## Use Cases
@@ -238,7 +238,7 @@ Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://githu
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the `make` targets, the Docker build, the release process and how to open a pull request.
+See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the development setup, the tests and the documentation conventions.
 
 ## Acknowledgement
 

@@ -285,14 +285,14 @@ The `info` module publishes `wnc_ap_info` with the following labels to join with
 | Labels       | Description             | Example Value              | Default | Required |
 | :----------- | :---------------------- | :------------------------- | :-----: | :------: |
 | `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0`        | **Yes** | **Yes**  |
-| `name`       | AP hostname             | `TEST-AP01`                | **Yes** |    No    |
-| `ip`         | AP IP address           | `192.168.1.10`             | **Yes** |    No    |
+| `name`       | AP hostname             | `TEST-AP01`                | **Yes** | No       |
+| `ip`         | AP IP address           | `192.168.1.10`             | **Yes** | No       |
 | `radio`      | Radio identifier        | `0`, `1`, `2`              | **Yes** | **Yes**  |
-| `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` |   No    |    No    |
-| `model`      | AP model                | `AIR-AP1815I-Q-K9`         |   No    |    No    |
-| `serial`     | AP serial number        | `FGL1234ABCD`              |   No    |    No    |
-| `sw_version` | Software version        | `17.15.6.12`               |   No    |    No    |
-| `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        |   No    |    No    |
+| `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` | No      | No       |
+| `model`      | AP model                | `AIR-AP1815I-Q-K9`         | No      | No       |
+| `serial`     | AP serial number        | `FGL1234ABCD`              | No      | No       |
+| `sw_version` | Software version        | `17.15.6.12`               | No      | No       |
+| `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        | No      | No       |
 
 Use this info metric to add contextual labels to other metrics in PromQL queries:
 
