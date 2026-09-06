@@ -61,7 +61,7 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
   ghcr.io/umatare5/cisco-wnc-exporter:latest
 ```
 
-> [!Tip]
+> [!TIP]
 > If you prefer using binaries, download them from the [Release](https://github.com/umatare5/cisco-wnc-exporter/releases).
 >
 > **Supported Platform:** `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
@@ -99,7 +99,7 @@ The exporter serves three endpoints:
 - `/metrics` — metrics endpoint, configurable via `--web.telemetry-path`
 - `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
 
-> [!Note]
+> [!NOTE]
 >
 > Reflecting the WNC state in `/healthz` would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it.
 
@@ -133,9 +133,10 @@ The series a dashboard usually starts from:
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
-See [`docs/README.md`](docs/README.md) for the refresh, caching, counter-reset and state semantics every collector shares.
+> [!NOTE]
+> See [`docs/README.md`](docs/README.md) for the refresh, caching and counter-reset semantics.
 
-> [!Important]
+> [!IMPORTANT]
 >
 > All collectors are **disabled by default** to reduce load on both Prometheus and the controller, and an exporter with no collector enabled never contacts the controller at all.
 >
@@ -156,11 +157,10 @@ These series describe the exporter itself rather than the wireless network. They
 | `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type      |
 | `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read   |
 
-> [!Important]
+> [!IMPORTANT]
 >
 > `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot.
-
-> [!Note]
+>
 > `wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled.
 
 ## Use Cases
@@ -193,7 +193,7 @@ For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc
 
 Add the job config to your Prometheus YAML file using [`examples/prometheus.yml`](./examples/prometheus.yml) as a reference.
 
-> [!Note]
+> [!NOTE]
 >
 > A refresh starts on the first scrape that arrives after `--wnc.cache-ttl` has elapsed since the previous refresh finished, so the effective refresh period is:
 >
@@ -220,7 +220,7 @@ Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](https://gith
   <img alt="Grafana admin-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
 </picture>
 
-> [!Tip]
+> [!TIP]
 > See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture image of the example.
 
 #### Grafana User-level Dashboard Example
@@ -233,12 +233,12 @@ Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://githu
   <img alt="Grafana user-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
 </picture>
 
-> [!Tip]
+> [!TIP]
 > See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture image of the example.
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the `make` targets, the Docker build, the release process and how to open a pull request.
+See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the development setup, the tests and the documentation conventions.
 
 ## Acknowledgement
 

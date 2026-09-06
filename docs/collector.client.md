@@ -90,15 +90,15 @@ The `info` module publishes `wnc_client_info` with the following labels to join 
 | Labels        | Description                 | Example Value                 | Default | Required |
 | :------------ | :-------------------------- | :---------------------------- | :-----: | :------: |
 | `mac`         | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
-| `ap`          | Access point identifier     | `TEST-AP01`                   |   No    |    No    |
-| `band`        | Radio band                  | `2.4`, `5`, `6`, `unknown`    |   No    |    No    |
-| `wlan`        | WLAN ESSID name             | `labo-wifi`                   |   No    |    No    |
-| `wlan_id`     | WLAN identifier             | `5`                           |   No    |    No    |
-| `name`        | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** |    No    |
-| `device_type` | Device Classification Type  | `Un-Classified Device`        |   No    |    No    |
-| `username`    | EAP authentication identity | `john.doe@example.com`        |   No    |    No    |
-| `ipv4`        | Client IPv4 address         | `192.168.1.100`               | **Yes** |    No    |
-| `ipv6`        | Client IPv6 address         | `2001:db8::1`                 |   No    |    No    |
+| `ap`          | Access point identifier     | `TEST-AP01`                   | No      | No       |
+| `band`        | Radio band                  | `2.4`, `5`, `6`, `unknown`    | No      | No       |
+| `wlan`        | WLAN ESSID name             | `labo-wifi`                   | No      | No       |
+| `wlan_id`     | WLAN identifier             | `5`                           | No      | No       |
+| `name`        | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** | No       |
+| `device_type` | Device Classification Type  | `Un-Classified Device`        | No      | No       |
+| `username`    | EAP authentication identity | `john.doe@example.com`        | No      | No       |
+| `ipv4`        | Client IPv4 address         | `192.168.1.100`               | **Yes** | No       |
+| `ipv6`        | Client IPv6 address         | `2001:db8::1`                 | No      | No       |
 
 Use this info metric to add contextual labels to other metrics in PromQL queries:
 

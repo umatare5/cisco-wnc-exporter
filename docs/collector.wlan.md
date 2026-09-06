@@ -91,7 +91,7 @@ The `info` module publishes `wnc_wlan_info` with the following labels to join wi
 | Labels | Description     | Example Value  | Default | Required |
 | :----- | :-------------- | :------------- | :-----: | :------: |
 | `id`   | WLAN identifier | `1`, `5`, `10` | **Yes** | **Yes**  |
-| `name` | WLAN ESSID name | `labo-wifi`    | **Yes** |    No    |
+| `name` | WLAN ESSID name | `labo-wifi`    | **Yes** | No       |
 
 Use this info metric to add contextual labels to other metrics in PromQL queries:
 

@@ -38,14 +38,15 @@ builds:
 
 archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    # Only what a downloaded binary needs beside it: the licence notices its
+    # statically linked dependencies require on redistribution. This exporter
+    # parses no file it ships, so nothing else earns a place in the archive,
+    # and every page it used to carry is a click away on the release page the
+    # archive was downloaded from. The key stays because GoReleaser's default
+    # set omits NOTICE.
     files:
-      - "README.md"
-      - "CHANGELOG.md"
-      - "docs/*.md"
-      - "examples/*.yml"
       - "LICENSE"
       - "NOTICE"
-      - "SECURITY.md"
     format_overrides:
       - goos: windows
         formats: ["zip"]
