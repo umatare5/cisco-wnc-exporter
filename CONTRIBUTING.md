@@ -1,52 +1,43 @@
 # Contributing
 
-Thank you for considering a contribution.
+The [shared conventions](https://github.com/umatare5/.github/blob/main/CONTRIBUTING.md) cover what every exporter here shares. This page carries the rest.
 
-## Commands
+## Development
 
-The following `make` commands are available for development and testing:
+CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 percent, Prometheus Rules and CodeQL on every pull request. The markdownlint, Link Check, actionlint and govulncheck jobs are gated on the paths they read, so a change touching no workflow, no Markdown and no `go.mod` skips all four.
 
-| Command                     | Description                                    |
-| :-------------------------- | :--------------------------------------------- |
-| `make help`                 | Display available targets and requirements     |
-| `make build`                | Build the binary to `./tmp/cisco-wnc-exporter` |
-| `make lint`                 | Run golangci-lint and tidy go.mod              |
-| `make test-unit`            | Run unit tests with coverage using gotestsum   |
-| `make test-unit-coverage`   | Generate HTML coverage report                  |
-| `make clean`                | Remove build artifacts and backup files        |
-| `make image`                | Build Docker image                             |
-| `make pre-commit-install`   | Install the pre-commit hooks                   |
-| `make pre-commit-test`      | Run every hook across the tree                 |
-| `make pre-commit-uninstall` | Remove the pre-commit hooks                    |
+## Testing
 
-Markdown style is enforced by the `markdownlint-cli2` hook that `make pre-commit-install` wires in, and again in CI. Links are checked in CI only, because that run reaches third-party hosts. Run `lychee .` to reproduce a link failure locally.
+Every collector test reads one controller snapshot rather than a fixture of its own, because the collectors share a cache and a leaf added to one of them changes what the others withhold.
 
-## Build
+- **The snapshot** — `fullFixtureSnapshot` in `internal/collector/absence_test.go` carries the whole reading, so a new leaf is added there once and every collector test sees it.
+- **Absence is asserted** — a gather with one data type marked failed must publish no series the healthy gather did not, which pins a failure to the types that failed.
+- **`promlint` covers the surface** — it lints every gathered family, so a counter that loses its `_total` suffix fails without a hand-kept list of the families that regressed.
 
-The repository includes a ready to use `Dockerfile`. To build a new Docker image:
+Three commands reproduce the `Prometheus Rules` job locally.
 
 ```bash
-make image
+promtool check rules --lint all --lint-fatal examples/prometheus_alert_rules.yml
+promtool test rules examples/prometheus_alert_rules_test.yml
+promtool check config --lint all --lint-fatal examples/prometheus.yml
 ```
 
-This cross-compiles a Linux binary into `./tmp/image`, then builds from that directory because the `Dockerfile` expects the binary at the context root. The image is tagged `$USER/cisco-wnc-exporter` and declares port 10039 without publishing it, so publish it with `docker run -p`. Released images are pushed to `ghcr.io/umatare5/cisco-wnc-exporter` by GoReleaser instead.
+## Code Style
 
-## Release
+A `--collector.<module>.<group>` flag switches one group of families inside one of the four modules. No bare module flag exists, so a module publishes nothing until one of its group flags is set.
 
-To release a new version, follow these steps:
+A HELP string states the reading of one series in one sentence, and it says whether the series goes absent or decodes an omitted leaf as `0`, because a C9800 omits a leaf holding its schema default.
 
-1. Add the `## [vX.Y.Z]` section to `CHANGELOG.md` above the previous release, matching the version in the `VERSION` file, and add that version's release link at the foot of the file.
-2. Update the version in the `VERSION` file.
-3. Update the `VERSION:` line in the `--help` transcript in `docs/help.md`.
-4. Submit a pull request with all three files.
+## Documentation
 
-Merging that pull request is the whole release. A push to `main` touching `VERSION` runs the [release workflow](https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-release.yml), which tags the commit and publishes the release in the same run. The workflow has no manual trigger, so there is no step to perform by hand.
+Every fact has one page that owns it, and the other pages link to it rather than restating it.
 
-## Pull requests
+| Page                  | Owns                                      |
+| :-------------------- | :---------------------------------------- |
+| `README.md`           | What it is, how to run and scrape it      |
+| `docs/README.md`      | The rules every collector obeys           |
+| `docs/collector.*.md` | The metric catalogue of one module        |
+| `docs/enums.md`       | The number each enumerated family reports |
+| `docs/help.md`        | The verbatim `--help` transcript          |
 
-1. [Fork](https://github.com/umatare5/cisco-wnc-exporter/fork) the repository
-2. Create a feature branch
-3. Commit your changes
-4. Record any change to the metric surface under a `## [vX.Y.Z]` section for the coming version in `CHANGELOG.md`, adding the section if it is not there yet
-5. Rebase your local changes against the `main` branch
-6. Create a new Pull Request
+A sentence about what a leaf carries is written after that leaf was read off a controller, and `docs/enums.md` names the YANG module and revision date each enumeration was taken from.
