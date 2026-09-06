@@ -1,6 +1,6 @@
 # Contributing
 
-The [shared conventions](https://github.com/umatare5/.github/blob/main/CONTRIBUTING.md) cover what every exporter here shares. This page carries the rest.
+The [shared contribution guide](https://github.com/umatare5/.github/blob/main/CONTRIBUTING.md) covers what every exporter shares. This page carries the rest.
 
 ## Development
 
@@ -10,9 +10,12 @@ CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 perc
 
 Every collector test reads one controller snapshot rather than a fixture of its own, because the collectors share a cache and a leaf added to one of them changes what the others withhold.
 
-- **The snapshot** — `fullFixtureSnapshot` in `internal/collector/absence_test.go` carries the whole reading, so a new leaf is added there once and every collector test sees it.
-- **Absence is asserted** — a gather with one data type marked failed must publish no series the healthy gather did not, which pins a failure to the types that failed.
-- **`promlint` covers the surface** — it lints every gathered family, so a counter that loses its `_total` suffix fails without a hand-kept list of the families that regressed.
+- **The snapshot** — `internal/collector/absence_test.go` holds `fullFixtureSnapshot`, the whole reading.
+- **One place** — a new leaf is added there once, and every collector test sees it.
+- **Absence is asserted** — a data type marked failed publishes no series the healthy gather did not.
+- **What it pins** — a failure belongs to the types that failed.
+- **`promlint` covers the surface** — it lints every gathered family.
+- **No list of regressions** — a counter that loses its `_total` suffix fails without one kept by hand.
 
 Three commands reproduce the `Prometheus Rules` job locally.
 
@@ -40,4 +43,5 @@ Every fact has one page that owns it, and the other pages link to it rather than
 | `docs/enums.md`       | The number each enumerated family reports |
 | `docs/help.md`        | The verbatim `--help` transcript          |
 
-A sentence about what a leaf carries is written after that leaf was read off a controller, and `docs/enums.md` names the YANG module and revision date each enumeration was taken from.
+> [!NOTE]
+> A sentence about what a leaf carries is written after that leaf was read off a controller, and `docs/enums.md` names the YANG module and revision date each enumeration was taken from.
