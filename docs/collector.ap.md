@@ -1,10 +1,10 @@
-# AP collector
+# AP Collector
 
-AP collector focuses on RF foundation and radio performance.
+AP Collector reads the access point, radio and RRM operational data of the controller.
 
 ## Metrics
 
-| Module      | Metric                                            | Type    | Description                                 |
+| Group       | Metric                                            | Type    | Description                                 |
 | :---------- | :------------------------------------------------ | :------ | :------------------------------------------ |
 | general     | `wnc_ap_admin_state`                              | Gauge   | Admin state, absent if unreported           |
 | general     | `wnc_ap_oper_state`                               | Gauge   | Operational state (4=registered)            |
@@ -95,37 +95,74 @@ AP collector focuses on RF foundation and radio performance.
 | spectrum    | `wnc_rrm_worst_channel_interferers`               | Gauge   | Interference devices on that channel        |
 | spectrum    | `wnc_rrm_worst_channel_number`                    | Gauge   | Which channel that is, as a value           |
 
+## Labels
+
+`wnc_ap_info` names the radio that every other AP series identifies by address alone.
+
+| Label        | Description             | Example Value              |
+| :----------- | :---------------------- | :------------------------- |
+| `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0`        |
+| `name`       | AP hostname             | `TEST-AP01`                |
+| `ip`         | AP IP address           | `192.168.1.10`             |
+| `radio`      | Radio identifier        | `0`, `1`, `2`              |
+| `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` |
+| `model`      | AP model                | `AIR-AP1815I-Q-K9`         |
+| `serial`     | AP serial number        | `FGL1234ABCD`              |
+| `sw_version` | Software version        | `17.15.6.12`               |
+| `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        |
+
+- `mac` and `radio` are required: the exporter appends them whatever `--collector.ap.info-labels` names, because they are the key every join from a data series runs on.
+- The optional set is `name`, `ip`, `band`, `model`, `serial`, `sw_version` and `eth_mac`, of which `--collector.ap.info-labels` enables `name` and `ip` by default. A value given for the flag replaces that default pair instead of extending it.
+
+```bash
+wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
+```
+
+The data series carry labels of their own, none of which the flag governs:
+
+- Every AP series is keyed by `mac` alone or by `mac` and `radio` together, so a join from a per-AP series onto the per-radio `wnc_ap_info` matches every radio of that AP and fails on the duplicate unless it collapses the info side first.
+- `profile` is a third label on `wnc_ap_rrm_profile_passed` and closed at `coverage`, `load`, `interference` and `noise`. `channel` is a third label on the DTLS series of the `join` group and closed at `control` and `data`.
+- `name` accompanies `mac` on `wnc_ap_join_info`, which reads the join record rather than the CAPWAP one, so the name of a departed AP survives there.
+- `band` is the whole label set of the six `wnc_rrm_*` series and reads `2.4`, `5` or `6` there, the three the controller ranks; only `wnc_ap_info` also carries `unknown`.
+
+> [!NOTE]
+>
+> `unknown` is the value this exporter publishes for a band it cannot name — `dot11-invalid-band`, the leaf a remote-LAN radio omits, and any value a later release adds. It is a label value rather than a withheld series, so the other labels on that row still join, which is what the band-keyed `wnc_rrm_*` series cannot do.
+>
+> `radio` is no substitute for `band`: a dual band radio keeps its slot while it changes band.
+
 ## Specifications
 
-Each entry carries what the series' HELP text and the shared [Absence](README.md#absence) rules do not.
+The entries below hold for AP series alone; the shared rules are in [Documentation](README.md#technical-information).
 
 **`wnc_ap_admin_state`, `wnc_ap_radio_state` and every other per-radio series**
 
-- The slot list is not a list of radios — a remote-LAN port arrives as a slot whose state leaves the controller omits entirely, and every per-radio series is withheld for it, the `traffic` and `errors` counters and `wnc_ap_clients` included.
-- A rule treating any of those as always present therefore needs `absent()` or `or vector(0)`, and a `sum()` over a controller carrying such a port reads lower than the radio count suggests.
+- The slot list is not a list of radios. A remote-LAN port arrives as a slot whose state leaves the controller omits entirely, and every per-radio series except `wnc_ap_info` is withheld for it. The `traffic` and `errors` counters and `wnc_ap_clients` are withheld with them.
+- `wnc_ap_info` is published for such a slot with `band="unknown"`, because the per-radio loop calls the info collector without the slot guard the radio, traffic, errors and spectrum collectors apply.
+- A rule treating a withheld one as always present therefore needs `absent()` or `or vector(0)`, and a `sum()` over a controller carrying such a port reads lower than the radio count suggests.
 
 **`wnc_ap_uptime_seconds` and `wnc_ap_association_uptime_seconds`**
 
 - The pair diverges for an AP that re-joined without rebooting and agrees for one that joined straight after booting, so the two answer different questions.
 - Neither measures how long an AP was gone: a reboot replaces the record in place rather than deleting it, so a read right after one can still serve the association held before it.
-- Whether a silent AP leaves the inventory at all, and how long its record keeps its reading, was not the same on every model measured, so do not build an outage rule on the absence of either.
+- Whether a silent AP leaves the inventory at all, and how long its record keeps its reading, was not the same on every model measured. Do not build an outage rule on the absence of either.
 
 **`wnc_ap_cpu_utilization_ratio` and `wnc_ap_memory_utilization_ratio`**
 
-- Both read `0` rather than going absent while AP system monitoring is off — the response still carries the statistics block with its leaf at zero, so a zero cannot be told from an idle access point. Enable the collection on the AP join profile:
+- Both read `0` rather than going absent while AP system monitoring is off, because the response still carries the statistics block with its leaf at zero. A zero therefore cannot be told from an idle access point. Enable the collection on the AP join profile:
 
-> ```plaintext
-> configure terminal
->  ap profile <profile-name>
->   statistics ap-system-monitoring enable
->  end
-> write memory
-> ```
+```text
+configure terminal
+ ap profile <profile-name>
+  statistics ap-system-monitoring enable
+ end
+write memory
+```
 
 **`wnc_ap_channel_number`**
 
-- It is absent on a radio in monitor mode, because the controller omits the channel leaf there rather than reporting a channel the radio does not serve. A rule comparing the series to `0` therefore stops matching on such a radio, and `wnc_ap_channel_width_mhz` is withheld on its own zero independently of it.
-- It reports the number without a band, and 6 GHz numbering restarts at 1, so a 6 GHz number collides with a 2.4 GHz one — join `wnc_ap_info` to disambiguate it, which needs `band` named in `--collector.ap.info-labels` because that label is off by default:
+- It is absent on a radio in monitor mode, because the controller omits the channel leaf there rather than reporting a channel the radio does not serve. A rule comparing the series to `0` stops matching on such a radio, and `wnc_ap_channel_width_mhz` is withheld on its own zero independently of it.
+- It reports the number without a band, and 6 GHz numbering restarts at 1, so a 6 GHz number collides with a 2.4 GHz one. Join `wnc_ap_info` to disambiguate it, with `band` named in `--collector.ap.info-labels`:
 
 > ```bash
 > wnc_ap_channel_number * on(mac,radio) group_left(band) wnc_ap_info
@@ -133,7 +170,7 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_noise_floor_dbm`**
 
-- The controller reports noise per channel across the whole band, so the reading is selected by matching the radio's operating channel and the series is absent where no entry matches it — the case for a radio in monitor or sniffer mode.
+- The controller reports noise per channel across the whole band, so the reading is selected by matching the radio's operating channel. The series is absent where no entry matches it, the case for a radio in monitor or sniffer mode.
 
 **`wnc_ap_channel_utilization_ratio`**
 
@@ -142,32 +179,31 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_rx_utilization_ratio` and the thirteen `wnc_ap_*_total` counters below**
 
-- Every series in the table read zero on every radio measured while its neighbours in the same container advanced, and the controller CLI agreed — a failed fetch withholds a series instead, so a zero here is in the data the controller holds.
-- Whether a leaf is maintained depends on the access point model and the release — `wnc_ap_fcs_errors_total` advanced on one model and read zero on another, with multicast transmit frames the reverse — so confirm the table against your own access points.
+- Every series in the table read zero on every radio measured while its neighbours in the same container advanced, and the controller CLI agreed. A zero here is in the data the controller holds.
+- Whether a leaf is maintained turns on model and image — [Documentation](README.md#update-schedule) carries that rule. Here `wnc_ap_fcs_errors_total` advanced on one model and read zero on another, with multicast transmit frames the reverse, so each row below holds for the models measured rather than for every access point.
 
-  | Metric                                   | What the zero means here                                            |
-  | :--------------------------------------- | :------------------------------------------------------------------ |
-  | `wnc_ap_rx_utilization_ratio`            | Channel and noise utilization read non-zero. Cause not established. |
-  | `wnc_ap_control_(rx\|tx)_frames_total`   | Data and management frames advanced.                                |
-  | `wnc_ap_multicast_(rx\|tx)_frames_total` | Receive zero. Transmit advanced on one model, not on another.       |
-  | `wnc_ap_rx_errors_total`                 | FCS errors advanced on the same radio.                              |
-  | `wnc_ap_transmission_failures_total`     | Retries advanced on the same radio.                                 |
-  | `wnc_ap_duplicate_frames_total`          | Counted on receive, so client retransmissions drive it.             |
-  | `wnc_ap_rts_(successes\|failures)_total` | The RTS threshold sits at its maximum, so RTS never triggers.       |
-  | `wnc_ap_(rx\|tx)_fragments_total`        | Fragmentation threshold at its maximum. Receive count unverified.   |
-  | `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Failure reporting is unconfirmed.      |
-  | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                  |
+  | Metric                                   | What the zero means here                                          |
+  | :--------------------------------------- | :---------------------------------------------------------------- |
+  | `wnc_ap_rx_utilization_ratio`            | Channel and noise utilization read non-zero. Cause unknown.       |
+  | `wnc_ap_control_(rx\|tx)_frames_total`   | Data and management frames advanced.                              |
+  | `wnc_ap_multicast_(rx\|tx)_frames_total` | Receive zero. Transmit advanced on one model, not on another.     |
+  | `wnc_ap_rx_errors_total`                 | FCS errors advanced on the same radio.                            |
+  | `wnc_ap_transmission_failures_total`     | Retries advanced on the same radio.                               |
+  | `wnc_ap_duplicate_frames_total`          | Counted on receive, so client retransmissions drive it.           |
+  | `wnc_ap_rts_(successes\|failures)_total` | The RTS threshold sits at its maximum, so RTS never triggers.     |
+  | `wnc_ap_(rx\|tx)_fragments_total`        | Fragmentation threshold at its maximum. Receive count unverified. |
+  | `wnc_ap_decryption_errors_total`         | Zero is the healthy reading. Failure reporting is unconfirmed.    |
+  | `wnc_ap_mic_errors_total`                | Zero is the healthy reading, with the same caveat.                |
 
 **`wnc_ap_clients`**
 
-- Clients are attributed to a radio through the AP **name** the record carries, that record having no AP MAC, so one whose AP name is absent from `ap-name-mac-map` is left out silently and `sum(wnc_ap_clients)` reads low rather than high.
+- Clients are attributed to a radio through the AP **name** the record carries, that record having no AP MAC. One whose AP name is absent from `ap-name-mac-map` is left out silently, so `sum(wnc_ap_clients)` reads low rather than high.
 - The series is withheld for every radio when either the client list or that mapping fails to fetch, rather than counting the clients it could still attribute.
 
 **`wnc_ap_rrm_profile_passed`**
 
-- The four `profile` values — `coverage`, `load`, `interference` and `noise` — are this exporter's own names for four separate verdict leaves, not spellings the controller assigns.
-- Just after a radio re-joined all four read `1` while the channel energy the controller reported for that radio still carried its unmeasured sentinel, so read a verdict taken shortly after a re-join as unmeasured in either direction.
-- A failure is not by itself an incident — `interference`, `load` and `noise` have all been observed failing in ordinary conditions and only `coverage` never has — so alert on a verdict stuck failed rather than on the first scrape:
+- Just after a radio re-joined all four verdicts read `1` while the channel energy the controller reported for that radio still carried its unmeasured sentinel. Read a verdict taken shortly after a re-join as unmeasured in either direction.
+- A failure is not by itself an incident: `interference`, `load` and `noise` have all been observed failing in ordinary conditions and only `coverage` never has. Alert on a verdict stuck failed rather than on the first scrape:
 
 > ```bash
 > max_over_time(wnc_ap_rrm_profile_passed[30m]) == 0
@@ -175,15 +211,15 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_channel_changes_total` and `wnc_ap_channel_energy_dbm`**
 
-- Both read the DCA assignment statistics of the record the four verdicts come from, so they add no request, and both go absent for a record carrying no DCA statistics and for every radio while the `rrm_radio_slot` read fails.
-- What `wnc_ap_channel_changes_total` counts is not established — the CLI prints it beside a radar-driven count no leaf carries, and `wnc_ap_last_radar_timestamp_seconds` being absent is what says a move it counted was not radar-driven.
+- Both read the DCA assignment statistics of the record the four verdicts come from, so they add no request. Both go absent for a record carrying no DCA statistics, and for every radio while the `rrm_radio_slot` read fails.
+- What `wnc_ap_channel_changes_total` counts is not established. The CLI prints it beside a radar-driven count no leaf carries, and `wnc_ap_last_radar_timestamp_seconds` being absent is what says a move it counted was not radar-driven.
 - `wnc_ap_channel_energy_dbm` withholds `-128` and `0`, neither of which can be a measurement: `-128` is the lower bound of the leaf's own signed type and what a radio reads until DCA next runs for its band.
 
 **`wnc_rrm_last_rf_grouping_run_timestamp_seconds` and `wnc_rrm_last_dca_run_timestamp_seconds`**
 
-- Both carry `band` alone, so neither joins a per-AP series, and both disappear while the `rrm_main_data` read fails — a grouping container carrying no channel assignment withholds the DCA instant alone.
+- Both disappear while the `rrm_main_data` read fails, and a grouping container carrying no channel assignment withholds the DCA instant alone.
 - The grouping instant is not exclusive to grouping: the controller prints the same instant under its transmit-power heading, and the two leaves agreed to the second on every band and across a run.
-- `show ap dot11 <band> group` and `show ap dot11 <band> channel` print the two intervals, so read those in force before choosing a range — the DCA instant is what tells a held `wnc_ap_channel_energy_dbm` reading from a fresh one.
+- `show ap dot11 <band> group` and `show ap dot11 <band> channel` print the two intervals, so read those in force before choosing a range. The DCA instant is what tells a held `wnc_ap_channel_energy_dbm` reading from a fresh one.
 
 **`wnc_ap_transmission_failures_total`**
 
@@ -192,16 +228,17 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_last_radar_timestamp_seconds`**
 
-- It is published only for a radio whose last-radar leaf carries a real instant, and every record measured carried the epoch instead — so on a controller that has seen no radar it is absent everywhere, the ordinary reading rather than a fault.
+- It is published only for a radio whose last-radar leaf carries a real instant, and every record measured carried the epoch instead. On a controller that has seen no radar it is absent everywhere, the ordinary reading rather than a fault.
 
 **`wnc_ap_radio_resets_total`**
 
-- The cause is deliberately not a label, since it would multiply the series by the key domain and outlive the entry the controller dropped, and no leaf names or orders the entries — so the most recent reset's cause cannot be recovered here.
+- The cause is on the wire, since the reset list is keyed by cause and detail cause. The exporter sums the counts across those keys and discards the names, because a label carrying them would multiply the series by the key domain and outlive the entry the controller dropped.
+- What cannot be recovered here is recency rather than cause. No leaf dates or orders the entries, and the total falls when the controller deletes them, observed together with an AP boot or re-join on every occasion.
 
 **`wnc_ap_joined`**
 
-- Its record set is wider than the AP inventory — leaving CAPWAP evicts nothing and what does evict a record is not established, so a `0` here can name an AP months out of the inventory with its counters frozen.
-- It is a snapshot, so an AP flapping in and out of CAPWAP reads joined at every evaluation and never fires — count the transitions instead:
+- Its record set is wider than the AP inventory. Leaving CAPWAP evicts nothing and what does evict a record is not established, so a `0` here can name an AP months out of the inventory with its counters frozen.
+- It is a snapshot, so an AP flapping in and out of CAPWAP reads joined at every evaluation and never fires. Count the transitions instead:
 
 > ```bash
 > changes(wnc_ap_joined[1h]) > 2
@@ -209,12 +246,12 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_join_info`**
 
-- Its name puts it in the info cache, which wraps this collector only when `--collector.ap.info` is enabled, so with the join module alone the name is read fresh on every scrape and with both modules enabled it is up to `--collector.info-cache-ttl` old.
+- Its name puts it in the info cache, which wraps this collector only when `--collector.ap.info` is enabled. With the `join` group alone the name is read fresh on every scrape, and with both enabled it is up to `--collector.info-cache-ttl` old.
 
 **`wnc_ap_discovery_requests_total`**
 
-- An AP that holds this controller as its secondary, or that discovers by broadcast, DHCP option 43 or DNS, sends discovery requests here while joining another controller, so exclude those by `mac` and use a `for:` longer than the rate window.
-- Paired with `wnc_ap_joined` it carries the signal the module exists for, an AP that reaches the controller and cannot complete a join:
+- An AP that holds this controller as its secondary, or that discovers by broadcast, DHCP option 43 or DNS, sends discovery requests here while joining another controller. Exclude those by `mac` and use a `for:` longer than the rate window.
+- Paired with `wnc_ap_joined` it carries the signal the `join` group exists for, an AP that reaches the controller and cannot complete a join:
 
 > ```bash
 > rate(wnc_ap_discovery_requests_total[15m]) > 0 and wnc_ap_joined == 0
@@ -222,7 +259,7 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_last_join_success_timestamp_seconds`**
 
-- An outage leaves no mark in either uptime series, so this is what an outage check watches — count the re-joins inside a range:
+- An outage leaves no mark in either uptime series, so an outage check counts the re-joins here:
 
 > ```bash
 > changes(wnc_ap_last_join_success_timestamp_seconds[1h]) > 0
@@ -234,80 +271,46 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_ap_longitude_degrees` and `wnc_ap_latitude_degrees`**
 
-- An estate with no coordinates configured leaves both absent without raising `wnc_refresh_errors_total`, because the container answers a successful `204` rather than an error, so absence here is not a failed read.
-- A `reset capwap` was observed losing the position for an AP that was still joined, and the pair is withheld for a value outside `±180` or `±90` as well — a bound this exporter applies because the schema declares none.
+- An estate with no coordinates configured leaves both absent without recording a failure, because the container answers a successful `204`, so absence here is not a failed read.
+- A `reset capwap` was observed losing the position for an AP that was still joined. The pair is withheld for a value outside `±180` or `±90` as well, a bound this exporter applies because the schema declares none.
 
 **`wnc_ap_air_quality_index_avg`, `wnc_ap_air_quality_index_min` and `wnc_ap_interferers`**
 
-- All three read one row of the per-AP-and-band table and are published or withheld together — absent for an AP without CleanAir, a radio whose spectrum operation is down or in monitor mode, and every radio while the `rrm_spectrum_aq_table` read fails.
-- Silence never means clean air — a refresh can publish every other per-radio series for a newly joined AP while the table carries no row for it, and whether a Spectrum Intelligence radio reports once enabled was not measured.
+- All three read one row of the per-AP-and-band table and are published or withheld together. They are absent for an AP without CleanAir, for a radio whose spectrum operation is down or in monitor mode, and for every radio while the `rrm_spectrum_aq_table` read fails.
+- Silence never means clean air. A refresh can publish every other per-radio series for a newly joined AP while the table carries no row for it, and whether a Spectrum Intelligence radio reports once enabled was not measured.
 - That table is the last read of a refresh, so a refresh cut short by its deadline drops these three and their instant before any other series.
 
 **`wnc_ap_air_quality_index_min`**
 
-- Interference elsewhere in the band moves neither this nor the average, because both report the radio's primary channel alone even on a bonded radio — `show ap dot11 <band> cleanair config` reports the period they cover, which an operator can change.
+- Interference elsewhere in the band moves neither this nor the average, because both report the radio's primary channel alone even on a bonded radio. `show ap dot11 <band> cleanair config` reports the period they cover, which an operator can change.
 
 **`wnc_ap_last_air_quality_timestamp_seconds`**
 
-- The instant is stamped per AP rather than per radio, so an AP reporting on several bands repeats one instant and a difference between two APs is the controller's report boundary rather than one radio going stale.
+- The instant is stamped per AP rather than per radio, so an AP reporting on several bands repeats one instant. A difference between two APs is the controller's report boundary rather than one radio going stale.
 
 **the twenty `wnc_ap_*_total` counters that read the per-radio statistics record**
 
-- The read after the window that follows an AP re-joining CAPWAP carries a value above the one from before it, so Prometheus sees `X → 0 → X + Δ` and charges the whole of `X + Δ` as an increase over any range spanning the return.
-- The bundled admin dashboard plots `rate()` over all twenty and so does show that spike, while no bundled alert rule reads any of them.
+- All twenty span the re-join reset window [Documentation](README.md#counter-semantics) describes.
+- The bundled admin dashboard plots `rate()` over all twenty and so does show that spike at the re-join, while no bundled alert rule reads any of the twenty.
 - `wnc_ap_coverage_failed_clients`, `wnc_ap_radio_resets_total` and `wnc_ap_last_radar_timestamp_seconds` read other data types and are published before that record is consulted, so the window does not reach them.
 
-**the nine `wnc_ap_last_*_timestamp_seconds` series of the `join` module**
+**the nine `wnc_ap_last_*_timestamp_seconds` series of the `join` group**
 
-- The controller writes the Unix epoch for an event that has not happened and this exporter withholds that sentinel, so the four failure timestamps are absent for every AP on a controller where nothing has failed rather than reading 1970.
+- The four failure timestamps among them are absent for every AP on a controller where nothing has failed. The exporter withholds the epoch sentinel the controller writes for an event that has not happened.
 
 **the five `wnc_ap_dtls_*_total` counters**
 
-- `channel` is valued `control` or `data`, this exporter's own names for the two sets the controller keeps in one container, and it is the CAPWAP tunnel channel rather than the RF one `wnc_ap_channel_number` reports, so an `and` needs `on(mac)`.
-- DTLS on the data channel is off by default, and every `channel="data"` counter read zero while the `control` ones advanced — disabling it again left the counters at their count, so a zero reports the AP join profile and what has already run on it.
-- The `channel="data"` series appear once a handshake on that channel has succeeded and stay until the controller rebuilds the record, `wnc_ap_last_dtls_success_timestamp_seconds` included, so an `absent()` rule reading the data channel as unused stops matching after the first success and does not recover when it is disabled again.
-- `wnc_ap_dtls_session_failures_total` and the two `wnc_ap_dtls_*_errors_total` counters stayed at zero with the data channel enabled, so whether they can advance at all was not established — read a zero as unconfirmed rather than as nothing configured.
+- `channel` is the CAPWAP tunnel channel rather than the RF one `wnc_ap_channel_number` reports, so an `and` across the two series needs `on(mac)` to match them.
+- DTLS on the data channel is off by default, and every `channel="data"` counter read zero while the `control` ones advanced. Disabling it again left the counters at their count, so a zero reports the AP join profile and what has already run on it.
+- The `channel="data"` series appear once a handshake on that channel has succeeded and stay until the controller rebuilds the record, `wnc_ap_last_dtls_success_timestamp_seconds` included. An `absent()` rule reading the data channel as unused therefore stops matching after the first success and does not recover when it is disabled again.
+- `wnc_ap_dtls_session_failures_total` and the two `wnc_ap_dtls_*_errors_total` counters stayed at zero with the data channel enabled, so whether they can advance at all was not established. Read a zero as unconfirmed rather than as nothing configured.
 
 **the four `wnc_ap_last_*_failure_reason` series**
 
-- These four are the reason series whose `0` is a healthy sentinel, so `== 0` selects the healthy APs and `!= 0` is the alertable set — `wnc_ap_last_error_phase`, `wnc_ap_last_reboot_reason` and `wnc_ap_last_disconnect_reason` number something else at `0`.
+- These four are the reason series whose `0` is a healthy sentinel, so `== 0` selects the healthy APs and `!= 0` is the alertable set. `wnc_ap_last_error_phase`, `wnc_ap_last_reboot_reason` and `wnc_ap_last_disconnect_reason` number something else at `0`.
 
 **the four `wnc_rrm_worst_channel_*` series**
 
-- They carry `band` alone — the whole identifier the controller gives the row — so none joins a per-AP series, and a band this exporter cannot name or one the controller has not ranked is withheld as a whole row rather than zeroed.
-- The row set follows the controller's table rather than the radios that have joined, so a band no CleanAir-capable radio scans never appears and a band's absence reads as no ranking rather than as clean air.
-- A controller or an image not carrying the `rrm_spectrum_aq_worst_table` these four alone read answers `404` — a failure rather than an absence, so all four disappear while that type's `wnc_refresh_errors_total` rises on every refresh and `wnc_up` stays `1`.
-
-## Info Labels
-
-The `info` module publishes `wnc_ap_info` with the following labels to join with other metrics:
-
-| Labels       | Description             | Example Value              | Default | Required |
-| :----------- | :---------------------- | :------------------------- | :-----: | :------: |
-| `mac`        | AP wireless MAC address | `aa:bb:cc:dd:ee:f0`        | **Yes** | **Yes**  |
-| `name`       | AP hostname             | `TEST-AP01`                | **Yes** | No       |
-| `ip`         | AP IP address           | `192.168.1.10`             | **Yes** | No       |
-| `radio`      | Radio identifier        | `0`, `1`, `2`              | **Yes** | **Yes**  |
-| `band`       | Radio band              | `2.4`, `5`, `6`, `unknown` | No      | No       |
-| `model`      | AP model                | `AIR-AP1815I-Q-K9`         | No      | No       |
-| `serial`     | AP serial number        | `FGL1234ABCD`              | No      | No       |
-| `sw_version` | Software version        | `17.15.6.12`               | No      | No       |
-| `eth_mac`    | Ethernet MAC address    | `aa:bb:cc:00:11:22`        | No      | No       |
-
-Use this info metric to add contextual labels to other metrics in PromQL queries:
-
-```bash
-wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
-```
-
-> [!NOTE]
->
-> ### About the Labels
->
-> **`band`:** `unknown` is the value this exporter publishes for a band it cannot name — `dot11-invalid-band`, the leaf a remote-LAN radio omits, and any value a later release adds. It is a label value rather than a withheld series, so the other labels on that row still join. The band-keyed `wnc_rrm_*` series do the opposite and withhold the whole row, because the band is their whole identifier.
->
-> **`radio`:** No substitute for `band`, because a dual band radio keeps its slot while it moves between bands. A join against a series that carries no `radio` label fails with a duplicate match group rather than returning nothing, so collapse the info metric first:
->
-> ```bash
-> wnc_ap_uptime_seconds * on(mac) group_left(name) max by (mac,name) (wnc_ap_info)
-> ```
+- The row set follows the controller's table rather than the radios that have joined. A band no CleanAir-capable radio scans never appears, so a band's absence reads as no ranking rather than as clean air.
+- A band this exporter cannot name, or one the controller has not ranked, is withheld as a whole row rather than zeroed, because `band` is the whole identifier the controller gives the row.
+- These four alone read `rrm_spectrum_aq_worst_table`, so an image not carrying it drops all four together rather than one row — the `404` counts as a failure, which [Documentation](README.md#absence) carries.

@@ -26,16 +26,14 @@
 
 This exporter lets Prometheus scrape metrics from [Cisco Catalyst 9800 Wireless Controllers](https://www.cisco.com/site/us/en/products/networking/wireless/wireless-lan-controllers/catalyst-9800-series/index.html).
 
-- 🛡️ **Critical State Monitoring**: Detects changes such as AP mis-configurations or WLAN enable/disable
-- 🌐 **Client Connectivity Tracking**: Monitors client signal strength, speed, protocols, traffic and latency
-- 📊 **Long-Term Observability**: Extends metric retention for historical analysis and wireless trend tracking
-- ↩️ **Pull-Based Telemetry**: Alternative to the [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-15/config-guide/b_wl_17_15_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html) feature using RESTCONF APIs
+- 🛡️ **Critical State Monitoring**: Detects AP mis-configuration and WLAN enable or disable
+- 🌐 **Client Connectivity Tracking**: Follows client signal, speed, protocol, traffic and latency
+- 📊 **Long-Term Observability**: Extends metric retention for historical and trend analysis
+- ↩️ **Pull-Based Telemetry**: An alternative to [Streaming Telemetry](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-15/config-guide/b_wl_17_15_cg/streaming-telemetry-on-Cisco-Catalyst-9800-series-wireless-controller.html), over RESTCONF
 
 ## Quick Start
 
-Please enable RESTCONF and HTTPS on the C9800 before using this exporter. Please see:
-
-- [Cisco IOS XE 17.15 Programmability Configuration Guide — RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1715/b_1715_programmability_cg/restconf_protocol.html#id_125840)
+Enable RESTCONF and HTTPS on the C9800 first, as the [Programmability Guide](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1715/b_1715_programmability_cg/restconf_protocol.html#id_125840) describes.
 
 ### 1. Generate a Basic Auth token
 
@@ -58,7 +56,7 @@ export WNC_ACCESS_TOKEN="YWRtaW46eW91ci1wYXNzd29yZA=="
 
 ```bash
 docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
-  ghcr.io/umatare5/cisco-wnc-exporter:latest
+  ghcr.io/umatare5/cisco-wnc-exporter:latest --collector.ap.general
 ```
 
 > [!TIP]
@@ -66,147 +64,126 @@ docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
 >
 > **Supported Platform:** `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64` and `windows_amd64`
 
+## Supported Versions
+
+Every reading was measured on a Catalyst 9800 running IOS-XE 17.12 and 17.15.
+
+- **No release gate** — nothing tests the version, so an older image serves the types it carries.
+- **A missing data type is a failure** — a controller that answers `404` raises `wnc_refresh_errors_total`, because a path the exporter got wrong answers `404` too.
+- **Renumbering is detectable** — [Enumeration Values](docs/enums.md) records the YANG revision behind each family.
+
+## Collectors
+
+Each collector is switched on per group of families rather than as a whole, all off by default.
+
+| Collector                                      | Publishes                                          |
+| :--------------------------------------------- | :------------------------------------------------- |
+| **[AP](docs/collector.ap.md)**                 | RF foundation and radio performance                |
+| **[Client](docs/collector.client.md)**         | User experience quality and connection performance |
+| **[WLAN](docs/collector.wlan.md)**             | Logical SSID performance and parameter checks      |
+| **[Controller](docs/collector.controller.md)** | The controller itself, such as its boot time       |
+
 ## Flags
 
-`cisco-wnc-exporter --help` prints every flag, and [`docs/help.md`](docs/help.md) carries the same list.
+`cisco-wnc-exporter --help` prints every flag, and [Help](docs/help.md) carries the same list with its notes.
 
-Each collector is enabled per module:
-
-| Module       | Flags                                                                                                    |
-| :----------- | :------------------------------------------------------------------------------------------------------- |
-| `ap`         | `--collector.ap.general`, `.radio`, `.traffic`, `.errors`, `.join`, `.geolocation`, `.spectrum`, `.info` |
-| `client`     | `--collector.client.general`, `.radio`, `.traffic`, `.errors`, `.info`                                   |
-| `wlan`       | `--collector.wlan.general`, `.traffic`, `.config`, `.info`                                               |
-| `controller` | `--collector.controller.general`                                                                         |
+- **`--collector.<collector>.<group>`** — switches one group of families on, e.g. `--collector.ap.radio`
+- **`--collector.info-cache-ttl`** — ages the `_info` series, which `--collector.*.info-labels` labels
+- **`--collector.internal.*`** — adds the Go runtime and process families of the exporter itself
+- **`--wnc.*`** — the controller address, the token, the request timeout and the refresh interval
+- **`--web.*`** — the listen address, the port and the telemetry path
+- **`WNC_CONTROLLER`** — fills `--wnc.controller`, and the flag overrides it
+- **`WNC_ACCESS_TOKEN`** — fills `--wnc.access-token`, which keeps the credential off the process table
 
 > [!CAUTION]
 > `--wnc.tls-skip-verify` disables TLS certificate verification. **Never use it in production.**
-
-## Environment Variables
-
-This exporter reads two environment variables:
-
-| Environment Variable | Description                                      |
-| :------------------- | :----------------------------------------------- |
-| `WNC_CONTROLLER`     | WNC controller hostname or IP address (required) |
-| `WNC_ACCESS_TOKEN`   | WNC API access token (required)                  |
 
 ## Endpoints
 
 The exporter serves three endpoints:
 
-- `/` — landing page, which confirms the exporter is running when reached at <http://localhost:10039/>
+- `/` — landing page, which confirms the exporter is running at <http://localhost:10039/>
 - `/metrics` — metrics endpoint, configurable via `--web.telemetry-path`
 - `/healthz` — liveness probe, which returns a static 200 and deliberately ignores WNC reachability
 
 > [!NOTE]
->
-> Reflecting the WNC state in `/healthz` would let an orchestrator kill the exporter during a controller outage, taking the stale snapshot and the [Exporter Health Metrics](#exporter-health-metrics) series down with it.
+> See [Endpoints](docs/README.md#endpoints) for the method and status contract, and what `--web.telemetry-path` of `/` changes.
 
 ## Metrics
 
-This exporter collects wireless network metrics from Cisco C9800 WNC using four collectors:
+This exporter publishes 150 metric families, catalogued per collector rather than in one list.
 
-| Collector                                      | Focus                                              |
-| :--------------------------------------------- | :------------------------------------------------- |
-| **[AP](docs/collector.ap.md)**                 | RF foundation and radio performance                |
-| **[Client](docs/collector.client.md)**         | User experience quality and connection performance |
-| **[WLAN](docs/collector.wlan.md)**             | Logical SSID performance and parameter checks      |
-| **[Controller](docs/collector.controller.md)** | The controller itself metrics such as boot time    |
+| Page                                       | Covers                                      |
+| :----------------------------------------- | :------------------------------------------ |
+| [AP](docs/collector.ap.md)                 | Every AP and per-radio series               |
+| [Client](docs/collector.client.md)         | Every per-client series                     |
+| [WLAN](docs/collector.wlan.md)             | Every per-WLAN series                       |
+| [Controller](docs/collector.controller.md) | Every controller-wide series                |
+| [Exporter Health](docs/health.md)          | The exporter's own build and refresh series |
 
 The series a dashboard usually starts from:
 
 | Collector  | Metric                             | Type  | Description                          |
 | :--------- | :--------------------------------- | :---- | :----------------------------------- |
 | AP         | `wnc_ap_oper_state`                | Gauge | Operational state (4=registered)     |
-| AP         | `wnc_ap_channel_number`            | Gauge | Operating channel number             |
-| AP         | `wnc_ap_tx_power_dbm`              | Gauge | Current transmit power (dBm)         |
-| AP         | `wnc_ap_noise_floor_dbm`           | Gauge | Noise on the operating channel (dBm) |
 | AP         | `wnc_ap_channel_utilization_ratio` | Gauge | Channel utilization ratio (CCA), 0-1 |
-| AP         | `wnc_ap_clients`                   | Gauge | Run-state clients count (calculated) |
 | Client     | `wnc_client_state`                 | Gauge | Connection state (11=run state)      |
-| Client     | `wnc_client_protocol`              | Gauge | 802.11 protocol (0=unknown, 1..7)    |
-| Client     | `wnc_client_speed_mbps`            | Gauge | Negotiated PHY rate (Mbps)           |
 | Client     | `wnc_client_rssi_dbm`              | Gauge | Signal strength (dBm)                |
-| Client     | `wnc_client_snr_decibels`          | Gauge | Signal-to-noise ratio (dB)           |
-| WLAN       | `wnc_wlan_enabled`                 | Gauge | WLAN status                          |
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
 > [!NOTE]
-> See [`docs/README.md`](docs/README.md) for the refresh, caching and counter-reset semantics.
+> See [Technical Information](docs/README.md#technical-information) for the refresh, absence and counter-reset rules every series obeys.
 
 > [!IMPORTANT]
 >
-> All collectors are **disabled by default** to reduce load on both Prometheus and the controller, and an exporter with no collector enabled never contacts the controller at all.
+> Every collector is **disabled by default** to spare both Prometheus and the controller, and an exporter with no collector enabled never contacts the controller at all.
 >
-> - Every enabled collector is served from one refresh, which runs at most once per `--wnc.cache-ttl`, so the controller sees one pass of requests per interval.
-> - That refresh reads only the `data` types the enabled modules need, so a client-only deployment never fetches `ap_capwap_data`.
+> - A minor release may rename or remove a metric, because the controller owns the schema every series reads.
+> - A rename carries the type, the labels and the value of the old name unless [`CHANGELOG.md`](CHANGELOG.md) says otherwise.
 
 ### Exporter Health Metrics
 
-These series describe the exporter itself rather than the wireless network. They have no module and no collector flag. Without the refresh series a failed refresh produces a successful scrape carrying no series, which no alert can detect.
+These series describe the exporter rather than the network, so no collector flag names them.
 
-| Metric                                  | Type    | Description                                          |
-| :-------------------------------------- | :------ | :--------------------------------------------------- |
-| `wnc_build_info`                        | Gauge   | Exporter version in the `version` label, always 1    |
-| `wnc_up`                                | Gauge   | Whether last **completed** refresh reached WNC       |
-| `wnc_refresh_duration_seconds`          | Gauge   | Duration of the last refresh **attempt**             |
-| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start time of the refresh behind the served snapshot |
-| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type since start-up        |
-| `wnc_refresh_items`                     | Gauge   | Items the last refresh returned per `data` type      |
-| `wnc_refresh_defaults_fallback_total`   | Counter | WLAN config fetches that fell back to a plain read   |
+| Metric                                  | Type    | Description                             |
+| :-------------------------------------- | :------ | :-------------------------------------- |
+| `wnc_build_info`                        | Gauge   | Exporter version in `version`, always 1 |
+| `wnc_up`                                | Gauge   | Whether the last refresh reached WNC    |
+| `wnc_refresh_errors_total`              | Counter | Fetch failures per `data` type          |
+| `wnc_refresh_success_timestamp_seconds` | Gauge   | Start of the refresh being served       |
 
-> [!IMPORTANT]
->
-> `wnc_up == 1` is not a claim that the data series are present, and `up == 1` is not a claim that the controller is reachable. A scrape always returns 200 because it is served from the cached snapshot.
->
-> `wnc_build_info` is registered before any collector, so it is the only series a scrape carries when every collector is disabled.
+> [!NOTE]
+> See [Exporter Health](docs/health.md) for the other three series and what a partial failure leaves `wnc_up` reading, and for every `data` label value the refresh can key on.
 
-## Use Cases
+## Examples
 
-### Basic Usage - No Collectors
+### Command Lines
+
+Start with one group and add what a dashboard needs, because no group is on by default.
 
 ```bash
-$ WNC_CONTROLLER="wnc1.example.internal"
-$ WNC_ACCESS_TOKEN="$(echo -n 'admin:your-password' | base64)"
-$ ./cisco-wnc-exporter
-time="2025-04-13T18:50:54Z" level=info msg="Starting the cisco-wnc-exporter on port 10039."
+# Nothing but wnc_build_info: no collector flag, so the controller is never contacted
+./cisco-wnc-exporter
+
+# The three series a first dashboard needs
+./cisco-wnc-exporter --collector.ap.general --collector.client.general --collector.wlan.general
 ```
 
-### Essential Usage
-
-```bash
-$ WNC_CONTROLLER="wnc1.example.internal"
-$ WNC_ACCESS_TOKEN="$(echo -n 'admin:your-password' | base64)"
-$ ./cisco-wnc-exporter \
-    --collector.ap.general --collector.client.general --collector.wlan.general
-```
-
-### Complete Usage
-
-For complete monitoring, see [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) which enables every collector module with maximum info-labels.
+Add the flags from [`.air.toml`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/.air.toml) to enable every group with the widest label set.
 
 ### Prometheus Configuration
 
 #### Job Configuration Example
 
-Add the job config to your Prometheus YAML file using [`examples/prometheus.yml`](./examples/prometheus.yml) as a reference.
-
-> [!NOTE]
->
-> A refresh starts on the first scrape that arrives after `--wnc.cache-ttl` has elapsed since the previous refresh finished, so the effective refresh period is:
->
-> ```text
-> P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
-> ```
->
-> - `R` — the refresh duration, which `wnc_refresh_duration_seconds` reports.
-> - `P` — 120s for `R` over 5s up to 65s, with default `--wnc.cache-ttl` 55s and `scrape_interval` 60s.
+Add the scrape job from [`examples/prometheus.yml`](./examples/prometheus.yml) to your configuration.
 
 #### Alerting Rules Configuration Example
 
-Add the alerting rules to your Prometheus YAML file using [`examples/prometheus_alert_rules.yml`](./examples/prometheus_alert_rules.yml) as a reference.
+Add the alerting rules from [`examples/prometheus_alert_rules.yml`](./examples/prometheus_alert_rules.yml) to your configuration.
+
+> [!NOTE]
+> See [Scrape Path](docs/README.md#scrape-path) for the interval a scrape observes, a multiple of `scrape_interval`.
 
 ### Grafana Dashboard
 
@@ -221,7 +198,7 @@ Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](https://gith
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture image of the example.
+> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture.
 
 #### Grafana User-level Dashboard Example
 
@@ -234,15 +211,11 @@ Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://githu
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture image of the example.
+> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture.
 
 ## Contributing
 
 See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the development setup, the tests and the documentation conventions.
-
-## Acknowledgement
-
-I launched this project with the help of **GitHub Copilot Coding Agent**, and I am grateful to the global developer community for their contributions to open source projects and public repositories.
 
 ## License
 

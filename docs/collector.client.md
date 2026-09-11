@@ -1,10 +1,10 @@
-# Client collector
+# Client Collector
 
-Client collector focuses on user experience quality and connection performance.
+Client collector reports per-client connection quality, from association state to PHY rate.
 
 ## Metrics
 
-| Module  | Metric                                | Type    | Description                         |
+| Group   | Metric                                | Type    | Description                         |
 | :------ | :------------------------------------ | :------ | :---------------------------------- |
 | general | `wnc_client_state`                    | Gauge   | Connection state (11=run state)     |
 | general | `wnc_client_roam_type`                | Gauge   | Roam type                           |
@@ -33,9 +33,48 @@ Client collector focuses on user experience quality and connection performance.
 | errors  | `wnc_client_policy_errors_total`      | Counter | Policy errors                       |
 | errors  | `wnc_client_rx_group_total`           | Counter | RX group counter                    |
 
-## Specifications
+## Labels
 
-Each entry carries what the series' HELP text and the shared [Absence](README.md#absence) rules do not.
+Every series above carries `mac` and nothing else, so a reading is attributed to a client and to no AP, band or WLAN until `wnc_client_info` is joined onto it.
+
+| Label         | Description                 | Example Value                 |
+| :------------ | :-------------------------- | :---------------------------- |
+| `mac`         | MAC address                 | `aa:bb:cc:12:34:56`           |
+| `ap`          | Access point identifier     | `TEST-AP01`                   |
+| `band`        | Radio band                  | `2.4`, `5`, `6`, `unknown`    |
+| `wlan`        | WLAN ESSID name             | `labo-wifi`                   |
+| `wlan_id`     | WLAN identifier             | `5`                           |
+| `name`        | Device classification name  | `MacBook Pro (14-inch, 2021)` |
+| `device_type` | Device classification type  | `Un-Classified Device`        |
+| `username`    | EAP authentication identity | `john.doe@example.com`        |
+| `ipv4`        | Client IPv4 address         | `192.168.1.100`               |
+| `ipv6`        | Client IPv6 address         | `2001:db8::1`                 |
+
+- **Required** — `mac` is on `wnc_client_info` whatever `--collector.client.info-labels` names, and it is the join key every other series in this collector offers.
+- **Optional** — the flag selects from `ap`, `band`, `wlan`, `wlan_id`, `name`, `device_type`, `username`, `ipv4` and `ipv6`, and defaults to `name,ipv4`, so a label it omits is missing from the series rather than present and empty.
+
+```promql
+wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
+```
+
+The join names `ap` and `wlan`, which the default set omits, so the flag has to carry both.
+
+- **`wlan_id`** — an open integer string, read off the same record `wnc_client_state` is built from. The empty string is reachable, reserved for an identifier the controller omitted, because no WLAN carries `0`.
+- **`device_type`** — open, and copied verbatim from the controller's own classification record. It reads `""` where no such record names the client, and it changes when the controller reclassifies rather than when the device does.
+- **`band`** — the PHY generation the client associated on rather than the band its AP radio reports. `unknown` covers a generation naming no band, a wired client for instance, as well as a spelling this exporter does not map.
+- **`ap`** — follows the association, so naming it beside `device_type` puts two labels that churn on their own schedules onto one series, each of them able to leave a `mac` holding two.
+- **Two series for one `mac`** — a `group_left` over them fails with a duplicate match rather than returning nothing, so a reclassification breaks the query outright instead of thinning its result.
+
+> [!NOTE]
+> `wnc_client_info` is served from the info snapshot while `wnc_wlan_clients` is collected on the scrape itself. The two therefore reconcile only while that snapshot is current, and `count by (wlan_id) (wnc_client_info)` diverges from `wnc_wlan_clients{id}` for up to `--collector.info-cache-ttl`, 30m by default. [Info Caching](README.md#info-caching) carries what the cache holds and what it costs.
+
+Joining `wnc_wlan_info` takes a `label_replace` first, because it spells the identifier `id`:
+
+```promql
+wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")
+```
+
+## Specifications
 
 **`wnc_client_state`**
 
@@ -43,7 +82,7 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 
 **`wnc_client_roam_type`**
 
-- Read from the first entry of the mobility history, the record `wnc_client_state_transition_seconds` also reads, so it adds no request and a failed fetch or a history with no entry takes both series away at once.
+- Read from the first entry of the mobility history, the record `wnc_client_state_transition_seconds` also reads. It therefore adds no request, and a failed fetch or a history with no entry takes both series away at once.
 - No series in this collector counts roams — the controller keeps its roam counters for itself rather than per client, and the [Controller](collector.controller.md) page publishes the three it maintains.
 
 **`wnc_client_state_transition_seconds`**
@@ -58,19 +97,19 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
 **`wnc_client_mcs_index`**
 
 - Parsed out of the rate string the controller spells as `m<index>` followed by the stream count, so `-1` covers a legacy rate carrying no index, an empty string and a spelling the parser does not recognise alike.
-- Not bounded at 11, and readings above it were observed, so pair it with `wnc_client_protocol` and `wnc_client_spatial_streams` — the index alone fixes neither the protocol's rate table nor whether the stream count is already inside it.
+- Not bounded at 11, and readings above it were observed. Pair it with `wnc_client_protocol` and `wnc_client_spatial_streams`, because the index alone fixes neither the protocol's rate table nor whether the stream count is already inside it.
 
 **`wnc_client_speed_mbps`**
 
-- Holds the rate the client negotiated for the link, so an idle client keeps it — throughput takes `rate()` over the byte counters in the `traffic` module.
+- Holds the rate the client negotiated for the link, so an idle client keeps it — throughput takes `rate()` over the byte counters in the `traffic` group.
 
 **`wnc_client_tx_retries_total` and `wnc_client_data_retries_total`**
 
-- A retry rate over either also needs `wnc_client_tx_packets_total` from the `traffic` module, so recomputing one takes both `--collector.client.errors` and `--collector.client.traffic`, and both default off.
+- A retry rate over either also needs `wnc_client_tx_packets_total` from the `traffic` group, so recomputing one takes both `--collector.client.errors` and `--collector.client.traffic`. [Notes](help.md#notes) carries their defaults.
 
 **The eight `errors` counters below**
 
-- Read zero on every client of the access points this exporter was measured against, and the access point model and the release decide whether each is maintained, so take the list as an observation rather than as a property of the platform.
+- Read zero on every client of the access points this exporter was measured against, which is an observation of those access points rather than a property of the platform. [Update Schedule](README.md#update-schedule) carries what decides whether a counter leaf is maintained.
 
   | Metric                                | Leaf                   |
   | :------------------------------------ | :--------------------- |
@@ -82,44 +121,3 @@ Each entry carries what the series' HELP text and the shared [Absence](README.md
   | `wnc_client_rts_retries_total`        | `rts-retries`          |
   | `wnc_client_rx_group_total`           | `rx-group-counter`     |
   | `wnc_client_tx_retries_total`         | `tx-retries`           |
-
-## Info Labels
-
-The `info` module publishes `wnc_client_info` with the following labels to join with other metrics:
-
-| Labels        | Description                 | Example Value                 | Default | Required |
-| :------------ | :-------------------------- | :---------------------------- | :-----: | :------: |
-| `mac`         | MAC address                 | `aa:bb:cc:12:34:56`           | **Yes** | **Yes**  |
-| `ap`          | Access point identifier     | `TEST-AP01`                   | No      | No       |
-| `band`        | Radio band                  | `2.4`, `5`, `6`, `unknown`    | No      | No       |
-| `wlan`        | WLAN ESSID name             | `labo-wifi`                   | No      | No       |
-| `wlan_id`     | WLAN identifier             | `5`                           | No      | No       |
-| `name`        | Device Classification Name  | `MacBook Pro (14-inch, 2021)` | **Yes** | No       |
-| `device_type` | Device Classification Type  | `Un-Classified Device`        | No      | No       |
-| `username`    | EAP authentication identity | `john.doe@example.com`        | No      | No       |
-| `ipv4`        | Client IPv4 address         | `192.168.1.100`               | **Yes** | No       |
-| `ipv6`        | Client IPv6 address         | `2001:db8::1`                 | No      | No       |
-
-Use this info metric to add contextual labels to other metrics in PromQL queries:
-
-```bash
-wnc_client_state * on(mac) group_left(ap,wlan,name) wnc_client_info
-```
-
-The example above names `ap` and `wlan`, which the default label set omits, so `--collector.client.info-labels` has to carry both for those labels to hold a value.
-
-> [!NOTE]
->
-> ### About the Labels
->
-> **`wlan_id`:** Reads the same leaf `wnc_wlan_clients` buckets by, so `count by (wlan_id) (wnc_client_info)` reconciles with `wnc_wlan_clients{id}`, and it is empty rather than `0` where the controller omitted the identifier.
->
-> **`device_type`:** The controller's own classification rather than something the client states, so a reclassification leaves two `wnc_client_info` series for one `mac` and a `group_left` over them fails with a duplicate-series error.
->
-> **`band`:** Reads the PHY generation the client associated on rather than the band its AP radio reports, and `unknown` covers a generation naming no band, a wired client for instance, as well as a spelling this exporter does not map.
->
-> **`ap`:** Carries that same hazard whenever a client roams rather than when the controller reclassifies it, so naming both labels puts two that churn on one series.
->
-> ```bash
-> wnc_client_info * on(wlan_id) group_left(name) label_replace(wnc_wlan_info, "wlan_id", "$1", "id", "(.*)")
-> ```

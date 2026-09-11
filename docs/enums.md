@@ -1,16 +1,18 @@
-# Enumeration values
+# Enumeration Values
 
-Twelve metric families report a state, a reason or a mode as a number, and this page carries every number each of them can take. What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages, and [States](README.md#a-state-is-a-number-not-a-label) carries the query shapes these numbers need.
+Twelve metric families report a state, a reason or a mode as a number, and this page carries every number each of them can take. What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages, and [Enumerated States](README.md#enumerated-states) carries the query shapes these numbers need.
 
-## Reading a value
+## Reading a Value
 
-Every member of all twelve enumerations carries an explicit `value` statement in the module that declares it, so these tables transcribe the device's numbering rather than this exporter's. `wnc_client_protocol` is not one of the twelve — its numbering is this exporter's own and its HELP names every value.
+Every member of all twelve enumerations carries an explicit `value` statement in the module that declares it, so these tables transcribe the device's numbering rather than this exporter's.
 
-- **Equality** — compare against a member rather than a threshold, because a larger number is not more of anything, and `wnc_client_state` is the only family whose numbering follows the onboarding sequence.
+- **Query shape** — these numbers are matched by equality rather than by threshold, and [Enumerated States](README.md#enumerated-states) carries that rule and the `for:` it pairs with.
+- **Two silences** — a spelling absent from these tables is withheld and reaches the `--log.level=debug` log, while a leaf the controller omitted is withheld ahead of the lookup and logs nothing at all, so an empty debug log says the default is in force rather than that the collector failed.
 - **Zero** — a real member in eleven of the twelve and a different reading in each, while `wnc_ap_oper_state` declares no member at `0`, so a rule written against `0` there never fires.
-- **Withheld** — a spelling absent from these tables leaves that subject no series and reaches only the `--log.level=debug` log, while an omitted leaf leaves none silently.
+- **Sequence** — `wnc_client_state` is the only family whose numbering follows the onboarding sequence, so an ordered comparison reads as progress there and nowhere else.
+- **Outside the twelve** — `wnc_client_protocol` numbers its values in this exporter rather than in a module, and its HELP names every one of them.
 
-## Where the numbers come from
+## Where the Numbers Come From
 
 These are the modules that declare the twelve enumerations, at the revision the controller's own `ietf-yang-library:modules-state` reported for each. **The revisions are here because nothing else makes a renumbering detectable.**
 
@@ -23,7 +25,7 @@ These are the modules that declare the twelve enumerations, at the revision the 
 | `Cisco-IOS-XE-wireless-mobility-types`    | `2024-07-01` |
 | `Cisco-IOS-XE-wireless-enum-types`        | `2024-07-01` |
 
-## AP collector
+## AP Collector
 
 ### `wnc_ap_oper_state`
 
@@ -150,7 +152,7 @@ Reads `last-error-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper
 
 ### `wnc_ap_last_dtls_failure_reason`
 
-Reads `ctrl-dtls-failure-type` and `data-dtls-failure-type`, one per `channel` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
+Reads `ctrl-dtls-failure-type` and `data-dtls-failure-type`, one per `channel` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`, and one table serves both because the two leaves share it.
 
 | Value | Spelling                   |
 | :---- | :------------------------- |
@@ -279,7 +281,7 @@ Reads `disconnect-reason` — enumeration of `Cisco-IOS-XE-wireless-types`. Its 
 | 39    | `wtp-capwap-cli-restart`               |
 | 40    | `wtp-reboot-mode-change-site-survey`   |
 
-## Client collector
+## Client Collector
 
 ### `wnc_client_state`
 
@@ -314,7 +316,7 @@ Reads `dot11-roam-type` — enumeration of `Cisco-IOS-XE-wireless-mobility-types
 | 3     | `dot11-roam-type-cckm`     |
 | 4     | `dot11-roam-type-fast-11r` |
 
-## WLAN collector
+## WLAN Collector
 
 ### `wnc_wlan_pmf_state`
 
