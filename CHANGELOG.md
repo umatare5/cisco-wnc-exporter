@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to the metric surface, one section per release, listing the pull requests that release carries.
+Notable changes to the metric surface, one section per release, listing its pull requests.
 
 ## [Unreleased]
 
@@ -17,6 +17,7 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#93](https://github.com/umatare5/cisco-wnc-exporter/pull/93) — Link the shared baseline and narrow the release archive
 - [#94](https://github.com/umatare5/cisco-wnc-exporter/pull/94) — Give every fact one owning page and add an exporter-health page
 - [#95](https://github.com/umatare5/cisco-wnc-exporter/pull/95) — Split the contributor pages by owner and cut AGENTS to claims
+- [#96](https://github.com/umatare5/cisco-wnc-exporter/pull/96) — Correct what the ownership split got wrong
 
 ## [v0.14.1]
 
