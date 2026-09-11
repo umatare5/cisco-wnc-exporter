@@ -103,6 +103,7 @@
             "# Security Policy",
             "## What to Include", "*",
             "## Exposure", "*",
+            "## Egress Paths", "*",
             "## Out of Scope"
           ]
         }

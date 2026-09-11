@@ -17,10 +17,12 @@
 - `internal/cli/` — CLI flag definitions and app wiring (urfave/cli/v3)
 - `internal/config/` — flag/env parsing, defaults (`0.0.0.0:10039`), and validation
 - `internal/server/` — HTTP server (`/metrics`, `/healthz`, `/`), graceful shutdown
-- `internal/collector/` — AP, Client, WLAN collectors; `prometheus.Collector` implementations
-- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`) and adapters over the WNC SDK
+- `internal/collector/` — AP, Client, WLAN and Controller `prometheus.Collector` implementations
+- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`) and adapters over the SDK
 - `internal/cache/` — Generic TTL cache, used only for `*_info` metrics (`--collector.info-cache-ttl`)
 - `internal/log/` — `log/slog` setup; structured logging helpers
+- `docs/` — One page per collector plus the shared rules; [`CONTRIBUTING.md`](CONTRIBUTING.md) names the owners
+- `examples/` — Prometheus job, alert rules and Grafana dashboards; tunable values live here
 
 ## Setup and Commands
 
@@ -33,6 +35,7 @@ Install required tools (one-time):
 
 Make targets ([`Makefile`](Makefile)):
 
+- `make help` — List every target with its requirements
 - `make build` — Build binary into `tmp/cisco-wnc-exporter`
 - `make lint` — `golangci-lint run` + `go mod tidy`
 - `make test-unit` — Run unit tests via `gotestsum` with coverage
@@ -41,56 +44,40 @@ Make targets ([`Makefile`](Makefile)):
 - `make image` — Build Docker image (`$USER/cisco-wnc-exporter`)
 - `make pre-commit-install` / `pre-commit-test` / `pre-commit-uninstall` — Manage the pre-commit hooks
 
+The `markdownlint-cli2` hook runs with `--fix`, so a rewritten Markdown file has to be re-staged.
+
 ## Code Style
 
-- Linting and formatting are enforced by `golangci-lint` in the pre-commit hook (see [`.golangci.yml`](.golangci.yml)).
+- Linting and formatting are enforced by `golangci-lint` in the pre-commit hook ([`.golangci.yml`](.golangci.yml)).
 - Comments record only what the code cannot say, and never address the reader.
+- A `--collector.<name>.<group>` flag switches a collector's group; `module` means a YANG module.
 
 ## Testing
 
 - Run `make test-unit` before committing.
 - Place tests next to code under test (`*_test.go`).
 - Coverage threshold is enforced by [`.github/workflows/go-test-coverage.yml`](.github/workflows/go-test-coverage.yml).
+- One snapshot backs every collector test — [`CONTRIBUTING.md`](CONTRIBUTING.md) says why a private one hides absence.
 
 ## Commits and PRs
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore(deps):`, etc.).
 - Sign off commits with `Signed-off-by:` (DCO).
-- Open PRs against `main`. CI runs lint, tests, and CodeQL.
+- Open PRs against `main`. CI runs Format and Lint, Test and Build, Coverage, Prometheus Rules and CodeQL on every pull request, and gates markdownlint, Link Check, actionlint and govulncheck on the paths they read.
 
 ## Domain Knowledge
 
 ### Verifying Values
 
-- **A YANG model is a design document, not the implementation.** Units, ranges, enum spellings, and even the presence of a leaf can differ on a live controller, so confirm every value against a RESTCONF response from a real WNC before relying on it.
-- **A configuration leaf missing from a response means its default is in force, not that nothing set it.** The default is often `true`, so decoding an omitted boolean as `false` inverts the reading: on a plain read of `wlan-cfg-entries`, `wpa2-enabled` and `wlan-11k-neigh-list` are absent from exactly the WLANs where they are enabled, and present only where they were explicitly switched off.
-- **Ask for the values in force, and expect omission to be per leaf rather than per container.** Appending `?with-defaults=report-all` returns the omitted leaves — a policy profile a plain read shows with a handful of them comes back with an order of magnitude more — and a `wlan-switching-policy` container can arrive with two of its four `central-*` leaves present and the other two omitted at `true`. A controller that rejects the parameter answers `400`, which is why a rejected read falls back to a plain one and counts that in `wnc_refresh_defaults_fallback_total`.
-- **Arbitrate on the device with `show running-config all`, and only for configuration.** It prints the negated form for a feature that is off, so a WLAN with no such line has it on. Every operational route this exporter reads was byte-identical plain and with `report-all`, so do not add the parameter to an operational read: materialising defaults there would defeat the absence guards that keep a fabricated zero out of the metrics.
+- **A YANG model is a design document, not the implementation.** Units, ranges, enum spellings and even the presence of a leaf can differ on a live controller, so confirm each against a RESTCONF response before relying on it.
+- **Arbitrate configuration on the device with `show running-config all`.** It prints the negated form for a feature that is off, so a WLAN with no such line has it on.
+- **Never ask an operational read for the values in force.** Materialising defaults there would defeat the absence guards, and [`CONTRIBUTING.md`](CONTRIBUTING.md) carries the three reads that settle a value.
+- **A claim in `docs/` is a measurement.** Cite the Go file and line, or the controller reading it came from, rather than restating what a sibling page says.
 
-### RESTCONF Access Patterns
+### Controller Behaviour
 
-GET a collection:
-
-```bash
-curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
-        -H "Accept: application/yang-data+json" \
-        "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data"
-```
-
-GET a single entry by list key (MAC address):
-
-```bash
-curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
-        -H "Accept: application/yang-data+json" \
-        "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data=00:11:22:33:44:55"
-```
-
-POST an RPC operation (`/restconf/operations/`):
-
-```bash
-curl -k -X POST \
-        -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
-        -H "Content-Type: application/yang-data+json" \
-        -d '{"input": {"ap-name": "TEST-AP01"}}' \
-        "https://$WNC_CONTROLLER/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
-```
+- **An omitted leaf means its default is in force, not that nothing set it.** The default is often `true`, so decoding it as `false` inverts the reading — [Absence](docs/README.md#absence) carries the rule.
+- **Omission is per leaf rather than per container.** A container can arrive with two of its four leaves present and the other two omitted at `true`, so a present sibling proves nothing.
+- **A controller that rejects `with-defaults=report-all` answers `400`.** The read then falls back to a plain one and counts it — [Exporter Health](docs/health.md#specifications) carries the counter.
+- **Operational routes carry no hidden defaults.** Every one this exporter reads was byte-identical plain and with `report-all`, which is why the parameter is a configuration-read tool alone.
+- **The controller owns the numbering of every enumeration.** [Enumeration Values](docs/enums.md) records the YANG revision each was read at, because nothing else makes a renumbering detectable.

@@ -4,7 +4,7 @@ The [shared contribution guide](https://github.com/umatare5/.github/blob/main/CO
 
 ## Development
 
-CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 percent, Prometheus Rules and CodeQL on every pull request. The markdownlint, Link Check, actionlint and govulncheck jobs are gated on the paths they read, so a change touching no workflow, no Markdown and no `go.mod` skips all four.
+CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 percent, Prometheus Rules and CodeQL on every pull request. The markdownlint, Link Check, actionlint and govulncheck jobs are gated on the paths they read, so a change touching no Markdown, no workflow and no Go file skips all four.
 
 ## Testing
 
@@ -25,9 +25,32 @@ promtool test rules examples/prometheus_alert_rules_test.yml
 promtool check config --lint all --lint-fatal examples/prometheus.yml
 ```
 
+A value reaches a fixture or a HELP string only after a controller sent it.
+
+```bash
+# A collection
+curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
+     -H "Accept: application/yang-data+json" \
+     "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data"
+
+# One entry, keyed by MAC address
+curl -k -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
+     -H "Accept: application/yang-data+json" \
+     "https://$WNC_CONTROLLER/restconf/data/Cisco-IOS-XE-wireless-access-point-oper:access-point-oper-data/capwap-data=00:11:22:33:44:55"
+
+# An RPC, which this exporter never issues and which changes the controller
+curl -k -X POST -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
+     -H "Content-Type: application/yang-data+json" \
+     -d '{"input": {"ap-name": "TEST-AP01"}}' \
+     "https://$WNC_CONTROLLER/restconf/operations/Cisco-IOS-XE-wireless-access-point-cmd-rpc:ap-reset"
+```
+
+> [!CAUTION]
+> Append `?with-defaults=report-all` to a configuration read to see the leaves a default hides. Never append it to an operational read, because materialising defaults there defeats the guards that keep a fabricated zero out of the metrics.
+
 ## Code Style
 
-A `--collector.<module>.<group>` flag switches one group of families inside one of the four modules. No bare module flag exists, so a module publishes nothing until one of its group flags is set.
+A `--collector.<name>.<group>` flag switches one group of families inside one of the four collectors. No bare collector flag exists, so a collector publishes nothing until one of its group flags is set.
 
 A HELP string states the reading of one series in one sentence, and it says whether the series goes absent or decodes an omitted leaf as `0`, because a C9800 omits a leaf holding its schema default.
 
@@ -35,13 +58,14 @@ A HELP string states the reading of one series in one sentence, and it says whet
 
 Every fact has one page that owns it, and the other pages link to it rather than restating it.
 
-| Page                  | Owns                                      |
-| :-------------------- | :---------------------------------------- |
-| `README.md`           | What it is, how to run and scrape it      |
-| `docs/README.md`      | The rules every collector obeys           |
-| `docs/collector.*.md` | The metric catalogue of one module        |
-| `docs/enums.md`       | The number each enumerated family reports |
-| `docs/help.md`        | The verbatim `--help` transcript          |
+| Page                  | Owns                                        |
+| :-------------------- | :------------------------------------------ |
+| `README.md`           | What it is, how to run and scrape it        |
+| `docs/README.md`      | The rules every collector obeys             |
+| `docs/collector.*.md` | The metric catalogue of one collector       |
+| `docs/health.md`      | The exporter's own build and refresh series |
+| `docs/enums.md`       | The number each enumerated family reports   |
+| `docs/help.md`        | The verbatim `--help` transcript            |
 
 > [!NOTE]
 > A sentence about what a leaf carries is written after that leaf was read off a controller, and `docs/enums.md` names the YANG module and revision date each enumeration was taken from.
