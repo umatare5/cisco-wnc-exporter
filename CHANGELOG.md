@@ -15,6 +15,7 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#90](https://github.com/umatare5/cisco-wnc-exporter/pull/90) — Align headings and license spelling with controld-exporter
 - [#91](https://github.com/umatare5/cisco-wnc-exporter/pull/91) — Add govulncheck badge to README
 - [#93](https://github.com/umatare5/cisco-wnc-exporter/pull/93) — Link the shared baseline and narrow the release archive
+- [#94](https://github.com/umatare5/cisco-wnc-exporter/pull/94) — Give every fact one owning page and add an exporter-health page
 
 ## [v0.14.1]
 
