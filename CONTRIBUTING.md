@@ -4,7 +4,7 @@ The [shared contribution guide](https://github.com/umatare5/.github/blob/main/CO
 
 ## Development
 
-CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 percent, Prometheus Rules and CodeQL on every pull request. The markdownlint, Link Check, actionlint and govulncheck jobs are gated on the paths they read, so a change touching no Markdown, no workflow and no Go file skips all four.
+CI runs Format and Lint, Test and Build, Coverage against a threshold of 80 percent, Prometheus Rules and CodeQL on every pull request. The markdownlint, Link Check, actionlint and govulncheck jobs are gated on the paths they read — Markdown, workflows, Go sources and the module files among them. A change touching none of those paths skips all four.
 
 ## Testing
 
@@ -50,7 +50,7 @@ curl -k -X POST -H "Authorization: Basic $WNC_ACCESS_TOKEN" \
 
 ## Code Style
 
-A `--collector.<name>.<group>` flag switches one group of families inside one of the four collectors. No bare collector flag exists, so a collector publishes nothing until one of its group flags is set.
+A `--collector.<name>.<group>` flag switches one group of families inside one of the four service collectors, and the two `--collector.internal.*` flags sit outside them, registering the exporter's own Go runtime and process families. No bare collector flag exists, so a collector publishes nothing until one of its group flags is set.
 
 A HELP string states the reading of one series in one sentence, and it says whether the series goes absent or decodes an omitted leaf as `0`, because a C9800 omits a leaf holding its schema default.
 

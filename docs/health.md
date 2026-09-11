@@ -50,7 +50,7 @@ Each entry adds what the HELP text does not say.
 **`wnc_up`**
 
 - Reads 1 unless **every** data type the enabled collectors need failed, so a refresh that lost one type of several still reports 1 while that type's series are gone.
-- Reads 0 before the first refresh completes, where the value is a zero rather than an absence.
+- Reads 0 before the first refresh completes, because the value is a zero rather than an absence.
 - A panic recovered inside the refresh goroutine marks every data type failed, which forces 0.
 - Pair it with `wnc_refresh_errors_total`, the only one of the two a partial failure moves.
 

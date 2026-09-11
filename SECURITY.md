@@ -18,7 +18,7 @@ This exporter reads a Cisco Catalyst 9800 over RESTCONF and republishes the read
 
 - **Metrics** — AP and client MAC addresses identify their series whatever the flags.
 - **Info labels** — the default `--collector.*.info-labels` add the AP name and IP.
-- **The same defaults** — they add the client name and IPv4, and the ESSID.
+- **The same defaults** — they add the client name and IPv4, and the WLAN name on `wnc_wlan_info`.
 - **Opt-in labels** — `username`, `ipv6` and `device_type` reach `/metrics` only where a flag names them.
 - **Disclosure** — the label set an operator chooses decides how much of a client the endpoint shows.
 - **Unauthenticated** — `/metrics` authenticates nobody, so a network path is the only control.
@@ -41,7 +41,7 @@ The exporter opens one outbound connection, an HTTPS RESTCONF session to `--wnc.
 - **Production** — dropping it hands the credential to whatever answers for that address.
 
 > [!NOTE]
-> Nothing else leaves the process. The exporter opens no connection for telemetry, updates or error reporting, so the controller is the whole egress surface.
+> The exporter initiates no other connection: none for telemetry, updates or error reporting, and it consults no proxy variable. The controller — plus the resolver, where `--wnc.controller` names a host rather than an address — is the whole outbound surface.
 
 ## Out of Scope
 

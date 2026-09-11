@@ -38,7 +38,7 @@ Every series above carries `id`, `wnc_wlan_onboarding_clients` carries a phase t
 | `phase`          | `wnc_wlan_onboarding_clients` | Closed at the four names below  |
 | `policy_profile` | `wnc_wlan_policy_binding`     | An operator-chosen profile name |
 | `policy_tag`     | `wnc_wlan_policy_binding`     | An operator-chosen tag name     |
-| `name`           | `wnc_wlan_info`               | The WLAN ESSID, `labo-wifi`     |
+| `name`           | `wnc_wlan_info`               | `labo-wifi` or the profile name |
 
 **`id`** identifies the WLAN on every series this collector publishes, `wnc_wlan_info` included.
 
@@ -48,7 +48,7 @@ Every series above carries `id`, `wnc_wlan_onboarding_clients` carries a phase t
 
 **`name`** is the only optional label on `wnc_wlan_info` and also its default, so `--collector.wlan.info-labels` toggles exactly one label and `id` is appended whatever that flag names.
 
-`--collector.wlan.info` publishes `wnc_wlan_info`, which carries the ESSID and joins on `id`:
+`--collector.wlan.info` publishes `wnc_wlan_info`, which carries the ESSID and joins on `id`. Where the entry carries no `ssid`, the label falls back to the WLAN profile name rather than going absent:
 
 ```bash
 wnc_wlan_enabled * on(id) group_left(name) wnc_wlan_info

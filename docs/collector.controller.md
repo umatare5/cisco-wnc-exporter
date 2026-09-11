@@ -14,11 +14,15 @@ Controller collector focuses on the controller itself rather than on an AP, a cl
 
 ## Labels
 
-- `wnc_controller_client_deletes_total{reason}` is the only labelled series on this page.
-- `wnc_controller_boot_time_seconds` and the three roam counters carry no label at all.
-- `reason` is open rather than closed: its values are the raw leaf names of the `co-client-del-reason` container, iterated straight out of a map with no whitelist and no translation in the exporter.
-- The collector publishes no `info` series and therefore offers nothing to join on.
-- No series here identifies a device, so nothing on this page can be attributed to one.
+Only one series here takes a label, and none of the five identifies a device.
+
+| Label    | Series                                | Values                                       |
+| :------- | :------------------------------------ | :------------------------------------------- |
+| `reason` | `wnc_controller_client_deletes_total` | The raw leaf names of `co-client-del-reason` |
+
+**`reason`** is open rather than closed: the exporter iterates the map, whitelisting nothing.
+
+The collector publishes no `info` series and therefore offers nothing to join on.
 
 ## Specifications
 
@@ -27,7 +31,7 @@ The five series come from three data types — `controller_boot_time`, `co_clien
 **`wnc_controller_boot_time_seconds`**
 
 - Withheld on the 1970 sentinel as well as on an omitted leaf, so the HELP text names only half the silence — [Absence](README.md#absence) carries the sentinel rule itself.
-- An instant the wire form cannot express fails the read rather than arriving as a sentinel. Only `wnc_refresh_errors_total{data="controller_boot_time"}` then separates it from a leaf the controller omitted — [Health](health.md) carries that series.
+- An instant the wire form cannot express fails the read rather than arriving as a sentinel. Only `wnc_refresh_errors_total{data="controller_boot_time"}` then separates it from a leaf the controller omitted — [Exporter Health](health.md#specifications) carries that series.
 - Neither counter container on this page reports an epoch of its own, so this series is the only reset anchor the four counters below have.
 - It reads the controller's native leaf rather than the derived copy a second model reports. That copy agreed on four of five samples and read a second earlier on the fifth, so do not cross-check the two by equality.
 
