@@ -215,7 +215,7 @@ Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://githu
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the development setup, the tests and the documentation conventions.
+See [`CONTRIBUTING.md`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/CONTRIBUTING.md) for the development setup, the tests, the code style and the documentation conventions, including the page that owns each fact.
 
 ## License
 
