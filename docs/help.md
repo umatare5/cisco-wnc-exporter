@@ -1,8 +1,6 @@
 # Help
 
-The help text of the exporter, transcribed from the binary. It takes no subcommand, so this single transcript carries every flag, its default, and the environment variable it reads where one exists.
-
-## cisco-wnc-exporter
+The help text of the exporter, transcribed from the binary. It takes no subcommand, so this one transcript carries every flag, its default and the environment variable it reads.
 
 ```text
 NAME:
@@ -71,3 +69,18 @@ GLOBAL OPTIONS:
    --collector.internal.go-runtime  Enable Go runtime metrics collector
    --collector.internal.process     Enable process metrics collector
 ```
+
+## Notes
+
+The flags divide into a few families, and these notes carry only what the transcript cannot.
+
+- **Environment first, flag last** — `WNC_CONTROLLER` and `WNC_ACCESS_TOKEN` fill the two required flags, so naming the flag overrides the variable.
+- **Off the process table** — prefer the variables: `--wnc.access-token` puts the credential in `ps`.
+- **`--dry-run`** — validates the configuration and exits, binding no port and contacting nothing.
+- **`--wnc.tls-skip-verify`** — accepts any certificate, so the credential goes to whatever answers.
+- **`--wnc.timeout` and `--wnc.cache-ttl`** — bound one request and the idle between refreshes, so a whole refresh is bounded at twice the latter.
+- **`--collector.info-cache-ttl`** — ages `_info` alone, because the rest are read on the scrape.
+- **No bare collector flag** — `--collector.ap` does not exist; a group flag publishes the series.
+
+> [!TIP]
+> The `VERSION:` line reports what the build stamped — [Exporter Health](health.md#labels) carries the unstamped case.

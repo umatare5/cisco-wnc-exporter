@@ -81,13 +81,13 @@
           "headings": [
             "## Overview", "*",
             "## Quick Start", "*",
+            "## Supported Versions", "*",
+            "## Collectors", "*",
             "## Flags", "*",
-            "## Environment Variables", "*",
             "## Endpoints", "*",
             "## Metrics", "*",
-            "## Use Cases", "*",
+            "## Examples", "*",
             "## Contributing", "*",
-            "## Acknowledgement", "*",
             "## License"
           ]
         }
@@ -116,7 +116,6 @@
           "match_case": true,
           "headings": [
             "# Documentation",
-            "## Collectors", "*",
             "## Technical Information", "*"
           ]
         }
@@ -129,10 +128,10 @@
         "MD043": {
           "match_case": true,
           "headings": [
-            "# AP collector",
+            "# AP Collector",
             "## Metrics", "*",
-            "## Specifications", "*",
-            "## Info Labels", "*"
+            "## Labels", "*",
+            "## Specifications"
           ]
         }
       }
@@ -144,10 +143,10 @@
         "MD043": {
           "match_case": true,
           "headings": [
-            "# Client collector",
+            "# Client Collector",
             "## Metrics", "*",
-            "## Specifications", "*",
-            "## Info Labels", "*"
+            "## Labels", "*",
+            "## Specifications"
           ]
         }
       }
@@ -159,10 +158,10 @@
         "MD043": {
           "match_case": true,
           "headings": [
-            "# WLAN collector",
+            "# WLAN Collector",
             "## Metrics", "*",
-            "## Specifications", "*",
-            "## Info Labels", "*"
+            "## Labels", "*",
+            "## Specifications"
           ]
         }
       }
@@ -174,10 +173,10 @@
         "MD043": {
           "match_case": true,
           "headings": [
-            "# Controller collector",
+            "# Controller Collector",
             "## Metrics", "*",
-            "## Specifications", "*",
-            "## Info Metrics", "*"
+            "## Labels", "*",
+            "## Specifications"
           ]
         }
       }
@@ -190,7 +189,22 @@
           "match_case": true,
           "headings": [
             "# Help",
-            "## cisco-wnc-exporter"
+            "## Notes"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/health.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Exporter Health",
+            "## Metrics", "*",
+            "## Labels", "*",
+            "## Specifications"
           ]
         }
       }
@@ -202,12 +216,12 @@
         "MD043": {
           "match_case": true,
           "headings": [
-            "# Enumeration values",
-            "## Reading a value", "*",
-            "## Where the numbers come from", "*",
-            "## AP collector", "*",
-            "## Client collector", "*",
-            "## WLAN collector", "*"
+            "# Enumeration Values",
+            "## Reading a Value", "*",
+            "## Where the Numbers Come From", "*",
+            "## AP Collector", "*",
+            "## Client Collector", "*",
+            "## WLAN Collector", "*"
           ]
         }
       }
