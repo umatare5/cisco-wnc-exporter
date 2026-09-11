@@ -97,7 +97,7 @@ AP Collector reads the access point, radio and RRM operational data of the contr
 
 ## Labels
 
-`wnc_ap_info` names the radio that every other AP series identifies by address alone.
+`wnc_ap_info` names a radio that the other AP series identify by `mac`, or `mac` and `radio`, alone.
 
 | Label        | Description             | Example Value              |
 | :----------- | :---------------------- | :------------------------- |
@@ -121,7 +121,7 @@ wnc_ap_radio_state * on(mac,radio) group_left(name,ip) wnc_ap_info
 The data series carry labels of their own, none of which the flag governs:
 
 - Every AP series is keyed by `mac` alone or by `mac` and `radio` together, so a join from a per-AP series onto the per-radio `wnc_ap_info` matches every radio of that AP and fails on the duplicate unless it collapses the info side first.
-- `profile` is a third label on `wnc_ap_rrm_profile_passed` and closed at `coverage`, `load`, `interference` and `noise`. `channel` is a third label on the DTLS series of the `join` group and closed at `control` and `data`.
+- `profile` is a third label on `wnc_ap_rrm_profile_passed` and closed at `coverage`, `load`, `interference` and `noise`. `channel` is the second label on the DTLS series of the `join` group, which carry no `radio`, and is closed at `control` and `data`. Both value sets are this exporter's own names for separate leaves rather than spellings the controller assigns.
 - `name` accompanies `mac` on `wnc_ap_join_info`, which reads the join record rather than the CAPWAP one, so the name of a departed AP survives there.
 - `band` is the whole label set of the six `wnc_rrm_*` series and reads `2.4`, `5` or `6` there, the three the controller ranks; only `wnc_ap_info` also carries `unknown`.
 
@@ -138,7 +138,7 @@ The entries below hold for AP series alone; the shared rules are in [Documentati
 **`wnc_ap_admin_state`, `wnc_ap_radio_state` and every other per-radio series**
 
 - The slot list is not a list of radios. A remote-LAN port arrives as a slot whose state leaves the controller omits entirely, and every per-radio series except `wnc_ap_info` is withheld for it. The `traffic` and `errors` counters and `wnc_ap_clients` are withheld with them.
-- `wnc_ap_info` is published for such a slot with `band="unknown"`, because the per-radio loop calls the info collector without the slot guard the radio, traffic, errors and spectrum collectors apply.
+- `wnc_ap_info` is published for such a slot with `band="unknown"`, because the per-radio loop calls the info collector without the slot guard the general, radio, traffic and errors collectors apply; the spectrum series are withheld for it by a guard of their own, the absent operating channel.
 - A rule treating a withheld one as always present therefore needs `absent()` or `or vector(0)`, and a `sum()` over a controller carrying such a port reads lower than the radio count suggests.
 
 **`wnc_ap_uptime_seconds` and `wnc_ap_association_uptime_seconds`**
@@ -290,7 +290,7 @@ write memory
 
 **the twenty `wnc_ap_*_total` counters that read the per-radio statistics record**
 
-- All twenty span the re-join reset window [Documentation](README.md#counter-semantics) describes.
+- All twenty are anchored at the AP's boot rather than at its CAPWAP join, so a re-join leaves them running and a reboot restarts them, and they span the window [Documentation](README.md#counter-semantics) describes.
 - The bundled admin dashboard plots `rate()` over all twenty and so does show that spike at the re-join, while no bundled alert rule reads any of the twenty.
 - `wnc_ap_coverage_failed_clients`, `wnc_ap_radio_resets_total` and `wnc_ap_last_radar_timestamp_seconds` read other data types and are published before that record is consulted, so the window does not reach them.
 

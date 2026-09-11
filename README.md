@@ -74,7 +74,7 @@ Every reading was measured on a Catalyst 9800 running IOS-XE 17.12 and 17.15.
 
 ## Collectors
 
-Each collector is switched on per group of families rather than as a whole, all off by default.
+Each collector is switched on per group of families, so nothing publishes by default.
 
 | Collector                                      | Publishes                                          |
 | :--------------------------------------------- | :------------------------------------------------- |
@@ -90,10 +90,10 @@ Each collector is switched on per group of families rather than as a whole, all 
 - **`--collector.<collector>.<group>`** — switches one group of families on, e.g. `--collector.ap.radio`
 - **`--collector.info-cache-ttl`** — ages the `_info` series, which `--collector.*.info-labels` labels
 - **`--collector.internal.*`** — adds the Go runtime and process families of the exporter itself
-- **`--wnc.*`** — the controller address, the token, the request timeout and the refresh interval
+- **`--wnc.*`** — the controller address, the token, the timeout and the minimum idle between refreshes
 - **`--web.*`** — the listen address, the port and the telemetry path
 - **`WNC_CONTROLLER`** — fills `--wnc.controller`, and the flag overrides it
-- **`WNC_ACCESS_TOKEN`** — fills `--wnc.access-token`, which keeps the credential off the process table
+- **`WNC_ACCESS_TOKEN`** — fills `--wnc.access-token`, and the variable keeps the credential out of `ps`
 
 > [!CAUTION]
 > `--wnc.tls-skip-verify` disables TLS certificate verification. **Never use it in production.**
@@ -132,15 +132,13 @@ The series a dashboard usually starts from:
 | WLAN       | `wnc_wlan_clients`                 | Gauge | Run-state clients count (calculated) |
 | Controller | `wnc_controller_boot_time_seconds` | Gauge | Unix time of the last boot           |
 
-> [!NOTE]
-> See [Technical Information](docs/README.md#technical-information) for the refresh, absence and counter-reset rules every series obeys.
-
 > [!IMPORTANT]
 >
 > Every collector is **disabled by default** to spare both Prometheus and the controller, and an exporter with no collector enabled never contacts the controller at all.
 >
 > - A minor release may rename or remove a metric, because the controller owns the schema every series reads.
 > - A rename carries the type, the labels and the value of the old name unless [`CHANGELOG.md`](CHANGELOG.md) says otherwise.
+> - [Technical Information](docs/README.md#technical-information) carries the refresh, absence and counter-reset rules.
 
 ### Exporter Health Metrics
 
@@ -166,7 +164,7 @@ Start with one group and add what a dashboard needs, because no group is on by d
 # Nothing but wnc_build_info: no collector flag, so the controller is never contacted
 ./cisco-wnc-exporter
 
-# The three series a first dashboard needs
+# The three groups a first dashboard starts from
 ./cisco-wnc-exporter --collector.ap.general --collector.client.general --collector.wlan.general
 ```
 

@@ -75,12 +75,13 @@ GLOBAL OPTIONS:
 The flags divide into a few families, and these notes carry only what the transcript cannot.
 
 - **Environment first, flag last** — `WNC_CONTROLLER` and `WNC_ACCESS_TOKEN` fill the two required flags, so naming the flag overrides the variable.
-- **Off the process table** — prefer the variables: `--wnc.access-token` puts the credential in `ps`.
+- **Off the process table** — prefer the variables, and [Egress Paths](../SECURITY.md#egress-paths) carries what the flag exposes.
 - **`--dry-run`** — validates the configuration and exits, binding no port and contacting nothing.
-- **`--wnc.tls-skip-verify`** — accepts any certificate, so the credential goes to whatever answers.
-- **`--wnc.timeout` and `--wnc.cache-ttl`** — bound one request and the idle between refreshes, so a whole refresh is bounded at twice the latter.
+- **`--wnc.tls-skip-verify`** — accepts any certificate, and [Egress Paths](../SECURITY.md#egress-paths) carries what that hands over.
+- **`--wnc.timeout` and `--wnc.cache-ttl`** — bound one request and the idle between refreshes, and [Scrape Path](README.md#scrape-path) carries the refresh deadline they imply.
 - **`--collector.info-cache-ttl`** — ages `_info` alone, because the rest are read on the scrape.
-- **No bare collector flag** — `--collector.ap` does not exist; a group flag publishes the series.
+- **No bare collector flag** — `--collector.ap` does not exist, so a group flag is what publishes.
+- **Every group flag is off** — the transcript hides the default, and naming the flag publishes it.
 
 > [!TIP]
 > The `VERSION:` line reports what the build stamped — [Exporter Health](health.md#labels) carries the unstamped case.

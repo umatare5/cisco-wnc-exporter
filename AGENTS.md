@@ -18,10 +18,10 @@
 - `internal/config/` — flag/env parsing, defaults (`0.0.0.0:10039`), and validation
 - `internal/server/` — HTTP server (`/metrics`, `/healthz`, `/`), graceful shutdown
 - `internal/collector/` — AP, Client, WLAN and Controller `prometheus.Collector` implementations
-- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`) and adapters over the SDK
+- `internal/wnc/` — Thin interfaces (`APSource`, `ClientSource`, `WLANSource`, `RRMSource`, `ControllerSource`) and the adapters that implement them over the SDK client
 - `internal/cache/` — Generic TTL cache, used only for `*_info` metrics (`--collector.info-cache-ttl`)
 - `internal/log/` — `log/slog` setup; structured logging helpers
-- `docs/` — One page per collector plus the shared rules; [`CONTRIBUTING.md`](CONTRIBUTING.md) names the owners
+- `docs/` — One page per collector, the shared rules, and the health, enumeration and help references; [`CONTRIBUTING.md`](CONTRIBUTING.md) names the owner of each `docs/` page
 - `examples/` — Prometheus job, alert rules and Grafana dashboards; tunable values live here
 
 ## Setup and Commands
@@ -35,7 +35,7 @@ Install required tools (one-time):
 
 Make targets ([`Makefile`](Makefile)):
 
-- `make help` — List every target with its requirements
+- `make help` — List the targets below, then the four tools they require
 - `make build` — Build binary into `tmp/cisco-wnc-exporter`
 - `make lint` — `golangci-lint run` + `go mod tidy`
 - `make test-unit` — Run unit tests via `gotestsum` with coverage
@@ -71,12 +71,12 @@ The `markdownlint-cli2` hook runs with `--fix`, so a rewritten Markdown file has
 
 - **A YANG model is a design document, not the implementation.** Units, ranges, enum spellings and even the presence of a leaf can differ on a live controller, so confirm each against a RESTCONF response before relying on it.
 - **Arbitrate configuration on the device with `show running-config all`.** It prints the negated form for a feature that is off, so a WLAN with no such line has it on.
-- **Never ask an operational read for the values in force.** Materialising defaults there would defeat the absence guards, and [`CONTRIBUTING.md`](CONTRIBUTING.md) carries the three reads that settle a value.
+- **Never ask an operational read for the values in force.** Materialising defaults there would defeat the absence guards, and [`CONTRIBUTING.md`](CONTRIBUTING.md) carries the RESTCONF request forms — two GETs and the one RPC this exporter never issues.
 - **A claim in `docs/` is a measurement.** Cite the Go file and line, or the controller reading it came from, rather than restating what a sibling page says.
 
 ### Controller Behaviour
 
-- **An omitted leaf means its default is in force, not that nothing set it.** The default is often `true`, so decoding it as `false` inverts the reading — [Absence](docs/README.md#absence) carries the rule.
+- **An omitted configuration leaf means its default is in force, not that nothing set it.** The default is often `true`, so decoding it as `false` inverts the reading — [Absence](docs/README.md#absence) carries the rule.
 - **Omission is per leaf rather than per container.** A container can arrive with two of its four leaves present and the other two omitted at `true`, so a present sibling proves nothing.
 - **A controller that rejects `with-defaults=report-all` answers `400`.** The read then falls back to a plain one and counts it — [Exporter Health](docs/health.md#specifications) carries the counter.
 - **Operational routes carry no hidden defaults.** Every one this exporter reads was byte-identical plain and with `report-all`, which is why the parameter is a configuration-read tool alone.

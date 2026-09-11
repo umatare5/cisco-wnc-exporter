@@ -1,6 +1,6 @@
 # Documentation
 
-Reference pages for cisco-wnc-exporter. The README covers getting a scrape working; these pages carry the catalogue and the rules every collector obeys.
+Reference pages for cisco-wnc-exporter. The [README](../README.md) covers getting a scrape working; these pages carry the catalogue and the rules every collector obeys.
 
 | Page                                  | Focus                                              |
 | :------------------------------------ | :------------------------------------------------- |
@@ -31,7 +31,7 @@ P = scrape_interval * ceil((cache-ttl + R) / scrape_interval)
 ```
 
 - `R` — the refresh duration, which `wnc_refresh_duration_seconds` reports.
-- `P` — 120s for `R` from 5s to 65s, at the default 55s TTL and a 60s `scrape_interval`.
+- `P` — 120s for `R` above 5s and up to 65s, at the default 55s TTL and a 60s `scrape_interval`.
 
 ### Endpoints
 
@@ -49,10 +49,10 @@ The exporter serves `/metrics`, `/healthz` and a landing page at `/`, and none i
 
 A C9800 omits a leaf whose value equals its schema default, so absence on the wire is not a reading and publishing `0` for it invents one.
 
-- **Withheld or decoded** — a series is withheld only where the SDK types the leaf as a pointer; where it does not, an omitted leaf decodes as `0` and the HELP string says so.
+- **Withheld or decoded** — a series is withheld where the SDK types the leaf as a pointer, where an enum leaf arrives empty or unnumbered, and where a value-typed leaf reads a value that cannot be a measurement, as `wnc_ap_channel_energy_dbm` does for `0` and `-128`. Every remaining value-typed leaf decodes an omitted leaf as `0`, and the HELP string says so.
 - **Direction** — a leaf omitted because the feature is **on** reads as its inverse when taken for `0`, and `wpa2-enabled` is absent from exactly the WLANs that enable WPA2.
 - **Granularity** — absence is per leaf rather than per container, so a sibling series being present is no evidence that this one's leaf was sent.
-- **Not clean air, not zero traffic** — a failed fetch withholds the series, so a published zero is a zero the controller holds rather than one the exporter invented.
+- **Not clean air, not zero traffic** — a failed fetch withholds the series rather than publishing `0`, so a zero is never a failed fetch, though it can still be the decoded zero of an omitted value-typed leaf.
 - **Sentinels** — the controller writes the 1970 epoch for an event that has not happened, and every timestamp series withholds that value rather than publishing it.
 - **A `404` is a failure** — a controller or image carrying no such data type answers `404`, which counts as a failure because a path the exporter got wrong answers `404` too.
 
@@ -63,10 +63,9 @@ A C9800 omits a leaf whose value equals its schema default, so absence on the wi
 
 `--collector.info-cache-ttl` serves the `_info` series from a snapshot up to that old, while every other series is collected on the scrape itself.
 
-- **No saving** — the collector behind the info series still runs on every scrape, so the cache spares the controller no request and reduces no cardinality.
+- **No saving** — the collector behind the info series still runs on every scrape, so the cache spares the controller no request and reduces no cardinality: every label value a series has held remains its own series.
 - **Stale labels** — a client that roamed keeps its previous `ap` label and a newly associated client is missing altogether, because the snapshot predates both.
-- **Collapse before joining** — a `group_left` fails outright where the info side holds two series for one key, and returns nothing where it lacks the join label.
-- **Named values are the exporter's** — the `profile`, `channel`, `phase` and `unknown` band values name separate leaves rather than spellings the controller assigns.
+- **Collapse before joining** — a `group_left` fails outright where the info side holds two series for one key, because the match group is ambiguous, and returns nothing where it lacks the join label.
 
 ### Update Schedule
 
@@ -83,8 +82,8 @@ A per-radio counter is anchored at its own AP's boot rather than at its CAPWAP j
 
 - **Per radio** — a reset touches that AP's series alone, and its two radios can anchor separately.
 - **Per association** — a client's counters restart when it re-associates, because the statistics belong to the association rather than to the device.
-- **Range** — query over a range long enough to absorb a re-join, because a reset window left inside the range charges the whole counter as one increase.
-- **Gate** — gate on the age of the association rather than on the counter, matched on `mac` because `wnc_ap_association_uptime_seconds` carries no `radio` label:
+- **Range** — query over a range long enough to absorb a re-join or a re-association, because a reset window left inside the range charges the whole counter as one increase.
+- **Gate** — gate on the age of the association rather than on the counter, matched on `mac` because `wnc_ap_association_uptime_seconds` carries no `radio` label, and set the age above the range by a margin:
 
 > ```text
 > rate(wnc_ap_fcs_errors_total[15m]) > 0 and on(mac) wnc_ap_association_uptime_seconds > 960
@@ -103,4 +102,4 @@ Twelve families publish the number the controller's own enumeration assigns the 
 The bundled dashboards join the data series onto an `_info` series to recover a readable name.
 
 - **Join labels** — they join on `band`, `ap`, `wlan` and `username`, which the default `--collector.*.info-labels` sets omit, so a flag has to name them.
-- **The shape** — a join multiplies the data series by the info series and pulls the label across with `group_left`, so both collectors have to be enabled.
+- **The shape** — a join multiplies the data series by the info series and pulls the label across with `group_left`, so the `info` group flag behind whichever `_info` the join names has to be set as well as the data one.

@@ -7,9 +7,9 @@ Twelve metric families report a state, a reason or a mode as a number, and this 
 Every member of all twelve enumerations carries an explicit `value` statement in the module that declares it, so these tables transcribe the device's numbering rather than this exporter's.
 
 - **Query shape** — these numbers are matched by equality rather than by threshold, and [Enumerated States](README.md#enumerated-states) carries that rule and the `for:` it pairs with.
-- **Two silences** — a spelling absent from these tables is withheld and reaches the `--log.level=debug` log, while a leaf the controller omitted is withheld ahead of the lookup and logs nothing at all, so an empty debug log says the default is in force rather than that the collector failed.
+- **Two silences** — a spelling absent from these tables is withheld and reaches the `--log.level=debug` log, while a leaf the controller omitted is withheld ahead of the lookup and logs nothing at all, so a series missing with no debug line says the controller sent no such leaf rather than that the collector failed.
 - **Zero** — a real member in eleven of the twelve and a different reading in each, while `wnc_ap_oper_state` declares no member at `0`, so a rule written against `0` there never fires.
-- **Sequence** — `wnc_client_state` is the only family whose numbering follows the onboarding sequence, so an ordered comparison reads as progress there and nowhere else.
+- **Sequence** — `wnc_client_state` is the only family whose numbering follows the onboarding sequence, but it runs past `11` into `client-status-delete-in-progress` and `client-status-deleted`. An ordered comparison there reads as position in that sequence rather than as health, so `== 11` is still what names a client that reached run.
 - **Outside the twelve** — `wnc_client_protocol` numbers its values in this exporter rather than in a module, and its HELP names every one of them.
 
 ## Where the Numbers Come From
