@@ -883,7 +883,7 @@ var rrmProfiles = []struct {
 // radioJoins holds the four reads of the radio module. A map with no entry for a radio
 // withholds that radio's series rather than reporting a zero; clientCounts is left nil
 // outright, because a partial count reads as a radio with no clients. mainData joins
-// against no radio — it is keyed by band — and is carried here so that the module makes
+// against no radio – it is keyed by band – and is carried here so that the module makes
 // its reads in one place.
 type radioJoins struct {
 	measurements map[string]*rrm.RRMMeasurement
@@ -893,7 +893,7 @@ type radioJoins struct {
 }
 
 // spectrumReads holds the two air quality reads of the spectrum module. They key on
-// different things — one on the radio, one on the band — so one failing leaves the other
+// different things – one on the radio, one on the band – so one failing leaves the other
 // published rather than withholding both.
 type spectrumReads struct {
 	aqTable []rrm.SpectrumAqTable

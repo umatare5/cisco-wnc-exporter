@@ -939,7 +939,7 @@ func TestDetermineUptimeFromTimestamp(t *testing.T) {
 		},
 		{
 			// A placeholder rather than a boot: no AP booted in 1970. Whether this
-			// controller renders one for this leaf is not established — the guard is
+			// controller renders one for this leaf is not established – the guard is
 			// defensive, and it matches what the join timestamps do with the same value.
 			"Unix epoch",
 			"1970-01-01T00:00:00+00:00",
@@ -2360,8 +2360,8 @@ func TestAPJoinModule_WithholdsTheEpochSentinel(t *testing.T) {
 
 // TestAPJoinModule_ReasonsReportTheNumberTheirEnumerationAssigns pins each enum leaf to
 // its own descriptor and its own table. The six AP-keyed readings of the fixture carry
-// six distinct numbers, so exchanging two rows of the emit table — which a compiler and
-// every count assertion accept — changes a number pinned here.
+// six distinct numbers, so exchanging two rows of the emit table – which a compiler and
+// every count assertion accept – changes a number pinned here.
 func TestAPJoinModule_ReasonsReportTheNumberTheirEnumerationAssigns(t *testing.T) {
 	t.Parallel()
 
@@ -2507,7 +2507,7 @@ func TestAPJoinModule_NameSeriesIgnoresTheInfoFlag(t *testing.T) {
 
 // TestAPCollector_RRMProfilesMatchLeaves binds each profile label value to its own
 // verdict leaf. Four booleans over one descriptor cannot be told apart by a single
-// fixture — a swap between two leaves reporting the same value is invisible — so each
+// fixture – a swap between two leaves reporting the same value is invisible – so each
 // case sets exactly one verdict, which makes every pairwise swap fail.
 func TestAPCollector_RRMProfilesMatchLeaves(t *testing.T) {
 	t.Parallel()
@@ -2834,7 +2834,7 @@ func TestAirQualityOnCurrentChannel_AnotherAPsRecord(t *testing.T) {
 
 // TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf covers the slot list carrying entries
 // that are not radios. A remote-LAN port arrives with both state leaves omitted, and a
-// string comparison against the up spelling reports it down — a permanently failing
+// string comparison against the up spelling reports it down – a permanently failing
 // radio on every AP that has such a port. Each leaf is guarded on its own, because the
 // controller omits per leaf rather than per record.
 func TestAPCollector_StateSeriesAbsentOnAnEmptyLeaf(t *testing.T) {
@@ -3222,7 +3222,7 @@ func TestAirQualityOnCurrentChannel_RecordWithoutTheContainer(t *testing.T) {
 // TestParseCoordinate_RefusesWhatParseFloatAccepts is why the range test is written in the
 // affirmative. strconv.ParseFloat returns a nil error for "NaN", "Inf", "+Inf" and
 // "-Infinity", so a guard that only checked the error would put NaN into a gauge and poison
-// every aggregation the AP appears in — and a negated range test would pass NaN too, because
+// every aggregation the AP appears in – and a negated range test would pass NaN too, because
 // NaN compares false against both bounds.
 func TestParseCoordinate_RefusesWhatParseFloatAccepts(t *testing.T) {
 	t.Parallel()

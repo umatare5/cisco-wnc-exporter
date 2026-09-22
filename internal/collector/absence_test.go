@@ -668,7 +668,7 @@ func fullFixtureSnapshot() *wnc.WNCDataCache {
 		// 6 GHz record carries no dca container: no controller has been seen omitting it, so
 		// that row is invented, and it is what tests that the two families guard themselves
 		// rather than the record. Of the withheld pair one carries dot11-invalid-band, a
-		// member of the typedef, and the other an unset leaf, which is no spelling at all —
+		// member of the typedef, and the other an unset leaf, which is no spelling at all –
 		// inventing a fourth band spelling would put a claim about the controller into a
 		// fixture. Both carry real instants, so the name is what withholds them, and there
 		// are two because one alone would leave the label collision unobserved.
@@ -1102,8 +1102,8 @@ func TestAllCollectors_OmitSeriesWhenLeafAbsent(t *testing.T) {
 }
 
 // TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf covers the two phy-ht-cfg leaves, which the
-// SDK types as plain integers: a leaf the controller omits — curr-freq on a radio in monitor
-// mode, measured — arrives as 0 rather than nil, so the pointer cases above cannot reach them.
+// SDK types as plain integers: a leaf the controller omits – curr-freq on a radio in monitor
+// mode, measured – arrives as 0 rather than nil, so the pointer cases above cannot reach them.
 // The survivors pin the absence to its own leaf, so a guard taking a sibling with it fails here
 // as surely as no guard at all.
 func TestAPCollector_ChannelSeriesAbsentOnAZeroLeaf(t *testing.T) {

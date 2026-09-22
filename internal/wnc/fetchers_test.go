@@ -79,7 +79,7 @@ func (r *queryRecorder) get(segment string) []string {
 
 // TestFetchers_AskForValuesInForceOnConfigRoutesOnly pins which routes carry the
 // parameter. A leaf left at its default is omitted from a plain read and decodes
-// to zero, so the two WLAN config routes must ask for the value in force — and
+// to zero, so the two WLAN config routes must ask for the value in force – and
 // the operational routes must not, because the parameter buys nothing there and
 // every one of them is read on every refresh.
 func TestFetchers_AskForValuesInForceOnConfigRoutesOnly(t *testing.T) {
@@ -193,7 +193,7 @@ func TestFetchers_NoFallBackOnOtherStatus(t *testing.T) {
 
 // TestRequiredDataTypes_MatchesWhatTheModulesRead pins the table the fetch loop is
 // gated on. A data type missing from it is never fetched, and its collector then
-// takes an empty slice for a successful empty fetch — the map builders return a
+// takes an empty slice for a successful empty fetch – the map builders return a
 // non-nil empty map, so the nil guards in the collectors do not catch it. Every
 // module's route set is therefore asserted rather than sampled.
 func TestRequiredDataTypes_MatchesWhatTheModulesRead(t *testing.T) {
@@ -381,7 +381,7 @@ func TestFetchers_SkipWhatNoEnabledModuleReads(t *testing.T) {
 // TestFetchers_DownWhenEveryRequiredDataTypeFails is the regression test for the
 // defect the gating exists to fix. Before it, wnc_up was judged against all
 // every data type, so a deployment running one module could fail every data
-// type it needs, publish nothing, and still report up — and because fetchAllData
+// type it needs, publish nothing, and still report up – and because fetchAllData
 // returned no error the consecutive-failure counter reset, so the
 // withhold-after-three-failures path never armed. The sixteen data types nothing
 // reads answer normally here, which is what made the old denominator read healthy.
@@ -418,7 +418,7 @@ func TestFetchers_DownWhenEveryRequiredDataTypeFails(t *testing.T) {
 // data type nobody asked for must be skipped before the deadline is consulted:
 // recording it as truncated would seed a `data` label for a request that was
 // never going to be sent, and would make the refresh report a failure it did not
-// have — which is the wnc_up defect this gating fixes, reintroduced.
+// have – which is the wnc_up defect this gating fixes, reintroduced.
 func TestFetchers_SkipBeforeTheDeadlineCheck(t *testing.T) {
 	t.Parallel()
 
@@ -504,7 +504,7 @@ func (s stubSource) GetCachedData(context.Context) (*WNCDataCache, error) {
 }
 
 // TestSnapshot_RejectsADataTypeNoModuleDeclared covers the diagnostic path. A correct
-// table never reaches it, because a collector only asks for a data type it reads — so
+// table never reaches it, because a collector only asks for a data type it reads – so
 // reaching it means the table has drifted from the guards it mirrors, and the sentinel
 // is what turns that into an omitted series rather than an empty slice read as data.
 func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
@@ -545,7 +545,7 @@ func TestSnapshot_RejectsADataTypeNoModuleDeclared(t *testing.T) {
 
 // TestRequiredDataTypes_EveryModuleFlagReadsSomething closes the one break mode the
 // per-module cases above cannot. Those name the flags that exist today, so a flag
-// added later and left out of the unions in isDataTypeRequired escapes them — and
+// added later and left out of the unions in isDataTypeRequired escapes them – and
 // its collector would then publish nothing at all, because every route it reads is
 // skipped. Walking the struct covers a flag nobody remembered to list.
 func TestRequiredDataTypes_EveryModuleFlagReadsSomething(t *testing.T) {
@@ -582,8 +582,8 @@ func TestRequiredDataTypes_EveryModuleFlagReadsSomething(t *testing.T) {
 }
 
 // TestFetchers_BootTimeAbsenceAndFailureAreDistinct pins the contract the typed accessor
-// changed. An omitted leaf stays a successful read of nothing — no error, zero items, the
-// instant left nil — while an instant the wire form cannot express is now a read failure that
+// changed. An omitted leaf stays a successful read of nothing – no error, zero items, the
+// instant left nil – while an instant the wire form cannot express is now a read failure that
 // raises wnc_refresh_errors_total for this data type. The published series is withheld either
 // way, so nothing in the metrics tells the two apart and only this test does.
 func TestFetchers_BootTimeAbsenceAndFailureAreDistinct(t *testing.T) {

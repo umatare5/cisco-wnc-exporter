@@ -119,7 +119,7 @@ func TestControllerCollector_BootTimeWithheldWhenUnusable(t *testing.T) {
 	t.Parallel()
 
 	// An instant the wire form cannot express is refused by the SDK's decode, so it never
-	// reaches the cache and is asserted at the fetcher instead — see
+	// reaches the cache and is asserted at the fetcher instead – see
 	// TestFetchers_BootTimeAbsenceAndFailureAreDistinct in internal/wnc.
 	tests := []struct {
 		name        string

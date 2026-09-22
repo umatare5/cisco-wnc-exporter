@@ -81,8 +81,8 @@ func requiredDataTypes(modules config.Collectors) []string {
 }
 
 // isDataTypeRequired mirrors the source calls each Collect method makes under its
-// module guards, so it has to be updated alongside them. Three data types — the radio
-// list, the WLAN config entries and the client list — are read before any module guard,
+// module guards, so it has to be updated alongside them. Three data types – the radio
+// list, the WLAN config entries and the client list – are read before any module guard,
 // and the client list is read by three collectors, so the relation is a union over the
 // enabled modules rather than a per-module list.
 //

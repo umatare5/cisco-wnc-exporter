@@ -289,7 +289,7 @@ func TestBuildWLANToPolicyMap(t *testing.T) {
 			// above binds each WLAN profile exactly once, so a first-wins rewrite would
 			// pass them all. The controller returns these entries in datastore order,
 			// which is not the order they were configured in, so which one wins is not a
-			// property an operator can predict — the point of pinning it is that the
+			// property an operator can predict – the point of pinning it is that the
 			// choice cannot change silently.
 			"One WLAN bound through two tags reports the last binding",
 			[]wlan.PolicyListEntry{
@@ -1303,7 +1303,7 @@ func TestWLANCollector_collectTrafficMetrics(t *testing.T) {
 // subject here is the wiring, not a deployable configuration.
 // TestWLANCollector_ConfigStatesMatchLeaves pins each state series to the leaf it
 // reads. Both leaves are value-typed strings, so swapping the two descriptors is a
-// change no compiler and no count assertion catches — only the published value does.
+// change no compiler and no count assertion catches – only the published value does.
 // The empty case is asserted too, because one of the two fixture readings is a member
 // its enumeration numbers zero, which no value-based presence check separates from an
 // absent series.
@@ -1385,7 +1385,7 @@ func TestWLANCollector_ConfigStatesMatchLeaves(t *testing.T) {
 			t.Errorf("wnc_wlan_pmf_state = %v for an empty leaf, want no series", got)
 		}
 		if got, ok := values["wnc_wlan_ft_state"]; !ok || got != 0 {
-			t.Errorf("wnc_wlan_ft_state = %v (present %v), want 0 — it reads the WLAN entry, "+
+			t.Errorf("wnc_wlan_ft_state = %v (present %v), want 0 – it reads the WLAN entry, "+
 				"so neither the sibling leaf nor the policy binding gates it", got, ok)
 		}
 	})
