@@ -60,9 +60,9 @@ flowchart TB
 
 Cisco Catalyst 9800 Wireless Controller running on:
 
-- **IOS-XE 17.12.5 or later** – Last verified on 17.12.8
-- **IOS-XE 17.15.6 or later** – Last verified on 17.15.6
-- **IOS-XE 17.18.4a or later** – Last verified on 17.18.4a
+- **Cisco IOS-XE 17.12.5 or later** – Last verified on 17.12.8
+- **Cisco IOS-XE 17.15.6 or later** – Last verified on 17.15.6
+- **Cisco IOS-XE 17.18.4a or later** – Last verified on 17.18.4a
 
 > [!IMPORTANT]
 > This exporter requires these minimum versions due to RESTCONF defects in earlier releases. It fails on **17.15.4b** and **17.18.1**. See [cisco-ios-xe-wireless-go #28](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/28) and [cisco-ios-xe-wireless-go #29](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/29) for details.
