@@ -1,9 +1,9 @@
 <div align="center">
 
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo_dark.png" width="115px" />
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="115px" />
-    <img alt="cisco-wnc-exporter" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="115px" />
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/logo_dark.png" width="115px" />
+    <source media="(prefers-color-scheme: light)" srcset="./docs/assets/logo.png" width="115px" />
+    <img alt="cisco-wnc-exporter" src="./docs/assets/logo.png" width="115px" />
   </picture>
 
   <h1>cisco-wnc-exporter</h1>
@@ -13,7 +13,7 @@
   <p>
     <img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/umatare5/cisco-wnc-exporter?label=Latest%20version" />
     <a href="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml"><img alt="Test and Build" src="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-test-build.yml/badge.svg?branch=main" /></a>
-    <img alt="Test Coverage" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/coverage.svg" />
+    <img alt="Test Coverage" src="./docs/assets/coverage.svg" />
     <a href="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-vulncheck.yml"><img alt="govulncheck" src="https://github.com/umatare5/cisco-wnc-exporter/actions/workflows/go-vulncheck.yml/badge.svg?branch=main" /></a><br>
     <a href="https://www.bestpractices.dev/projects/11293"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/11293/badge" /></a>
     <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
@@ -58,10 +58,14 @@ flowchart TB
 
 ## Supported Versions
 
-Cisco Catalyst 9800 Wireless Controller running on **17.12.5, 17.15.6, 17.18.4a** or **their later patch versions**.
+**Cisco Catalyst 9800 Wireless Controller on IOS-XE:**
+
+- **17.12.x** – 17.12.5 or later
+- **17.15.x** – 17.15.6 or later
+- **17.18.x** – 17.18.4a or later
 
 > [!IMPORTANT]
-> This exporter requires these minimum versions due to RESTCONF defects in earlier releases. It fails on **17.15.4b** and **17.18.1**. See [cisco-ios-xe-wireless-go #28](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/28) and [#29](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/29) for details.
+> This exporter requires these minimum versions due to RESTCONF defects in earlier releases. It fails on **17.15.4b** and **17.18.1**. See [cisco-ios-xe-wireless-go #28](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/28) and [cisco-ios-xe-wireless-go #29](https://github.com/umatare5/cisco-ios-xe-wireless-go/issues/29) for details.
 
 ## Installation
 
@@ -128,7 +132,7 @@ This exporter uses command-line flags for all configuration.
 
 The `--collector.*` flags toggle these collectors. See the pages below for details.
 
-| Collector                                                | Flag                       | Description                                        |
+| Collector                                                | Flag                       | Exposes                                            |
 | :------------------------------------------------------- | :------------------------- | :------------------------------------------------- |
 | **[AP Collector](docs/collector.ap.md)**                 | `--collector.ap.*`         | RF foundation and radio performance metrics        |
 | **[Client Collector](docs/collector.client.md)**         | `--collector.client.*`     | User experience and connection performance metrics |
@@ -142,7 +146,7 @@ The `--collector.*` flags toggle these collectors. See the pages below for detai
 
 The exporter exposes these endpoints. See [Endpoints](docs/architecture.md#endpoints) for what each status code means.
 
-| Path       | Description                                     |
+| Path       | Detail                                          |
 | :--------- | :---------------------------------------------- |
 | `/`        | Landing page, confirming the exporter is up     |
 | `/metrics` | Metrics endpoint, set by `--web.telemetry-path` |
@@ -215,6 +219,9 @@ The three patterns below cover the common use cases.
   --collector.controller.general
 ```
 
+> [!NOTE]
+> See [`.air.toml`](.air.toml) for the development configuration this pattern is taken from.
+
 ### Prometheus Configuration
 
 See the following Prometheus configuration examples:
@@ -226,27 +233,27 @@ See the following Prometheus configuration examples:
 
 Two layer of dashboards are available: The admin-level dashboard and the user-level dashboard
 
-**Admin-level**: Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-admin-dashboard.json) and visualize the metrics.
+**Admin-level**: Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](./examples/grafana_cisco-wnc-exporter-admin-dashboard.json) and visualize the metrics.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
-  <img alt="Grafana admin-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/cisco-wnc-exporter-admin-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/cisco-wnc-exporter-admin-dashboard.png">
+  <img alt="Grafana admin-level dashboard" src="./docs/assets/cisco-wnc-exporter-admin-dashboard.png">
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture.
+> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](./docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture.
 
-**User-level**: Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/examples/grafana_cisco-wnc-exporter-user-dashboard.json) and visualize the metrics.
+**User-level**: Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](./examples/grafana_cisco-wnc-exporter-user-dashboard.json) and visualize the metrics.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
-  <img alt="Grafana user-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/cisco-wnc-exporter-user-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/cisco-wnc-exporter-user-dashboard.png">
+  <img alt="Grafana user-level dashboard" src="./docs/assets/cisco-wnc-exporter-user-dashboard.png">
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://github.com/umatare5/cisco-wnc-exporter/blob/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture.
+> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](./docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture.
 
 ## Documentation
 
