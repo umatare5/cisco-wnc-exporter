@@ -20,7 +20,7 @@ This directory contains the documentation for the exporter's implementation, fea
 
   Monitors the controller itself, including its boot time.
 
-- **[Health](health.md)**
+- **[Exporter Health](health.md)**
 
   The exporter's own build and refresh metric catalogue.
 
