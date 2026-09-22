@@ -4,6 +4,8 @@ Notable changes to the metric surface, one section per release, listing the pull
 
 ## [Unreleased]
 
+## [v0.15.0]
+
 - [#81](https://github.com/umatare5/cisco-wnc-exporter/pull/81) – Sync the CI and pre-commit stack with xflow
 - [#82](https://github.com/umatare5/cisco-wnc-exporter/pull/82) – Adopt the xflow documentation conventions
 - [#83](https://github.com/umatare5/cisco-wnc-exporter/pull/83) – Raise Endpoints to a section of its own
@@ -18,6 +20,10 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#94](https://github.com/umatare5/cisco-wnc-exporter/pull/94) – Give every fact one owning page and add an exporter-health page
 - [#95](https://github.com/umatare5/cisco-wnc-exporter/pull/95) – Split the contributor pages by owner and cut AGENTS to claims
 - [#96](https://github.com/umatare5/cisco-wnc-exporter/pull/96) – Correct what the ownership split got wrong
+- [#97](https://github.com/umatare5/cisco-wnc-exporter/pull/97) – Update all patch dependencies
+- [#98](https://github.com/umatare5/cisco-wnc-exporter/pull/98) – Update umatare5/common action to v0.21.0
+- [#99](https://github.com/umatare5/cisco-wnc-exporter/pull/99) – Bump umatare5/common to v0.21.1 to fix the CodeQL workflow
+- [#100](https://github.com/umatare5/cisco-wnc-exporter/pull/100) – Rebuild the documentation set around an architecture page
 
 ## [v0.14.1]
 
@@ -175,7 +181,8 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#42](https://github.com/umatare5/cisco-wnc-exporter/pull/42) – Withdraw two misreported WLAN config series and add a CHANGELOG
 - [#43](https://github.com/umatare5/cisco-wnc-exporter/pull/43) – Bump version from 0.2.0 to 0.3.0
 
-[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.0...HEAD
+[v0.15.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.0
 [v0.14.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.1
 [v0.14.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.0
 [v0.13.3]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.13.3
