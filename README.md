@@ -56,7 +56,7 @@ flowchart TB
 > [!NOTE]
 > Scrapes read the last completed refresh, never waiting on the controller. See [Scrape Path](docs/architecture.md#scrape-path) for the details.
 
-## Supported Environment
+## Supported Versions
 
 Cisco Catalyst 9800 Wireless Controller running on:
 
