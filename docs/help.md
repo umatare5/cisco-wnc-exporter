@@ -1,6 +1,6 @@
 # Help
 
-The help text of the exporter, transcribed from the binary. It takes no subcommand, so this one transcript carries every flag, its default and the environment variable it reads.
+The verbatim `--help` transcript and its notes.
 
 ```text
 NAME:
@@ -70,18 +70,39 @@ GLOBAL OPTIONS:
    --collector.internal.process     Enable process metrics collector
 ```
 
-## Notes
+## Flags
 
-The flags divide into a few families, and these notes carry only what the transcript cannot.
+The flags divide into a few families. These notes carry only what the transcript cannot.
 
-- **Environment first, flag last** — `WNC_CONTROLLER` and `WNC_ACCESS_TOKEN` fill the two required flags, so naming the flag overrides the variable.
-- **Off the process table** — prefer the variables, and [Egress Paths](../SECURITY.md#egress-paths) carries what the flag exposes.
-- **`--dry-run`** — validates the configuration and exits, binding no port and contacting nothing.
-- **`--wnc.tls-skip-verify`** — accepts any certificate, and [Egress Paths](../SECURITY.md#egress-paths) carries what that hands over.
-- **`--wnc.timeout` and `--wnc.cache-ttl`** — bound one request and the idle between refreshes, and [Scrape Path](README.md#scrape-path) carries the refresh deadline they imply.
-- **`--collector.info-cache-ttl`** — ages `_info` alone, because the rest are read on the scrape.
-- **No bare collector flag** — `--collector.ap` does not exist, so a group flag is what publishes.
-- **Every group flag is off** — the transcript hides the default, and naming the flag publishes it.
+### --dry-run
+
+It validates the configuration and exits. It binds no port and contacts nothing.
+
+### --wnc.tls-skip-verify
+
+It accepts any certificate. [Egress Paths](../SECURITY.md#egress-paths) carries what that hands over.
+
+### --wnc.timeout and --wnc.cache-ttl
+
+They bound one request and the idle between refreshes. [Scrape Path](architecture.md#scrape-path) carries the refresh deadline they imply.
+
+### --collector.info-cache-ttl
+
+It ages `_info` alone because the rest are read on the scrape.
+
+### No bare collector flag
+
+The `--collector.ap` flag does not exist, so a group flag is what publishes.
+
+### Every group flag is off
+
+The transcript hides the default. Naming the flag publishes it.
 
 > [!TIP]
-> The `VERSION:` line reports what the build stamped — [Exporter Health](health.md#labels) carries the unstamped case.
+> The `VERSION:` line reports what the build stamped. [Exporter Health](health.md#labels) explains the unstamped case.
+
+## Technical Notes
+
+**Environment first, flag last**: The `WNC_CONTROLLER` and `WNC_ACCESS_TOKEN` variables fill the two required flags. Naming the flag overrides the variable.
+
+**Off the process table**: Prefer the variables for sensitive information. [Egress Paths](../SECURITY.md#egress-paths) explains what the flag exposes.

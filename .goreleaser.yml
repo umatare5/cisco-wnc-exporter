@@ -39,11 +39,7 @@ builds:
 archives:
   - name_template: "{{ .ProjectName }}-v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     # Only what a downloaded binary needs beside it: the licence notices its
-    # statically linked dependencies require on redistribution. This exporter
-    # parses no file it ships, so nothing else earns a place in the archive,
-    # and every page it used to carry is a click away on the release page the
-    # archive was downloaded from. The key stays because GoReleaser's default
-    # set omits NOTICE.
+    # statically linked dependencies require on redistribution.
     files:
       - "LICENSE"
       - "NOTICE"
@@ -91,18 +87,15 @@ release:
     This release contains the Prometheus Exporter for Cisco WNC.
 
     > [!IMPORTANT]
-    > A minor release may rename or remove a metric. Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md) before upgrading.
+    > A minor release may remove a metric, drop a label, or change what one reports. Read the [CHANGELOG](https://github.com/umatare5/cisco-wnc-exporter/blob/{{ .Tag }}/CHANGELOG.md) before upgrading.
 
     ### 🐳 Container Images
 
     ```bash
-    # Latest version
-    docker run --rm ghcr.io/umatare5/cisco-wnc-exporter:latest --help
-
-    # Specific version
+    # Show the help
     docker run --rm ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }} --help
 
-    # With environment variables
+    # Run with environment variables
     docker run --rm -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN ghcr.io/umatare5/cisco-wnc-exporter:{{ .Tag }}
     ```
 

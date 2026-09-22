@@ -1,20 +1,38 @@
 # Enumeration Values
 
-Twelve metric families report a state, a reason or a mode as a number, and this page carries every number each of them can take. What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages, and [Enumerated States](README.md#enumerated-states) carries the query shapes these numbers need.
+The number each enumerated family reports.
+
+What each series measures is on the [AP](collector.ap.md), [Client](collector.client.md) and [WLAN](collector.wlan.md) pages. [Enumerated States](architecture.md#enumerated-states) carries the query shapes these numbers need.
 
 ## Reading a Value
 
-Every member of all twelve enumerations carries an explicit `value` statement in the module that declares it, so these tables transcribe the device's numbering rather than this exporter's.
+Every member of all twelve enumerations carries an explicit `value` statement in the module that declares it. These tables transcribe the device's numbering rather than this exporter's.
 
-- **Query shape** — these numbers are matched by equality rather than by threshold, and [Enumerated States](README.md#enumerated-states) carries that rule and the `for:` it pairs with.
-- **Two silences** — a spelling absent from these tables is withheld and reaches the `--log.level=debug` log, while a leaf the controller omitted is withheld ahead of the lookup and logs nothing at all, so a series missing with no debug line says the controller sent no such leaf rather than that the collector failed.
-- **Zero** — a real member in eleven of the twelve and a different reading in each, while `wnc_ap_oper_state` declares no member at `0`, so a rule written against `0` there never fires.
-- **Sequence** — `wnc_client_state` is the only family whose numbering follows the onboarding sequence, but it runs past `11` into `client-status-delete-in-progress` and `client-status-deleted`. An ordered comparison there reads as position in that sequence rather than as health, so `== 11` is still what names a client that reached run.
-- **Outside the twelve** — `wnc_client_protocol` numbers its values in this exporter rather than in a module, and its HELP names every one of them.
+### Query shape
+
+These numbers are matched by equality rather than by threshold. [Enumerated States](architecture.md#enumerated-states) carries that rule and the `for:` it pairs with.
+
+### Two silences
+
+A spelling absent from these tables is withheld and reaches the `--log.level=debug` log. A leaf the controller omitted is withheld ahead of the lookup and logs nothing at all. A series missing with no debug line says the controller sent no such leaf rather than that the collector failed.
+
+### Zero
+
+It is a real member in eleven of the twelve and a different reading in each. The `wnc_ap_oper_state` series declares no member at `0`. A rule written against `0` there never fires.
+
+### Sequence
+
+The `wnc_client_state` series is the only family whose numbering follows the onboarding sequence. It runs past `11` into `client-status-delete-in-progress` and `client-status-deleted`.
+
+An ordered comparison there reads as position in that sequence rather than as health. This means `== 11` is still what names a client that reached run.
+
+### Outside the twelve
+
+The `wnc_client_protocol` series numbers its values in this exporter rather than in a module. Its HELP names every one of them.
 
 ## Where the Numbers Come From
 
-These are the modules that declare the twelve enumerations, at the revision the controller's own `ietf-yang-library:modules-state` reported for each. **The revisions are here because nothing else makes a renumbering detectable.**
+These are the modules that declare the twelve enumerations, at the revision the controller's own `ietf-yang-library:modules-state` reported for each. The revisions are here because nothing else makes a renumbering detectable.
 
 | Module                                    | Revision     |
 | :---------------------------------------- | :----------- |
@@ -27,9 +45,9 @@ These are the modules that declare the twelve enumerations, at the revision the 
 
 ## AP Collector
 
-### `wnc_ap_oper_state`
+### wnc_ap_oper_state
 
-Reads `ap-operation-state` — enumeration of `Cisco-IOS-XE-wireless-access-point-oper`.
+Reads `ap-operation-state` – enumeration of `Cisco-IOS-XE-wireless-access-point-oper`.
 
 | Value | Spelling          |
 | :---- | :---------------- |
@@ -40,9 +58,9 @@ Reads `ap-operation-state` — enumeration of `Cisco-IOS-XE-wireless-access-poin
 | 5     | `downloading`     |
 | 6     | `pre-downloading` |
 
-### `wnc_ap_last_discovery_failure_reason`
+### wnc_ap_last_discovery_failure_reason
 
-Reads `last-disc-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
+Reads `last-disc-failure-type` – enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
 
 | Value | Spelling                               |
 | :---- | :------------------------------------- |
@@ -66,9 +84,9 @@ Reads `last-disc-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-glob
 | 17    | `disc-fail-req-migr-off-disabled`      |
 | 18    | `disc-fail-req-migr-off-l2-disabled`   |
 
-### `wnc_ap_last_join_failure_reason`
+### wnc_ap_last_join_failure_reason
 
-Reads `last-join-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
+Reads `last-join-failure-type` – enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
 
 | Value | Spelling                         |
 | :---- | :------------------------------- |
@@ -115,9 +133,9 @@ Reads `last-join-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-glob
 | 40    | `jf-invalid-mtu`                 |
 | 41    | `jf-dtls-version`                |
 
-### `wnc_ap_last_config_failure_reason`
+### wnc_ap_last_config_failure_reason
 
-Reads `last-config-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
+Reads `last-config-failure-type` – enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
 
 | Value | Spelling                     |
 | :---- | :--------------------------- |
@@ -136,9 +154,9 @@ Reads `last-config-failure-type` — enumeration of `Cisco-IOS-XE-wireless-ap-gl
 | 12    | `cf-hw-fail`                 |
 | 13    | `cf-echo-req-fail`           |
 
-### `wnc_ap_last_error_phase`
+### wnc_ap_last_error_phase
 
-Reads `last-error-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
+Reads `last-error-type` – enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`.
 
 | Value | Spelling                   |
 | :---- | :------------------------- |
@@ -150,9 +168,9 @@ Reads `last-error-type` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper
 | 5     | `ap-con-failure-imgdwnld`  |
 | 6     | `ap-con-failure-run`       |
 
-### `wnc_ap_last_dtls_failure_reason`
+### wnc_ap_last_dtls_failure_reason
 
-Reads `ctrl-dtls-failure-type` and `data-dtls-failure-type`, one per `channel` — enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`, and one table serves both because the two leaves share it.
+Reads `ctrl-dtls-failure-type` and `data-dtls-failure-type`, one per `channel` – enumeration of `Cisco-IOS-XE-wireless-ap-global-oper`. One table serves both because the two leaves share it.
 
 | Value | Spelling                   |
 | :---- | :------------------------- |
@@ -167,9 +185,9 @@ Reads `ctrl-dtls-failure-type` and `data-dtls-failure-type`, one per `channel` �
 | 8     | `dtls-hs-unsupp-protocol`  |
 | 9     | `dtls-hs-no-shared-cipher` |
 
-### `wnc_ap_last_reboot_reason`
+### wnc_ap_last_reboot_reason
 
-Reads `reboot-reason` — enumeration of `Cisco-IOS-XE-wireless-types`.
+Reads `reboot-reason` – enumeration of `Cisco-IOS-XE-wireless-types`.
 
 | Value | Spelling                                                |
 | :---- | :------------------------------------------------------ |
@@ -233,9 +251,9 @@ Reads `reboot-reason` — enumeration of `Cisco-IOS-XE-wireless-types`.
 | 57    | `ap-reboot-reason-ap-type-changed-from-cloud-to-capwap` |
 | 58    | `ap-reboot-reason-ap-type-changed-to-wgb`               |
 
-### `wnc_ap_last_disconnect_reason`
+### wnc_ap_last_disconnect_reason
 
-Reads `disconnect-reason` — enumeration of `Cisco-IOS-XE-wireless-types`. Its `unkown` at `0` and `wtp-reboot-dimished-pwr-change` at `38` are the only two misspellings among these twelve enumerations, and the table carries both as the controller sends them.
+Reads `disconnect-reason` – enumeration of `Cisco-IOS-XE-wireless-types`. Its `unkown` at `0` and `wtp-reboot-dimished-pwr-change` at `38` are the only two misspellings among these twelve enumerations. The table carries both as the controller sends them.
 
 | Value | Spelling                               |
 | :---- | :------------------------------------- |
@@ -283,9 +301,9 @@ Reads `disconnect-reason` — enumeration of `Cisco-IOS-XE-wireless-types`. Its 
 
 ## Client Collector
 
-### `wnc_client_state`
+### wnc_client_state
 
-Reads `co-state` — enumeration of `Cisco-IOS-XE-wireless-client-types`.
+Reads `co-state` – enumeration of `Cisco-IOS-XE-wireless-client-types`.
 
 | Value | Spelling                                   |
 | :---- | :----------------------------------------- |
@@ -304,9 +322,9 @@ Reads `co-state` — enumeration of `Cisco-IOS-XE-wireless-client-types`.
 | 12    | `client-status-delete-in-progress`         |
 | 13    | `client-status-deleted`                    |
 
-### `wnc_client_roam_type`
+### wnc_client_roam_type
 
-Reads `dot11-roam-type` — enumeration of `Cisco-IOS-XE-wireless-mobility-types`.
+Reads `dot11-roam-type` – enumeration of `Cisco-IOS-XE-wireless-mobility-types`.
 
 | Value | Spelling                   |
 | :---- | :------------------------- |
@@ -318,9 +336,9 @@ Reads `dot11-roam-type` — enumeration of `Cisco-IOS-XE-wireless-mobility-types
 
 ## WLAN Collector
 
-### `wnc_wlan_pmf_state`
+### wnc_wlan_pmf_state
 
-Reads `pmf-options` — enumeration of `Cisco-IOS-XE-wireless-enum-types`.
+Reads `pmf-options` – enumeration of `Cisco-IOS-XE-wireless-enum-types`.
 
 | Value | Spelling               |
 | :---- | :--------------------- |
@@ -328,9 +346,9 @@ Reads `pmf-options` — enumeration of `Cisco-IOS-XE-wireless-enum-types`.
 | 1     | `apf-vap-pmf-optional` |
 | 2     | `apf-vap-pmf-required` |
 
-### `wnc_wlan_ft_state`
+### wnc_wlan_ft_state
 
-Reads `ft-mode` — enumeration of `Cisco-IOS-XE-wireless-enum-types`.
+Reads `ft-mode` – enumeration of `Cisco-IOS-XE-wireless-enum-types`.
 
 | Value | Spelling                  |
 | :---- | :------------------------ |

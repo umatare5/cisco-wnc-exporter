@@ -1601,7 +1601,7 @@ func TestClientCollector_InfoLabelValues(t *testing.T) {
 		},
 		{
 			// The SSID comes from the dot11 map, which can miss, while the identifier
-			// cannot — so these two labels do not go absent together.
+			// cannot – so these two labels do not go absent together.
 			"wlan_id survives a dot11 record the identifier does not come from",
 			func(d *wnc.WNCDataCache) { d.Dot11OperData = nil },
 			labelWLANID, "1",

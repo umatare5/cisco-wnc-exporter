@@ -40,13 +40,13 @@
       "filter": ["CHANGELOG.md"],
       "combine": "merge",
       "config": {
-        // Release headings accrue and this repository opens each one directly as
-        // `## [vX.Y.Z]`, so only the title is pinned
+        // Release headings accrue, so only the title and the standing section are
+        // pinned and every `## [vX.Y.Z]` below them falls to the wildcard
         "MD043": {
           "match_case": true,
           "headings": [
             "# Changelog",
-            "*"
+            "## [Unreleased]", "*"
           ]
         }
       }
@@ -61,7 +61,6 @@
             "# Contributing",
             "## Development", "*",
             "## Testing", "*",
-            "## Code Style", "*",
             "## Documentation"
           ]
         }
@@ -80,13 +79,14 @@
           "match_case": true,
           "headings": [
             "## Overview", "*",
-            "## Quick Start", "*",
+            "## Architecture", "*",
             "## Supported Versions", "*",
-            "## Collectors", "*",
-            "## Flags", "*",
-            "## Endpoints", "*",
+            "## Installation", "*",
+            "## Quick Start", "*",
+            "## Configuration", "*",
             "## Metrics", "*",
             "## Examples", "*",
+            "## Documentation", "*",
             "## Contributing", "*",
             "## License"
           ]
@@ -103,6 +103,8 @@
             "# Security Policy",
             "## What to Include", "*",
             "## Exposure", "*",
+            "## Endpoints", "*",
+            "## Ingress Paths", "*",
             "## Egress Paths", "*",
             "## Out of Scope"
           ]
@@ -117,7 +119,28 @@
           "match_case": true,
           "headings": [
             "# Documentation",
-            "## Technical Information", "*"
+            "## For Users Docs", "*",
+            "## For Developers Docs"
+          ]
+        }
+      }
+    },
+    {
+      "filter": ["docs/architecture.md"],
+      "combine": "merge",
+      "config": {
+        "MD043": {
+          "match_case": true,
+          "headings": [
+            "# Architecture",
+            "## Scrape Path", "*",
+            "## Endpoints", "*",
+            "## Absence", "*",
+            "## Info Caching", "*",
+            "## Update Schedule", "*",
+            "## Counter Semantics", "*",
+            "## Enumerated States", "*",
+            "## Dashboards"
           ]
         }
       }
@@ -132,7 +155,8 @@
             "# AP Collector",
             "## Metrics", "*",
             "## Labels", "*",
-            "## Specifications"
+            "## Annotations", "*",
+            "## Technical Notes"
           ]
         }
       }
@@ -147,7 +171,8 @@
             "# Client Collector",
             "## Metrics", "*",
             "## Labels", "*",
-            "## Specifications"
+            "## Annotations", "*",
+            "## Technical Notes"
           ]
         }
       }
@@ -162,7 +187,8 @@
             "# WLAN Collector",
             "## Metrics", "*",
             "## Labels", "*",
-            "## Specifications"
+            "## Annotations", "*",
+            "## Technical Notes"
           ]
         }
       }
@@ -177,7 +203,8 @@
             "# Controller Collector",
             "## Metrics", "*",
             "## Labels", "*",
-            "## Specifications"
+            "## Annotations", "*",
+            "## Technical Notes"
           ]
         }
       }
@@ -190,7 +217,8 @@
           "match_case": true,
           "headings": [
             "# Help",
-            "## Notes"
+            "## Flags", "*",
+            "## Technical Notes", "*"
           ]
         }
       }
@@ -205,7 +233,8 @@
             "# Exporter Health",
             "## Metrics", "*",
             "## Labels", "*",
-            "## Specifications"
+            "## Annotations", "*",
+            "## Technical Notes"
           ]
         }
       }

@@ -139,7 +139,7 @@ tests:
         values: "1+0x50"
       # A third AP holds no session and is not reaching the controller either: its
       # record survives in the statistics list with a flat counter. It must stay silent,
-      # which is what pins the rate clause — without this case the rule reduced to
+      # which is what pins the rate clause – without this case the rule reduced to
       # wnc_ap_joined == 0 passes, and that fires for every decommissioned AP forever.
       - series: 'wnc_ap_discovery_requests_total{job="cisco_wnc",instance="localhost:10039",mac="aa:bb:cc:00:00:01"}'
         values: "77+0x50"

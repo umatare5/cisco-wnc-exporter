@@ -69,7 +69,7 @@ func RRMWorstBand(row *rrm.SpectrumAqWorstTable) (string, bool) {
 // radio-oper-data/current-active-band as well: one value domain, so the three spellings
 // below are the three APRadioBand names. Folding the two into one mapping would take the
 // bare string the package comment above records as the defect, and their absence contracts
-// differ anyway — this one reports absence, for the reason RRMWorstBand records, where an
+// differ anyway – this one reports absence, for the reason RRMWorstBand records, where an
 // info label can carry a band named unknown.
 func RRMMainBand(record *rrm.MainData) (string, bool) {
 	switch record.PhyType {
