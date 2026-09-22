@@ -1,8 +1,8 @@
 # Controller Collector
 
-Controller collector focuses on the controller itself rather than on an AP, a client or a WLAN.
-
 ## Metrics
+
+All five rows register behind `--collector.controller.general`, which is the only flag this collector takes.
 
 | Group   | Metric                                                  | Type    | Description                        |
 | :------ | :------------------------------------------------------ | :------ | :--------------------------------- |
@@ -14,45 +14,49 @@ Controller collector focuses on the controller itself rather than on an AP, a cl
 
 ## Labels
 
-Only one series here takes a label, and none of the five identifies a device.
+Only one series here takes a label, and none of the five identifies a device. The `wnc_controller_client_deletes_total` series carries `reason`, whose values are the raw leaf names of `co-client-del-reason`.
 
-| Label    | Series                                | Values                                       |
-| :------- | :------------------------------------ | :------------------------------------------- |
-| `reason` | `wnc_controller_client_deletes_total` | The raw leaf names of `co-client-del-reason` |
-
-**`reason`** is open rather than closed: the exporter iterates the map, whitelisting nothing.
+The `reason` label is open rather than closed. The exporter iterates the map without whitelisting any specific values.
 
 The collector publishes no `info` series and therefore offers nothing to join on.
 
-## Specifications
+## Annotations
 
-The five series come from three data types — `controller_boot_time`, `co_client_del_reason` and `client_roaming_stats` — and each block below records what the series' HELP text leaves unstated.
+The five series come from three data types: `controller_boot_time`, `co_client_del_reason` and `client_roaming_stats`. Each block below records what the series' HELP text leaves unstated.
 
 **`wnc_controller_boot_time_seconds`**
 
-- Withheld on the 1970 sentinel as well as on an omitted leaf, so the HELP text names only half the silence — [Absence](README.md#absence) carries the sentinel rule itself.
-- An instant the wire form cannot express fails the read rather than arriving as a sentinel. Only `wnc_refresh_errors_total{data="controller_boot_time"}` then separates it from a leaf the controller omitted — [Exporter Health](health.md#specifications) carries that series.
-- Neither counter container on this page reports an epoch of its own, so this series is the only reset anchor the four counters below have.
-- It reads the controller's native leaf rather than the derived copy a second model reports. That copy agreed on four of five samples and read a second earlier on the fifth, so do not cross-check the two by equality.
+It is withheld on the 1970 sentinel as well as on an omitted leaf. The HELP text names only half the silence. [Absence](architecture.md#absence) carries the sentinel rule itself.
+
+An instant the wire form cannot express fails the read rather than arriving as a sentinel. Only `wnc_refresh_errors_total{data="controller_boot_time"}` separates it from a leaf the controller omitted. [Exporter Health](health.md#annotations) explains that series.
+
+Neither counter container on this page reports an epoch of its own. This series is the only reset anchor the four counters below have.
+
+It reads the controller's native leaf rather than the derived copy a second model reports. That copy agreed on four of five samples and read a second earlier on the fifth. Do not cross-check the two by equality.
 
 **`wnc_controller_client_deletes_total`**
 
-- Every reason leaf is published, the ones reading zero included, so the series count is fixed per controller rather than growing with the AP or client count. A reason's first non-zero read is therefore a rise on a series that was already there.
-- The operational data carries no per-client, per-AP or per-WLAN equivalent, so correlate a rise with the client and WLAN series by time rather than by a join.
+Every reason leaf is published, including the ones reading zero. The series count is fixed per controller rather than growing with the AP or client count. A reason's first non-zero read is therefore a rise on a series that was already there.
 
-**The three `wnc_controller_client_ap_auth_*_roams_total`**
+The operational data carries no per-client, per-AP or per-WLAN equivalent. Correlate a rise with the client and WLAN series by time rather than by a join.
 
-- Which policy-profile setting excludes a WLAN from these counters is unsettled — local authentication and central association are both candidates, and nothing measured separates the two.
-- The container carries ten further leaves, all reading zero where these three carried a total and two of them duplicating `wnc_wlan_central_association_enabled` and `wnc_wlan_ft_state`, so none of the ten is published.
+**`Three wnc_controller_client_ap_auth_*_roams_total series`**
 
-**The two `wnc_controller_client_ap_auth_dot11i_*_roams_total`**
+Which policy-profile setting excludes a WLAN from these counters is unsettled. Local authentication and central association are both candidates. Nothing measured separates the two.
 
-- Their ratio is **not a key-cache hit rate**: neither counter partitions the total, so a roam the total counted need not fall into either of them.
+The container carries ten further leaves, all reading zero where these three carried a total. Two of them duplicate `wnc_wlan_central_association_enabled` and `wnc_wlan_ft_state`. None of the ten is published.
+
+**`Two wnc_controller_client_ap_auth_dot11i_*_roams_total series`**
+
+Their ratio is not a key-cache hit rate. Neither counter partitions the total. A roam the total counted need not fall into either of them.
 
 **`wnc_refresh_errors_total`**
 
-- A controller or an image that does not carry one of this page's three data types answers `404` — [Absence](README.md#absence) carries why a `404` counts as a failure rather than an absence.
-- Enabling this collector against such a controller raises the counter for that data type indefinitely, so leave it disabled there or exclude all three data types, `controller_boot_time` included:
+A controller or an image that does not carry one of this page's three data types answers `404`. [Absence](architecture.md#absence) explains why a `404` counts as a failure rather than an absence.
+
+## Technical Notes
+
+**Controller API Errors**: Enabling this collector against such a controller raises the counter for that data type indefinitely. Leave it disabled there or exclude all three data types, `controller_boot_time` included:
 
 ```bash
 increase(wnc_refresh_errors_total{data!~"controller_boot_time|co_client_del_reason|client_roaming_stats"}[15m]) > 0
