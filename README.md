@@ -58,7 +58,7 @@ flowchart TB
 
 ## Supported Environment
 
-Cisco Catalyst 9800 Wireless Controller running on:
+Cisco Catalyst 9800 Wireless Network Controller running on:
 
 - **Cisco IOS-XE 17.12.5 or later** – Last verified on 17.12.8
 - **Cisco IOS-XE 17.15.6 or later** – Last verified on 17.15.6
