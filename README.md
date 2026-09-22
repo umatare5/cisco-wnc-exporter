@@ -132,7 +132,7 @@ This exporter uses command-line flags for all configuration.
 
 The `--collector.*` flags toggle these collectors. See the pages below for details.
 
-| Collector                                                | Flag                       | Exposes                                            |
+| Collector                                                | Flag                       | Description                                        |
 | :------------------------------------------------------- | :------------------------- | :------------------------------------------------- |
 | **[AP Collector](docs/collector.ap.md)**                 | `--collector.ap.*`         | RF foundation and radio performance metrics        |
 | **[Client Collector](docs/collector.client.md)**         | `--collector.client.*`     | User experience and connection performance metrics |
@@ -146,7 +146,7 @@ The `--collector.*` flags toggle these collectors. See the pages below for detai
 
 The exporter exposes these endpoints. See [Endpoints](docs/architecture.md#endpoints) for what each status code means.
 
-| Path       | Detail                                          |
+| Path       | Description                                     |
 | :--------- | :---------------------------------------------- |
 | `/`        | Landing page, confirming the exporter is up     |
 | `/metrics` | Metrics endpoint, set by `--web.telemetry-path` |
