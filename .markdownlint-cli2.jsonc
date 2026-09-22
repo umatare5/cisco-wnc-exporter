@@ -40,13 +40,13 @@
       "filter": ["CHANGELOG.md"],
       "combine": "merge",
       "config": {
-        // Release headings accrue, so only the title and the standing section are
-        // pinned and every `## [vX.Y.Z]` below them falls to the wildcard
+        // Release headings accrue, so only the standing section is pinned
         "MD043": {
           "match_case": true,
           "headings": [
             "# Changelog",
-            "## [Unreleased]", "*"
+            "## [Unreleased]",
+            "*"
           ]
         }
       }
@@ -60,8 +60,7 @@
           "headings": [
             "# Contributing",
             "## Development", "*",
-            "## Testing", "*",
-            "## Documentation"
+            "## Testing"
           ]
         }
       }
@@ -80,7 +79,7 @@
           "headings": [
             "## Overview", "*",
             "## Architecture", "*",
-            "## Supported Versions", "*",
+            "## Supported Environment", "*",
             "## Installation", "*",
             "## Quick Start", "*",
             "## Configuration", "*",
