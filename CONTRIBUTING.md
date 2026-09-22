@@ -30,7 +30,3 @@ These points are where this repository's tests depart from the shared approach.
 - **Extend `fullFixtureSnapshot` rather than adding a fixture.** Every collector test reads that one controller snapshot.
 - **Assert absence rather than presence alone.** A data type marked as failed must publish no series the healthy gather did not.
 - **Keep a new family `promlint`-clean.** One test lints every gathered family rather than a sampled few.
-
-## Documentation
-
-The shared guide defines one owner per fact, and [Documentation](README.md#documentation) names the owner of each.

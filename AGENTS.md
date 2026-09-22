@@ -61,7 +61,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `f
 
 Learn the constraints related to external entities, such as network devices, RESTCONF endpoints, and YANG models.
 
-### About the Controller
+### About the controller
 
 How the Catalyst 9800 controller behaves and interacts with the collectors. See also [Architecture](docs/architecture.md).
 
@@ -71,7 +71,7 @@ How the Catalyst 9800 controller behaves and interacts with the collectors. See 
 - **Operational routes carry no hidden defaults.** Every one this exporter reads was byte-identical plain and with `report-all`, which is why the parameter is a configuration-read tool alone.
 - **The controller owns the numbering of every enumeration.** [Enumeration Values](docs/enums.md) records the YANG revision each was read at, because nothing else makes a renumbering detectable.
 
-### About the YANG Models
+### About the YANG models
 
 How the YANG models are interpreted and used in this project.
 
