@@ -6,7 +6,6 @@
     "MD004": { "style": "dash" },
     "MD013": false,
     "MD024": { "siblings_only": true },
-    // Two adjacent GitHub alerts cannot be written without a blank line between them
     "MD028": false,
     "MD029": { "style": "ordered" },
     "MD046": { "style": "fenced" },
