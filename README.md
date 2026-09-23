@@ -81,7 +81,7 @@ Or, download the binaries from [Releases](https://github.com/umatare5/cisco-wnc-
 
 This exporter needs to enable RESTCONF and HTTPS on the Catalyst 9800 Wireless Controller first.
 
-See the [Programmability Configuration Guide, Cisco IOS XE 17.15.x - RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1715/b_1715_programmability_cg/restconf_protocol.html#id_125840) for enabling the features.
+See the [Programmability Configuration Guide, Cisco IOS XE 17.15.x - RESTCONF](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/1715/b_1715_programmability_cg/restconf_protocol.html#id_125840) for enabling them.
 
 ### 1. Generate a Basic Auth token
 
