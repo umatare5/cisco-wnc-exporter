@@ -130,7 +130,7 @@ Notable changes to the metric surface, one section per release, listing the pull
 ## [v0.8.0]
 
 - [#44](https://github.com/umatare5/cisco-wnc-exporter/pull/44) – Record device-side verification rules for YANG and RESTCONF
-- [#52](https://github.com/umatare5/cisco-wnc-exporter/pull/52) – Ship third-party licence notices and prepare the v0.8.0 release
+- [#52](https://github.com/umatare5/cisco-wnc-exporter/pull/52) – Ship third-party license notices and prepare the v0.8.0 release
 
 ## [v0.7.0]
 

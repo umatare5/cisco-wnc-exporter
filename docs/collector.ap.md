@@ -183,7 +183,7 @@ Read capacity from this ratio and from `wnc_ap_clients` rather than from the `lo
 
 **`wnc_ap_rx_utilization_ratio and thirteen counters`**
 
-Every series in the table below read zero on every radio measured while its neighbours in the same container advanced, and the controller CLI agreed. A zero here is in the data the controller holds.
+Every series in the table below read zero on every radio measured while its neighbors in the same container advanced, and the controller CLI agreed. A zero here is in the data the controller holds.
 
 Whether a leaf is maintained turns on model and image. [Update Schedule](architecture.md#update-schedule) carries that rule.
 

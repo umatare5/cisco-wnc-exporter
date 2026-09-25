@@ -396,7 +396,7 @@ var onboardingPhases = []struct {
 // buildWLANOnboardingMap indexes the whole statistics record by WLAN identifier.
 //
 // The four phase counts are current counts rather than cumulative ones: the fifth
-// count in the same record, the clients in the run state, equalled the per-WLAN client
+// count in the same record, the clients in the run state, equaled the per-WLAN client
 // records exactly on every WLAN and in total, which is what types them as gauges.
 // Whether the five partition a WLAN's clients was not measured, so they are not summed
 // with wnc_wlan_clients, which counts only the run state.
