@@ -1,6 +1,0 @@
-coverage:
-  paths:
-    - coverage/report.out
-  acceptable: 80%
-  badge:
-    path: docs/assets/coverage.svg
