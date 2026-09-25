@@ -99,7 +99,7 @@ Zero was observed, and one non-zero reading of at most 1, with no documented dom
 
 **`wnc_client_mcs_index`**
 
-It is parsed out of the rate string the controller spells as `m<index>` followed by the stream count. A `-1` value covers a legacy rate carrying no index, an empty string, and a spelling the parser does not recognise.
+It is parsed out of the rate string the controller spells as `m<index>` followed by the stream count. A `-1` value covers a legacy rate carrying no index, an empty string, and a spelling the parser does not recognize.
 
 It is not bounded at 11, and readings above it were observed. Pair it with `wnc_client_protocol` and `wnc_client_spatial_streams`. The index alone fixes neither the protocol's rate table nor whether the stream count is already inside it.
 

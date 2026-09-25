@@ -77,5 +77,5 @@ How the YANG models are interpreted and used in this project.
 
 - **A YANG model is a design document, not the implementation.** Units, ranges, enum spellings and even the presence of a leaf can differ on a live controller, so confirm each against a RESTCONF response before relying on it.
 - **Arbitrate configuration on the device with `show running-config all`.** It prints the negated form for a feature that is off, so a WLAN with no such line has it on.
-- **Never ask an operational read for the values in force.** Materialising defaults there would defeat the absence guards, and [`CONTRIBUTING.md`](CONTRIBUTING.md) carries the RESTCONF request forms.
+- **Never ask an operational read for the values in force.** Materializing defaults there would defeat the absence guards, and [`CONTRIBUTING.md`](CONTRIBUTING.md) carries the RESTCONF request forms.
 - **A claim in `docs/` is a measurement.** Cite the Go file and line, or the controller reading it came from, rather than restating what a sibling page says.

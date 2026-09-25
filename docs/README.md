@@ -22,7 +22,7 @@ This directory contains the documentation for the exporter's implementation, fea
 
 - **[Exporter Health](health.md)**
 
-  The exporter's own build and refresh metric catalogue.
+  The exporter's own build and refresh metric catalog.
 
 - **[Enumeration Values](enums.md)**
 
