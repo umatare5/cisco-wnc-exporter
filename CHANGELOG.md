@@ -4,6 +4,15 @@ Notable changes to the metric surface, one section per release, listing the pull
 
 ## [Unreleased]
 
+## [v0.15.1]
+
+- [#102](https://github.com/umatare5/cisco-wnc-exporter/pull/102) – Correct README references and restate the supported versions
+- [#103](https://github.com/umatare5/cisco-wnc-exporter/pull/103) – Align the documentation header set with xflow-exporter
+- [#104](https://github.com/umatare5/cisco-wnc-exporter/pull/104) – Consolidate markdownlint-cli2.jsonc comment
+- [#105](https://github.com/umatare5/cisco-wnc-exporter/pull/105) – Rebuild on every make build and keep worktrees on make clean
+- [#106](https://github.com/umatare5/cisco-wnc-exporter/pull/106) – Write American English across the docs and the code comments
+- [#107](https://github.com/umatare5/cisco-wnc-exporter/pull/107) – Render the coverage badge in CI instead of committing it
+
 ## [v0.15.0]
 
 - [#81](https://github.com/umatare5/cisco-wnc-exporter/pull/81) – Sync the CI and pre-commit stack with xflow
@@ -181,7 +190,8 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#42](https://github.com/umatare5/cisco-wnc-exporter/pull/42) – Withdraw two misreported WLAN config series and add a CHANGELOG
 - [#43](https://github.com/umatare5/cisco-wnc-exporter/pull/43) – Bump version from 0.2.0 to 0.3.0
 
-[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.1...HEAD
+[v0.15.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.1
 [v0.15.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.0
 [v0.14.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.1
 [v0.14.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.0
