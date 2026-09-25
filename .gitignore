@@ -17,8 +17,6 @@ testdata/
 # Coverage files
 *.out
 coverage/*
-!coverage/report.out
-!coverage/report.html
 
 # Agent files
 .claude/*
