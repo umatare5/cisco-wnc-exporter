@@ -102,7 +102,7 @@ export WNC_ACCESS_TOKEN="YWRtaW46eW91ci1wYXNzd29yZA=="
 
 ```bash
 docker run -p 10039:10039 -e WNC_CONTROLLER -e WNC_ACCESS_TOKEN \
-  ghcr.io/umatare5/cisco-wnc-exporter:v0.15.0 --collector.ap.general
+  ghcr.io/umatare5/cisco-wnc-exporter:v0.15.1 --collector.ap.general
 ```
 
 ### 4. Scrape the metrics
