@@ -3163,7 +3163,7 @@ func assertRRMRunInstantsWithheldFor24GHz(t *testing.T, byBand map[string]map[st
 
 // gatherAPValuesByBand indexes the band-keyed families of the given modules by the band
 // label. The module set is the caller's, so a family emitted under the wrong module flag
-// is absent here rather than covered by a neighbour's flag.
+// is absent here rather than covered by a neighbor's flag.
 func gatherAPValuesByBand(
 	t *testing.T, data *wnc.WNCDataCache, metrics APMetrics,
 ) map[string]map[string]float64 {

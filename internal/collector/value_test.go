@@ -104,7 +104,7 @@ func TestAllCollectors_GaugeValuesMatchLeaves(t *testing.T) {
 		{"wnc_rrm_worst_channel_air_quality_index_avg", 8102},
 		{"wnc_rrm_worst_channel_interferers", 8103},
 		{"wnc_rrm_worst_channel_number", 11},
-		// Both reset entries of this radio are totalled, not overwritten.
+		// Both reset entries of this radio are totaled, not overwritten.
 		{"wnc_ap_radio_resets_total", 8},
 		// The change count, not one of the three energy or channel leaves beside it.
 		{"wnc_ap_channel_changes_total", 34},
