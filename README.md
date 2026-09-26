@@ -1,9 +1,9 @@
 <div align="center">
 
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/logo_dark.png" width="115px" />
-    <source media="(prefers-color-scheme: light)" srcset="./docs/assets/logo.png" width="115px" />
-    <img alt="cisco-wnc-exporter" src="./docs/assets/logo.png" width="115px" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo_dark.png" width="115px" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="115px" />
+    <img alt="cisco-wnc-exporter" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/logo.png" width="115px" />
   </picture>
 
   <h1>cisco-wnc-exporter</h1>
@@ -236,24 +236,24 @@ Two layer of dashboards are available: The admin-level dashboard and the user-le
 **Admin-level**: Import [`examples/grafana_cisco-wnc-exporter-admin-dashboard.json`](./examples/grafana_cisco-wnc-exporter-admin-dashboard.json) and visualize the metrics.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/cisco-wnc-exporter-admin-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/cisco-wnc-exporter-admin-dashboard.png">
-  <img alt="Grafana admin-level dashboard" src="./docs/assets/cisco-wnc-exporter-admin-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
+  <img alt="Grafana admin-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard.png">
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](./docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture.
+> See [`docs/assets/cisco-wnc-exporter-admin-dashboard_full.png`](https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-admin-dashboard_full.png) for the full capture.
 
 **User-level**: Import [`examples/grafana_cisco-wnc-exporter-user-dashboard.json`](./examples/grafana_cisco-wnc-exporter-user-dashboard.json) and visualize the metrics.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/cisco-wnc-exporter-user-dashboard_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/cisco-wnc-exporter-user-dashboard.png">
-  <img alt="Grafana user-level dashboard" src="./docs/assets/cisco-wnc-exporter-user-dashboard.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
+  <img alt="Grafana user-level dashboard" src="https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard.png">
 </picture>
 
 > [!TIP]
-> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](./docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture.
+> See [`docs/assets/cisco-wnc-exporter-user-dashboard_full.png`](https://raw.githubusercontent.com/umatare5/cisco-wnc-exporter/main/docs/assets/cisco-wnc-exporter-user-dashboard_full.png) for the full capture.
 
 ## Documentation
 
