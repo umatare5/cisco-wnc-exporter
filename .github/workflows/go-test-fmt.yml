@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   fmt:
-    uses: umatare5/common/.github/workflows/go-test-fmt.yml@8044b3c0ce0dce6411ec179c3ec0e675219c117f # v0.21.0
+    uses: umatare5/common/.github/workflows/go-test-fmt.yml@2dc181f4ceb6cd36a063f968d42c22953b554efd # v0.22.0
     with:
       go_version: "1.27.1"
-      golangci_lint_version: "v2.13.2"
+      golangci_lint_version: "v2.14.0"
       golangci_lint_config: ".golangci.yml"
