@@ -4,6 +4,11 @@ Notable changes to the metric surface, one section per release, listing the pull
 
 ## [Unreleased]
 
+## [v0.15.3]
+
+- [#113](https://github.com/umatare5/cisco-wnc-exporter/pull/113) – Update module github.com/umatare5/cisco-ios-xe-wireless-go to v0.11.3
+- [#118](https://github.com/umatare5/cisco-wnc-exporter/pull/118) – Update cisco-ios-xe-wireless-go to v0.11.3 and release v0.15.3
+
 ## [v0.15.2]
 
 - [#109](https://github.com/umatare5/cisco-wnc-exporter/pull/109) – Replace relative paths with absolute paths in README
@@ -201,7 +206,8 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#42](https://github.com/umatare5/cisco-wnc-exporter/pull/42) – Withdraw two misreported WLAN config series and add a CHANGELOG
 - [#43](https://github.com/umatare5/cisco-wnc-exporter/pull/43) – Bump version from 0.2.0 to 0.3.0
 
-[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.2...HEAD
+[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.3...HEAD
+[v0.15.3]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.3
 [v0.15.2]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.2
 [v0.15.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.1
 [v0.15.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.0
