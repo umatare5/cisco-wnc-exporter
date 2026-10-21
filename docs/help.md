@@ -10,7 +10,7 @@ USAGE:
    cisco-wnc-exporter [global options]
 
 VERSION:
-   0.15.1
+   0.15.2
 
 GLOBAL OPTIONS:
    --dry-run                    Validate configuration without starting the server

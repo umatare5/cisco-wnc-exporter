@@ -4,6 +4,17 @@ Notable changes to the metric surface, one section per release, listing the pull
 
 ## [Unreleased]
 
+## [v0.15.2]
+
+- [#109](https://github.com/umatare5/cisco-wnc-exporter/pull/109) – Replace relative paths with absolute paths in README
+- [#110](https://github.com/umatare5/cisco-wnc-exporter/pull/110) – Replace absolute paths with relative paths in README
+- [#111](https://github.com/umatare5/cisco-wnc-exporter/pull/111) – Update all patch dependencies
+- [#112](https://github.com/umatare5/cisco-wnc-exporter/pull/112) – Update all minor dependencies
+- [#114](https://github.com/umatare5/cisco-wnc-exporter/pull/114) – Update module github.com/urfave/cli/v3 to v3.14.0
+- [#115](https://github.com/umatare5/cisco-wnc-exporter/pull/115) – Update all patch dependencies
+- [#116](https://github.com/umatare5/cisco-wnc-exporter/pull/116) – Update module github.com/prometheus/client_golang to v1.25.0
+- [#117](https://github.com/umatare5/cisco-wnc-exporter/pull/117) – Raise the toolchain to Go 1.27.3 and release v0.15.2
+
 ## [v0.15.1]
 
 - [#102](https://github.com/umatare5/cisco-wnc-exporter/pull/102) – Correct README references and restate the supported versions
@@ -190,7 +201,8 @@ Notable changes to the metric surface, one section per release, listing the pull
 - [#42](https://github.com/umatare5/cisco-wnc-exporter/pull/42) – Withdraw two misreported WLAN config series and add a CHANGELOG
 - [#43](https://github.com/umatare5/cisco-wnc-exporter/pull/43) – Bump version from 0.2.0 to 0.3.0
 
-[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/umatare5/cisco-wnc-exporter/compare/v0.15.2...HEAD
+[v0.15.2]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.2
 [v0.15.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.1
 [v0.15.0]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.15.0
 [v0.14.1]: https://github.com/umatare5/cisco-wnc-exporter/releases/tag/v0.14.1
