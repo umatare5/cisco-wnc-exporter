@@ -20,8 +20,8 @@ github.com/prometheus/procfs v0.22.0 h1:6q9+/JL9IKAPbCmBrv9n5O5Ty3NKnciV5X7YGw0o
 github.com/prometheus/procfs v0.22.0/go.mod h1:CvmFr/GVhIjIvWJZW3tgkODBQMRIf0EyWMQLHCHab58=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/umatare5/cisco-ios-xe-wireless-go v0.11.1 h1:fXS8PY1oJwBDi1QFLK+p5cREGrftPE61BnP/B2y4OTE=
-github.com/umatare5/cisco-ios-xe-wireless-go v0.11.1/go.mod h1:A7fzpUKgN51phDmxZG4b6qvOi0utKrMEPa7ZPI62qFc=
+github.com/umatare5/cisco-ios-xe-wireless-go v0.11.3 h1:UZ7ZZFQGtFM7pqYe86OHD6MyzFUx1sxnkR8y8KWks9Y=
+github.com/umatare5/cisco-ios-xe-wireless-go v0.11.3/go.mod h1:A7fzpUKgN51phDmxZG4b6qvOi0utKrMEPa7ZPI62qFc=
 github.com/urfave/cli/v3 v3.14.0 h1:a8414NQlHJs0c/iBsulKLzlES0n/lEAskbL2LKpU4/s=
 github.com/urfave/cli/v3 v3.14.0/go.mod h1:vXn6HxPNccJSzQr2QvwVncOKrgYGIHU0HY5h8B2nQj4=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
